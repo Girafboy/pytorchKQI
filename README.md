@@ -1,7 +1,5 @@
 # KQI-NET
 
-These are the codes that transform the neural network into a graph and calculates its KQI.
+**This is a scheme to calculate the KQI of neural network with low memory overhead.**
 
-_toGraph.py_ implements the graph transformation function for certain neural network layers.
-
-_toKqi.py_ implements aggregation, models as parameters and calculates their KQI.
+Kqin.py file is the actual source code, demo.py file provides interface examples.
