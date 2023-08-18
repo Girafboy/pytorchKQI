@@ -3,78 +3,7 @@ import torch.nn as nn
 import kqinn as kqinn
 
 
-class MLP(nn.Module):
-    def __init__(self):
-        super(MLP, self).__init__()
-        self.layers1 = kqinn.Sequential(
-            kqinn.Linear(in_features = 784, out_features = 512, bias=False),
-            kqinn.Linear(in_features = 512, out_features = 512, bias=False),
-        )
-        self.layers2 = kqinn.Sequential(
-            kqinn.Linear(in_features = 512, out_features = 10, bias=False),
-        )
-    def forward(self, x):
-        x = self.layers1(x)
-        x = self.layers2(x)
 
-        return x
-
-    def graph_size(self, x):
-        # 自上而下
-        x, W = self.layers1.graph_size(x, W=0)
-        x, W = self.layers2.graph_size(x, W)
-        
-        return x, W
-    
-    def Kqi(self, alpha_volumes, W):
-        # 自下而上
-        alpha_volumes, kqi = self.layers2.Kqi(alpha_volumes, W)
-        alpha_volumes, kqi = self.layers1.Kqi(alpha_volumes, W)
-
-        return alpha_volumes, kqi
-
-
-class CNN(nn.Module):
-    def __init__(self):
-        super(CNN, self).__init__()
-        self.layers1 = kqinn.Sequential(
-            # 1x28x28
-            kqinn.Conv2d(in_channels=1,out_channels=2,kernel_size=3,stride=1,padding=1,bias=False),
-            kqinn.ReLU(inplace=True),
-            kqinn.MaxPool2d(kernel_size=2, stride=2),
-
-            kqinn.Conv2d(in_channels=2,out_channels=3,kernel_size=3,stride=1,padding=1,bias=False),
-            kqinn.ReLU(inplace=True),
-            kqinn.MaxPool2d(kernel_size=2, stride=2),
-
-        )
-        self.layers2 = kqinn.Sequential(
-            # 2x14x14
-            kqinn.Linear(in_features = 3*7*7, out_features = 100, bias=False),
-            kqinn.Linear(in_features = 100, out_features = 10, bias=False),
-        )
-
-    def forward(self, x):
-        x = self.layers1(x)
-        x = x.flatten()
-        x = self.layers2(x)
-
-        return x
-    
-    def graph_size(self, x):
-        # 自上而下
-        x, W = self.layers1.graph_size(x, W=0)
-        x = x.flatten()
-        x, W = self.layers2.graph_size(x, W)
-
-        return x, W
-    
-    def Kqi(self, alpha_volumes, W):
-        # 自下而上
-        alpha_volumes, kqi = self.layers2.Kqi(alpha_volumes, W)
-        alpha_volumes, kqi = self.layers1.Kqi(alpha_volumes, W)
-
-        return alpha_volumes, kqi
 
 
 class AlexNet(nn.Module):
@@ -130,19 +59,6 @@ class AlexNet(nn.Module):
 
 
 if __name__ == '__main__':
-
-    # MLP
-    mlp = MLP()
-    x = torch.randn(1*28*28)
-    kqi = kqinn.caculate_Kqi(mlp, x)
-    print("MLP: ", kqi)
-
-    # CNN
-    cnn = CNN()
-    x = torch.randn(1,28,28)
-    k = kqinn.caculate_Kqi(cnn, x)
-    print("CNN: ", k)
-
     # AlexNet
     alexnet = AlexNet()
     x = torch.randn(3,224,224)
