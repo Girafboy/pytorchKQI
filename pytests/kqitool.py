@@ -131,3 +131,12 @@ class DiGraph():
             return -self.__volume[v] / self.__graph_volume * math.log2(self.__volume[v] / self.__graph_volume)
 
         return sum(map(lambda k: -self.__volume[v]/in_deg/self.__graph_volume * math.log2(self.__volume[v]/in_deg/self.__volume[k]), self.predecessors(v)))
+
+
+    def volume(self, v: int) -> float:
+        return self.__volume[v]
+    
+
+    def graph_volume(self) -> float:
+        return self.__graph_volume
+    

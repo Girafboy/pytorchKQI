@@ -6,16 +6,32 @@ class KQI:
     W = 0
 
     def KQI(self, x: torch.Tensor) -> float:
-        KQI.W = 0
+        KQI.W = np.prod(x.shape)
         x = self.KQIforward(x)
 
         volumes, kqi = self.KQIbackward(torch.zeros_like(x), 0)
-        return kqi + sum(map(lambda V: -V / KQI.W * np.log2(V / KQI.W), volumes))
+        kqi += self.KQI_formula(volumes, torch.tensor(KQI.W))
+        print(f'Root: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
+        print(f'Total volume = {KQI.W}')
+        return kqi
 
 
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError(f"Module [{type(self).__name__}] is missing the required \"KQIforward\" function")
+        raise NotImplementedError(f'Module [{type(self).__name__}] is missing the required KQIforward function')
     
 
     def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
-        raise NotImplementedError(f"Module [{type(self).__name__}] is missing the required \"KQIbackward\" function")
+        raise NotImplementedError(f'Module [{type(self).__name__}] is missing the required KQIbackward function')
+    
+
+    def KQI_formula(self, volumes: torch.Tensor, volumes_forward: torch.Tensor) -> float:
+        if volumes.shape != volumes_forward.shape and volumes_forward.dim():
+            raise ValueError(f'Shape of volumes {volumes.shape} is incompatible with volumes_forward {volumes_forward.shape}')
+        if volumes.dim():
+            pos = torch.where(volumes != 0)
+            if volumes_forward.dim():
+                return (- volumes[pos] / KQI.W * np.log2(volumes[pos] / volumes_forward[pos])).sum()
+            else:
+                return (- volumes[pos] / KQI.W * np.log2(volumes[pos] / volumes_forward)).sum()
+        else:
+            return - volumes / KQI.W * np.log2(volumes / volumes_forward) if volumes else 0

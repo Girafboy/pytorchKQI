@@ -54,7 +54,7 @@ def test():
 
     true = true_kqi()
     print(f'KQI = {kqi} (True KQI = {true})')
-    assert abs(kqi - true) / true < 0.01
+    assert abs(kqi - true) / true < 0.0001
 
 
 if __name__ == '__main__':
