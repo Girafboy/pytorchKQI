@@ -1,5 +1,6 @@
 import torch
 import numpy as np 
+import logging
 
 
 class KQI:
@@ -11,8 +12,8 @@ class KQI:
 
         volumes, kqi = self.KQIbackward(torch.zeros_like(x), 0)
         kqi += self.KQI_formula(volumes, torch.tensor(KQI.W))
-        print(f'Root: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
-        print(f'Total volume = {KQI.W}')
+        logging.debug(f'Root: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
+        logging.debug(f'Total volume = {KQI.W}')
         return kqi
 
 

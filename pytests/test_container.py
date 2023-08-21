@@ -1,6 +1,8 @@
 import torch
 import kqinn
 import kqitool
+import logging
+
 
 class MLP(torch.nn.Module, kqinn.KQI):
     def __init__(self) -> None:
@@ -53,7 +55,7 @@ def test():
     kqi = MLP().KQI(torch.randn(1*28*28))
 
     true = true_kqi()
-    print(f'KQI = {kqi} (True KQI = {true})')
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
 

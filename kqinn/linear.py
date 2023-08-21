@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import logging
 
 from .kqi import KQI
 
@@ -13,5 +14,5 @@ class Linear(torch.nn.Linear, KQI):
     def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
         V_ = self.out_features + (volumes / self.in_features).sum()
         kqi += self.KQI_formula(volumes/self.in_features, V_) * self.in_features
-        print(f'Linear: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
+        logging.debug(f'Linear: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
         return torch.ones(self.in_features) * V_, kqi

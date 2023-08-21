@@ -1,7 +1,13 @@
-import numpy as np 
-import torch.nn as nn
+import torch
+import numpy as np
+
+from .kqi import KQI
 
 
-class Dropout(nn.Dropout):
-        def non_callable_method(self):
-            raise TypeError("This method is not callable.")
+class Dropout(torch.nn.Dropout, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        return super().KQIforward(x)
+    
+
+    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
+        return super().KQIbackward(volumes, kqi)

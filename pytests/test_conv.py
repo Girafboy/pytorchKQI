@@ -2,6 +2,8 @@ import torch
 import kqinn
 import kqitool
 import itertools
+import logging
+
 
 class CNN(torch.nn.Module, kqinn.KQI):
     def __init__(self) -> None:
@@ -66,16 +68,16 @@ def true_kqi():
         G.add_node(f'L5_{i}', preds)
 
     kqi = sum(map(lambda k: G.kqi(k) if "L5_" in k else 0, G.nodes()))
-    print(f'L5: KQI={kqi}, node={len([k for k in G.nodes() if "L5_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L5_" in k])}')
+    logging.debug(f'L5: KQI={kqi}, node={len([k for k in G.nodes() if "L5_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L5_" in k])}')
     kqi += sum(map(lambda k: G.kqi(k) if "L4_" in k else 0, G.nodes()))
-    print(f'L4: KQI={kqi}, node={len([k for k in G.nodes() if "L4_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L4_" in k])}')
+    logging.debug(f'L4: KQI={kqi}, node={len([k for k in G.nodes() if "L4_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L4_" in k])}')
     kqi += sum(map(lambda k: G.kqi(k) if "L3_" in k else 0, G.nodes()))
-    print(f'L3: KQI={kqi}, node={len([k for k in G.nodes() if "L3_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L3_" in k])}')
+    logging.debug(f'L3: KQI={kqi}, node={len([k for k in G.nodes() if "L3_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L3_" in k])}')
     kqi += sum(map(lambda k: G.kqi(k) if "L2_" in k else 0, G.nodes()))
-    print(f'L2: KQI={kqi}, node={len([k for k in G.nodes() if "L2_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_" in k])}')
+    logging.debug(f'L2: KQI={kqi}, node={len([k for k in G.nodes() if "L2_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_" in k])}')
     kqi += sum(map(lambda k: G.kqi(k) if "L1_" in k else 0, G.nodes()))
-    print(f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}')
-    print(f'Total volume = {G.graph_volume()}')
+    logging.debug(f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}')
+    logging.debug(f'Total volume = {G.graph_volume()}')
     return sum(map(lambda k: G.kqi(k), G.nodes()))
 
 
@@ -83,7 +85,7 @@ def test():
     kqi = CNN().KQI(torch.randn(1,28,28))
 
     true = true_kqi()
-    print(f'KQI = {kqi} (True KQI = {true})')
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
 
