@@ -13,23 +13,16 @@ cd KQI_NET
 
 #### Python Dependencies
 ```
-python
 pytorch
 numpy
+pytest
 ```
 
 ## Running Tests
 
-To run the example for calculating the KQI of MLP, execute the code:
+To run the test, execute the code:
 ```bash
-cd pytests
-python3 test_linear.py
-```
-
-To run the example for calculating the KQI of CNN, execute the code:
-```bash
-cd pytests
-python3 test_conv.py
+python3 test.py
 ```
 
 ## How to Contribute
