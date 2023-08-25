@@ -42,3 +42,5 @@ from .dropout import Dropout
 #     TransformerEncoderLayer, TransformerDecoderLayer, Transformer
 # from .flatten import Flatten, Unflatten
 # from .channelshuffle import ChannelShuffle
+
+from .kqi_add import kqi_add, Combine
