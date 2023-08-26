@@ -48,7 +48,7 @@ def true_kqi():
         G.add_node(f'L2_{i}-{j}_1', preds)
         G.add_node(f'L2_{i}-{j}_2', preds)
     for i, j in itertools.product(range(13), range(13)):
-        preds = [f'L2_{k1}-{k2}' for k1, k2 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1])]
+        preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1]) for k3 in [1,2]]
         G.add_node(f'L3_{i}-{j}_1', preds)
         G.add_node(f'L3_{i}-{j}_2', preds)
     for i in range(100):
