@@ -11,8 +11,8 @@ class ReLU(torch.nn.ReLU, KQI):
         return self.forward(x)
     
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
+    def KQIbackward(self, volumes: torch.Tensor) -> torch.Tensor:
         volumes_forward = volumes + 1
-        kqi += self.KQI_formula(volumes, volumes_forward)
-        logging.debug(f'ReLU: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
-        return volumes_forward, kqi
+        KQI.kqi += self.KQI_formula(volumes, volumes_forward)
+        logging.debug(f'ReLU: KQI={KQI.kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
+        return volumes_forward

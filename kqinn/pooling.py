@@ -9,5 +9,5 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
         return super().KQIforward(x)
     
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
-        return super().KQIbackward(volumes, kqi)
+    def KQIbackward(self, volumes: torch.Tensor) -> torch.Tensor:
+        return super().KQIbackward(volumes)

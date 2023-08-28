@@ -11,8 +11,8 @@ class Sequential(torch.nn.Sequential, KQI):
 
         return x
         
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
+    def KQIbackward(self, volumes: torch.Tensor) -> torch.Tensor:
         for module in reversed(self):
-            volumes, kqi = module.KQIbackward(volumes, kqi)
+            volumes = module.KQIbackward(volumes)
 
-        return volumes, kqi
+        return volumes

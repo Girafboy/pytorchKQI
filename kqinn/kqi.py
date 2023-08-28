@@ -5,23 +5,26 @@ import logging
 
 class KQI:
     W = 0
+    kqi = 0
 
     def KQI(self, x: torch.Tensor) -> float:
         KQI.W = np.prod(x.shape)
-        x = self.KQIforward(x)
+        KQI.kqi = 0
 
-        volumes, kqi = self.KQIbackward(torch.zeros_like(x), 0)
-        kqi += self.KQI_formula(volumes, torch.tensor(KQI.W))
-        logging.debug(f'Root: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
+        x = self.KQIforward(x)
+        volumes = self.KQIbackward(torch.zeros_like(x))
+        KQI.kqi += self.KQI_formula(volumes, torch.tensor(KQI.W))
+        
+        logging.debug(f'Root: KQI={KQI.kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
         logging.debug(f'Total volume = {KQI.W}')
-        return kqi
+        return KQI.kqi
 
 
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f'Module [{type(self).__name__}] is missing the required KQIforward function')
     
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
+    def KQIbackward(self, volumes: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f'Module [{type(self).__name__}] is missing the required KQIbackward function')
     
 
