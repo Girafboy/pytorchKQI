@@ -1,5 +1,5 @@
 from .kqi import KQI
-from .branch import Branch, Merge, SimplePass
+from .branch import Branch, SimplePass
 
 from .linear import Linear
 # from .linear import Identity, Linear, Bilinear, LazyLinear

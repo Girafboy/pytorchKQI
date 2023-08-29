@@ -14,8 +14,7 @@ class MLP(torch.nn.Module, kqinn.KQI):
 
     def forward(self, x):
         x = self.linear1(x)
-        x1 = self.linear2(x)
-        x = x1 + x
+        x = self.linear2(x) + x
         x = self.linear3(x)
 
         return x
@@ -23,8 +22,8 @@ class MLP(torch.nn.Module, kqinn.KQI):
 
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.linear1.KQIforward(x)
-        x1, x = kqinn.Branch(self.linear2, kqinn.SimplePass()).KQIforward(x)
-        x = kqinn.SimplePass().KQIforward(x1)
+        x1, x2 = kqinn.Branch(kqinn.Sequential(self.linear2, kqinn.SimplePass()), kqinn.SimplePass()).KQIforward(x)
+        x = x1 + x2
         x = self.linear3.KQIforward(x)
         
         return x
@@ -32,8 +31,8 @@ class MLP(torch.nn.Module, kqinn.KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         volume = self.linear3.KQIbackward(volume)
-        volume1 = kqinn.SimplePass().KQIbackward(volume/2)
-        volume = kqinn.Branch(self.linear2, kqinn.SimplePass()).KQIbackward(volume1, volume/2)
+        volume1, volume2 = volume/2, volume/2
+        volume = kqinn.Branch(kqinn.Sequential(self.linear2, kqinn.SimplePass()), kqinn.SimplePass()).KQIbackward(volume1, volume2)
         volume = self.linear1.KQIbackward(volume, volume_backward)
         
         return volume
