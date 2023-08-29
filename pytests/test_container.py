@@ -30,11 +30,11 @@ class MLP(torch.nn.Module, kqinn.KQI):
         return x
     
 
-    def KQIbackward(self, volumes: torch.Tensor) -> torch.Tensor:
-        volumes = self.layers2.KQIbackward(volumes)
-        volumes = self.layers1.KQIbackward(volumes)
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        volume = self.layers2.KQIbackward(volume)
+        volume = self.layers1.KQIbackward(volume, volume_backward)
 
-        return volumes
+        return volume
 
 
 def true_kqi():

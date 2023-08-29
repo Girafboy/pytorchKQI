@@ -12,10 +12,10 @@ class KQI:
         KQI.kqi = 0
 
         x = self.KQIforward(x)
-        volumes = self.KQIbackward(torch.zeros_like(x))
-        KQI.kqi += self.KQI_formula(volumes, torch.tensor(KQI.W))
+        volume = self.KQIbackward(torch.zeros_like(x))
+        KQI.kqi += self.KQI_formula(volume, torch.tensor(KQI.W))
         
-        logging.debug(f'Root: KQI={KQI.kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
+        logging.debug(f'Root: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         logging.debug(f'Total volume = {KQI.W}')
         return KQI.kqi
 
@@ -24,18 +24,18 @@ class KQI:
         raise NotImplementedError(f'Module [{type(self).__name__}] is missing the required KQIforward function')
     
 
-    def KQIbackward(self, volumes: torch.Tensor) -> torch.Tensor:
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         raise NotImplementedError(f'Module [{type(self).__name__}] is missing the required KQIbackward function')
     
 
-    def KQI_formula(self, volumes: torch.Tensor, volumes_forward: torch.Tensor) -> float:
-        if volumes.shape != volumes_forward.shape and volumes_forward.dim():
-            raise ValueError(f'Shape of volumes {volumes.shape} is incompatible with volumes_forward {volumes_forward.shape}')
-        if volumes.dim():
-            pos = torch.where(volumes != 0)
-            if volumes_forward.dim():
-                return (- volumes[pos] / KQI.W * np.log2(volumes[pos] / volumes_forward[pos])).sum()
+    def KQI_formula(self, volume: torch.Tensor, volume_backward: torch.Tensor) -> float:
+        if volume.shape != volume_backward.shape and volume_backward.dim():
+            raise ValueError(f'Shape of volume {volume.shape} is incompatible with volume_backward {volume_backward.shape}')
+        if volume.dim():
+            pos = torch.where(volume != 0)
+            if volume_backward.dim():
+                return (- volume[pos] / KQI.W * np.log2(volume[pos] / volume_backward[pos])).sum()
             else:
-                return (- volumes[pos] / KQI.W * np.log2(volumes[pos] / volumes_forward)).sum()
+                return (- volume[pos] / KQI.W * np.log2(volume[pos] / volume_backward)).sum()
         else:
-            return - volumes / KQI.W * np.log2(volumes / volumes_forward) if volumes else 0
+            return - volume / KQI.W * np.log2(volume / volume_backward) if volume else 0
