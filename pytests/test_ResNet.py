@@ -15,7 +15,7 @@ class ResNet(torch.nn.Module, kqinn.KQI):
             kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
         )
         # 3*8*8
-        self.layers2 = kqinn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.layers2 = kqinn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, dilation=1, bias=False)
         
         self.layers3 = kqinn.Sequential(
             # 3*8*8
@@ -46,9 +46,10 @@ class ResNet(torch.nn.Module, kqinn.KQI):
     def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
         volumes, kqi = self.layers3.KQIbackward(volumes, kqi)
         volumes = volumes.reshape(3,8,8)
-        volumes0, kqi = kqinn.kqi_add().KQIbackward(volumes, kqi)
 
-        volumes, kqi = kqinn.Combine(self.layers2.KQIbackward, kqinn.kqi_add().KQIbackward, volumes0, volumes, kqi)
+        volumes0, _ = kqinn.kqi_add().KQIbackward(volumes, torch.clone(kqi))
+        volumes, kqi = kqinn.Combine(kqinn.kqi_add().KQIbackward, self.layers2.KQIbackward, volumes, volumes0, kqi)
+
         volumes, kqi = self.layers1.KQIbackward(volumes, kqi)
 
         return volumes, kqi
@@ -62,21 +63,41 @@ def true_kqi():
         preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
         G.add_node(f'L2_{i}-{j}_1', preds)
         G.add_node(f'L2_{i}-{j}_2', preds)
+
     for i,j in itertools.product(range(8), range(8)):
         preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1,2]]
         G.add_node(f'L3_{i}-{j}_1', preds)
         G.add_node(f'L3_{i}-{j}_2', preds)
         G.add_node(f'L3_{i}-{j}_3', preds)
+    for i,j in itertools.product(range(8), range(8)):
+        preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i], [j]) for k3 in [1,2,3]]
+        G.add_node(f'L4_{i}-{j}_1', preds)
+        G.add_node(f'L4_{i}-{j}_2', preds)
+        G.add_node(f'L4_{i}-{j}_3', preds)
+    for i,j in itertools.product(range(8), range(8)):
+        preds1 = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i], [j]) for k3 in [1]]
+        preds2 = [f'L4_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i], [j]) for k3 in [1]]
+        G.add_node(f'L5_{i}-{j}_1', preds1+preds2)
+        preds1 = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i], [j]) for k3 in [2]]
+        preds2 = [f'L4_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i], [j]) for k3 in [2]]
+        G.add_node(f'L5_{i}-{j}_2', preds1+preds2)
+        preds1 = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i], [j]) for k3 in [3]]
+        preds2 = [f'L4_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i], [j]) for k3 in [3]]
+        G.add_node(f'L5_{i}-{j}_3', preds1+preds2)
 
     for i in range(100):
-        preds = [f'L3_{k1}-{k2}_{k3}' for k1,k2 in itertools.product(range(8), range(8)) for k3 in [1,2,3]]
-        G.add_node(f'L4_{i}', preds)
+        preds = [f'L5_{k1}-{k2}_{k3}' for k1,k2 in itertools.product(range(8), range(8)) for k3 in [1,2,3]]
+        G.add_node(f'L6_{i}', preds)
 
     for i in range(10):
-        preds = [f'L4_{k}' for k in range(100)]
-        G.add_node(f'L5_{i}', preds)
+        preds = [f'L6_{k}' for k in range(100)]
+        G.add_node(f'L7_{i}', preds)
 
-    kqi = sum(map(lambda k: G.kqi(k) if "L5_" in k else 0, G.nodes()))
+    kqi = sum(map(lambda k: G.kqi(k) if "L7_" in k else 0, G.nodes()))
+    logging.debug(f'L7: KQI={kqi}, node={len([k for k in G.nodes() if "L7_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L7_" in k])}')
+    kqi += sum(map(lambda k: G.kqi(k) if "L6_" in k else 0, G.nodes()))
+    logging.debug(f'L6: KQI={kqi}, node={len([k for k in G.nodes() if "L6_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L6_" in k])}')
+    kqi += sum(map(lambda k: G.kqi(k) if "L5_" in k else 0, G.nodes()))
     logging.debug(f'L5: KQI={kqi}, node={len([k for k in G.nodes() if "L5_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L5_" in k])}')
     kqi += sum(map(lambda k: G.kqi(k) if "L4_" in k else 0, G.nodes()))
     logging.debug(f'L4: KQI={kqi}, node={len([k for k in G.nodes() if "L4_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L4_" in k])}')
@@ -87,12 +108,13 @@ def true_kqi():
     kqi += sum(map(lambda k: G.kqi(k) if "L1_" in k else 0, G.nodes()))
     logging.debug(f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}')
     logging.debug(f'Total volume = {G.graph_volume()}')
+
     return sum(map(lambda k: G.kqi(k), G.nodes()))
 
 
 def test():
     kqi = ResNet().KQI(torch.randn(1,28,28))
-    print(kqi)
+    
     true = true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
