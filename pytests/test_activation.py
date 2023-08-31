@@ -39,12 +39,12 @@ class CNN(torch.nn.Module, kqinn.KQI):
         return x
 
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
-        volumes, kqi = self.layers2.KQIbackward(volumes, kqi)
-        volumes = volumes.reshape(3,8,8)
-        volumes, kqi = self.layers1.KQIbackward(volumes, kqi)
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        volume = self.layers2.KQIbackward(volume)
+        volume = volume.reshape(3,8,8)
+        volume = self.layers1.KQIbackward(volume, volume_backward)
 
-        return volumes, kqi
+        return volume
 
 
 def true_kqi():

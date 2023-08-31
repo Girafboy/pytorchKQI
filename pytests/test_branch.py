@@ -14,7 +14,7 @@ class MLP(torch.nn.Module, kqinn.KQI):
 
     def forward(self, x):
         x = self.linear1(x)
-        x = self.linear2(x)
+        x = self.linear2(x) + x
         x = self.linear3(x)
 
         return x
@@ -22,7 +22,8 @@ class MLP(torch.nn.Module, kqinn.KQI):
 
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.linear1.KQIforward(x)
-        x = self.linear2.KQIforward(x)
+        x1, x2 = kqinn.Branch(kqinn.Sequential(self.linear2, kqinn.SimplePass()), kqinn.SimplePass()).KQIforward(x)
+        x = x1 + x2
         x = self.linear3.KQIforward(x)
         
         return x
@@ -30,7 +31,8 @@ class MLP(torch.nn.Module, kqinn.KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         volume = self.linear3.KQIbackward(volume)
-        volume = self.linear2.KQIbackward(volume)
+        volume1, volume2 = volume/2, volume/2
+        volume = kqinn.Branch(kqinn.Sequential(self.linear2, kqinn.SimplePass()), kqinn.SimplePass()).KQIbackward(volume1, volume2)
         volume = self.linear1.KQIbackward(volume, volume_backward)
         
         return volume
@@ -44,8 +46,10 @@ def true_kqi():
         G.add_node(i, list(range(0, 784)))
     for i in range(784+512, 784+512+512):
         G.add_node(i, list(range(784, 784+512)))
-    for i in range(784+512+512, 784+512+512+10):
-        G.add_node(i, list(range(784+512, 784+512+512)))
+    for i in range(784+512+512, 784+512+512+512):
+        G.add_node(i, [i-512, i-512-512])
+    for i in range(784+512+512+512, 784+512+512+512+10):
+        G.add_node(i, list(range(784+512+512, 784+512+512+512)))
 
     return sum(map(lambda k: G.kqi(k), G.nodes()))
 

@@ -25,7 +25,7 @@ class Conv2d(torch.nn.Conv2d, KQI):
         return x_new
 
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         if self.padding[0] or self.padding[1]:
             volumes_new = torch.zeros(self.input_size)
             _, H, W = volumes.shape
@@ -39,11 +39,14 @@ class Conv2d(torch.nn.Conv2d, KQI):
             for c,i,j in itertools.product(range(self.in_channels), padded_i, padded_j):
                 kqi += self.KQI_formula((volumes[0] / np.prod(self.kernel_size) / self.in_channels), volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
         else:
-            volumes_new = torch.zeros(self.input_size)
-            _, H, W = volumes.shape
+            if volume_backward is None:
+                volume_backward = torch.zeros(self.input_size)
+                _, H, W = volume.shape
+                for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+                    volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
+            
             for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volumes / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
-            for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                kqi += self.KQI_formula((volumes[0] / np.prod(self.kernel_size) / self.in_channels), volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
-        logging.debug(f'Conv2d: KQI={kqi}, node={np.product(volumes.shape)}, volume={volumes.sum()}')
-        return volumes_new, kqi
+                KQI.kqi += self.KQI_formula((volume[0] / np.prod(self.kernel_size) / self.in_channels), volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
+        
+        logging.debug(f'Conv2d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        return volume_backward

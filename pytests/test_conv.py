@@ -42,7 +42,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
         volumes = volumes.reshape(3,9,9)
         volumes, kqi = self.layers1.KQIbackward(volumes, kqi)
 
-        return volumes, kqi
+        return volumes
 
 
 def true_kqi():

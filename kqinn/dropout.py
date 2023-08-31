@@ -9,5 +9,5 @@ class Dropout(torch.nn.Dropout, KQI):
         return super().KQIforward(x)
     
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
-        return super().KQIbackward(volumes, kqi)
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        return super().KQIbackward(volume, volume_backward)

@@ -10,9 +10,12 @@ class Sequential(torch.nn.Sequential, KQI):
             x = module.KQIforward(x)
 
         return x
-        
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
-        for module in reversed(self):
-            volumes, kqi = module.KQIbackward(volumes, kqi)
 
-        return volumes, kqi
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        modules = list(reversed(self))
+        for module in modules[:-1]:
+            volume = module.KQIbackward(volume)
+        volume_backward = modules[-1].KQIbackward(volume, volume_backward)
+
+        return volume_backward
