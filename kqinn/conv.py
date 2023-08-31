@@ -13,8 +13,13 @@ class Conv2d(torch.nn.Conv2d, KQI):
         x_new = self.forward(x)
         assert x_new.shape[-3] == self.out_channels
         if self.padding[0] or self.padding[1]:
-            raise NotImplementedError(f"padding is not supported")
+            padding_values = (self.padding[1],self.padding[1],self.padding[0],self.padding[0])
+            x_padded = torch.nn.functional.pad(x, padding_values)
+            x_new = self.forward(x_padded)
+
+            KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size) * self.in_channels
         else:
+            x_new = self.forward(x)
             KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size) * self.in_channels
 
         return x_new
@@ -22,7 +27,17 @@ class Conv2d(torch.nn.Conv2d, KQI):
 
     def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
         if self.padding[0] or self.padding[1]:
-            raise NotImplementedError(f"padding is not supported")
+            volumes_new = torch.zeros(self.input_size)
+            _, H, W = volumes.shape
+            original_i = range(-self.padding[0], self.kernel_size[0]*self.dilation[0]-self.padding[0], self.dilation[0])
+            padded_i = [value for value in original_i if 0 <= value <= H]
+            original_j = range(-self.padding[1], self.kernel_size[1]*self.dilation[1]-self.padding[1], self.dilation[1])
+            padded_j = [value for value in original_j if 0 <= value <= W]
+            
+            for c,i,j in itertools.product(range(self.in_channels), padded_i, padded_j):
+                volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volumes / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
+            for c,i,j in itertools.product(range(self.in_channels), padded_i, padded_j):
+                kqi += self.KQI_formula((volumes[0] / np.prod(self.kernel_size) / self.in_channels), volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
         else:
             volumes_new = torch.zeros(self.input_size)
             _, H, W = volumes.shape
