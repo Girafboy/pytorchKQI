@@ -28,16 +28,16 @@ class Conv2d(torch.nn.Conv2d, KQI):
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         if self.padding[0] or self.padding[1]:
             volumes_new = torch.zeros(self.input_size)
-            _, H, W = volumes.shape
+            _, H, W = volume.shape
             original_i = range(-self.padding[0], self.kernel_size[0]*self.dilation[0]-self.padding[0], self.dilation[0])
             padded_i = [value for value in original_i if 0 <= value <= H]
             original_j = range(-self.padding[1], self.kernel_size[1]*self.dilation[1]-self.padding[1], self.dilation[1])
             padded_j = [value for value in original_j if 0 <= value <= W]
             
             for c,i,j in itertools.product(range(self.in_channels), padded_i, padded_j):
-                volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volumes / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
+                volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
             for c,i,j in itertools.product(range(self.in_channels), padded_i, padded_j):
-                kqi += self.KQI_formula((volumes[0] / np.prod(self.kernel_size) / self.in_channels), volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
+                kqi += self.KQI_formula((volume[0] / np.prod(self.kernel_size) / self.in_channels), volumes_new[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)

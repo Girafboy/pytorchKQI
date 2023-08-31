@@ -15,7 +15,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
             kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
         )
         self.layers2 = kqinn.Sequential(
-            # 3*8*8
+            # 3x9x9
             kqinn.Linear(in_features = 3*9*9, out_features = 100, bias=False),
             kqinn.Linear(in_features = 100, out_features = 10, bias=False),
         )
@@ -37,12 +37,12 @@ class CNN(torch.nn.Module, kqinn.KQI):
         return x
 
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
-        volumes, kqi = self.layers2.KQIbackward(volumes, kqi)
-        volumes = volumes.reshape(3,9,9)
-        volumes, kqi = self.layers1.KQIbackward(volumes, kqi)
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> (torch.Tensor, float):
+        volume = self.layers2.KQIbackward(volume)
+        volume = volume.reshape(3,9,9)
+        volume = self.layers1.KQIbackward(volume)
 
-        return volumes
+        return volume
 
 
 def true_kqi():
