@@ -15,7 +15,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
             kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
         )
         self.layers2 = kqinn.Sequential(
-            # 3x8x8
+            # 3x9x9
             kqinn.Linear(in_features = 3*9*9, out_features = 100, bias=False),
             kqinn.Linear(in_features = 100, out_features = 10, bias=False),
         )
