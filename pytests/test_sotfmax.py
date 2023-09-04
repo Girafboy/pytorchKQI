@@ -62,21 +62,26 @@ class softMax(torch.nn.Module, kqinn.KQI):
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         volume = self.softMax.KQIbackward(volume)
         volume = self.linear2.KQIbackward(volume)
-        volume = self.linear1.KQIbackward(volume)
+        volume = self.linear1.KQIbackward(volume, volume_backward)
         return volume
 
 def true_kqi():
+    # G = kqitool.DiGraph()
+    # for i in range(0, 256):
+    #     G.add_node(i, [])
+    # for i in range(256, 256+128):
+    #     G.add_node(i, list(range(0, 256)))
+    # for i in range(256+ 128, 258 + 128 + 10):
+    #     G.add_node(i, list(range(256, 256 + 128)))
     G = kqitool.DiGraph()
     for i in range(0, 512):
-        G.add_node(f'L2_{i}', [f'L1'])
-    for i in range(0, 128):
-        preds = [f'L2_{k}' for k in range(0, 512)]
-        G.add_node(f'L3_{i}', preds)
-    for i in range(0, 10):
-        preds = [f'L3_{k}' for k in range(0, 128)]
-        G.add_node(f'L4_{i}', preds)
-    for i in range(0, 10):
-        G.add_node(f'L5_{i}', [f'L4_{i}'])
+        G.add_node(i, [])
+    for i in range(512, 128+512):
+        G.add_node(i, list(range(0, 512)))
+    for i in range(512+128, 128 + 512 + 10):
+        G.add_node(i, list(range(512, 128 + 512)))
+    for i in range(128 + 512 + 10, 128+512+10+10):
+        G.add_node(i, [i - 10])
     return sum(map(lambda k: G.kqi(k), G.nodes()))
 
 # def true_kqi():
