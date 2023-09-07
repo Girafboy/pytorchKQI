@@ -16,7 +16,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
         )
         self.layers2 = kqinn.Sequential(
             # 3x9x9
-            kqinn.Linear(in_features = 3*9*9, out_features = 100, bias=False),
+            kqinn.Linear(in_features = 3*8*8, out_features = 100, bias=False),
             kqinn.Linear(in_features = 100, out_features = 10, bias=False),
         )
 
@@ -39,7 +39,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> (torch.Tensor, float):
         volume = self.layers2.KQIbackward(volume)
-        volume = volume.reshape(3,9,9)
+        volume = volume.reshape(3,8,8)
         volume = self.layers1.KQIbackward(volume)
 
         return volume
@@ -55,14 +55,14 @@ def true_kqi():
         G.add_node(f'L2_{i}-{j}_1', preds)
         G.add_node(f'L2_{i}-{j}_2', preds)
     
-    for i,j in itertools.product(range(9), range(9)):
+    for i,j in itertools.product(range(8), range(8)):
         preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1,2]]
         G.add_node(f'L3_{i}-{j}_1', preds)
         G.add_node(f'L3_{i}-{j}_2', preds)
         G.add_node(f'L3_{i}-{j}_3', preds)
 
     for i in range(100):
-        preds = [f'L3_{k1}-{k2}_{k3}' for k1,k2 in itertools.product(range(9), range(9)) for k3 in [1,2,3]]
+        preds = [f'L3_{k1}-{k2}_{k3}' for k1,k2 in itertools.product(range(8), range(8)) for k3 in [1,2,3]]
         G.add_node(f'L4_{i}', preds)
 
     for i in range(10):
