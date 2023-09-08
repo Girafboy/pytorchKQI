@@ -12,10 +12,11 @@ class CNN(torch.nn.Module, kqinn.KQI):
             # 1x28x28
             kqinn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
             # 3x26x26
-            kqinn.MaxPool2d(kernel_size=2, stride=2)
+            kqinn.MaxPool2d(kernel_size=2, stride=2, padding=1, dilation=1)
         )
         self.layers2 = kqinn.Sequential(
-            kqinn.Linear(in_features=3 * 13 * 13, out_features=100, bias=False),
+            # 3x14x14
+            kqinn.Linear(in_features=3 * 14 * 14, out_features=100, bias=False),
             kqinn.Linear(in_features=100, out_features=10, bias=False),
         )
 
@@ -34,7 +35,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         volume = self.layers2.KQIbackward(volume)
-        volume = volume.reshape(3, 13, 13)
+        volume = volume.reshape(3, 14, 14)
         volume = self.layers1.KQIbackward(volume, volume_backward)
 
         return volume
@@ -49,9 +50,10 @@ def true_kqi():
         G.add_node(f'L2_{i}-{j}_1', preds)
         G.add_node(f'L2_{i}-{j}_2', preds)
         G.add_node(f'L2_{i}-{j}_3', preds)
-    for i, j in itertools.product(range(13), range(13)):
+    for i, j in itertools.product(range(14), range(14)):
         for k3 in [1, 2, 3]:
-            preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1])]
+            preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2-1, i*2], [j*2-1, j*2])
+                     if 0 <= k1 < 14 and 0 <= k2 < 14]
             G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
     for i in range(100):
