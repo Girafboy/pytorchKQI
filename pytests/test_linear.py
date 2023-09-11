@@ -1,7 +1,7 @@
+import logging
 import torch
 import kqinn
 import kqitool
-import logging
 
 
 class MLP(torch.nn.Module, kqinn.KQI):

@@ -1,17 +1,17 @@
+import logging
 import torch
 import kqinn
 import kqitool
-import logging
 
 
-class Dropout(torch.nn.Module, kqinn.KQI):
+class DropoutKQI(torch.nn.Module, kqinn.KQI):
     def __init__(self) -> None:
         super().__init__()
-        self.linear1 = kqinn.Linear(in_features = 100, out_features = 100, bias=False)
-        self.dropout1=torch.nn.Dropout(p=0.5)
-        self.linear2 = kqinn.Linear(in_features = 100, out_features = 100, bias=False)
-        self.dropout2=torch.nn.Dropout(p=0.5)
-        self.linear3 = kqinn.Linear(in_features = 100, out_features = 10, bias=False)
+        self.linear1 = kqinn.Linear(in_features = 784, out_features = 512, bias=False)
+        self.dropout1=kqinn.Dropout(p=0.4)
+        self.linear2 = kqinn.Linear(in_features = 512, out_features = 512, bias=False)
+        self.dropout2=kqinn.Dropout(p=0.3)
+        self.linear3 = kqinn.Linear(in_features = 512, out_features = 10, bias=False)
 
 
     def forward(self, x):
@@ -26,36 +26,38 @@ class Dropout(torch.nn.Module, kqinn.KQI):
 
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.linear1.KQIforward(x)
+        x = self.dropout1.KQIforward(x)
         x = self.linear2.KQIforward(x)
+        x = self.dropout2.KQIforward(x)
         x = self.linear3.KQIforward(x)
         
         return x
     
 
-    def KQIbackward(self, volumes: torch.Tensor, kqi: float) -> (torch.Tensor, float):
-        volumes, kqi = self.linear3.KQIbackward(volumes, kqi)
-        volumes, kqi = self.linear2.KQIbackward(volumes, kqi)
-        volumes, kqi = self.linear1.KQIbackward(volumes, kqi)
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        volume = self.linear3.KQIbackward(volume)
+        volume = self.linear2.KQIbackward(volume)
+        volume = self.linear1.KQIbackward(volume, volume_backward)
         
-        return volumes, kqi
+        return volume
 
 
 def true_kqi():
     G = kqitool.DiGraph()
-    for i in range(0, 100):
+    for i in range(0, 784):
         G.add_node(i, [])
-    for i in range(100, 100+100):
-        G.add_node(i, list(range(0, 100)))
-    for i in range(100+100, 100+100+100):
-        G.add_node(i, list(range(100, 100+100)))
-    for i in range(100+100+100, 100+100+100+10):
-        G.add_node(i, list(range(100+100, 100+100+100)))
+    for i in range(784, 784+512):
+        G.add_node(i, list(range(0, 784)))
+    for i in range(784+512, 784+512+512):
+        G.add_node(i, list(range(784, 784+512)))
+    for i in range(784+512+512, 784+512+512+10):
+        G.add_node(i, list(range(784+512, 784+512+512)))
 
     return sum(map(lambda k: G.kqi(k), G.nodes()))
 
 
 def test():
-    kqi = Dropout().KQI(torch.randn(1*28*28))
+    kqi = DropoutKQI().KQI(torch.randn(1*28*28))
 
     true = true_kqi()
     
