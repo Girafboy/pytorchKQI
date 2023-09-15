@@ -10,7 +10,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
         super().__init__()
         self.layers1 = kqinn.Sequential(
             # 1x28x28
-            kqinn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+            kqinn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, bias=False),
             # 3x26x26
             kqinn.MaxPool2d(kernel_size=2, stride=2, padding=1, dilation=1)
         )
@@ -53,11 +53,11 @@ def true_kqi():
     for i, j in itertools.product(range(14), range(14)):
         for k3 in [1, 2, 3]:
             preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2-1, i*2], [j*2-1, j*2])
-                     if 0 <= k1 < 14 and 0 <= k2 < 14]
+                     if 0 <= k1 < 26 and 0 <= k2 < 26]
             G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
     for i in range(100):
-        preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(13), range(13)) for k3 in [1, 2, 3]]
+        preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(14), range(14)) for k3 in [1, 2, 3]]
         G.add_node(f'L4_{i}', preds)
     for i in range(10):
         preds = [f'L4_{k}' for k in range(100)]
