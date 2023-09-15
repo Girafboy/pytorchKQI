@@ -14,18 +14,27 @@ class Conv2d(torch.nn.Conv2d, KQI):
         assert x_new.shape[-3] == self.out_channels
         
         if self.padding[0] or self.padding[1]:
-            x_new = self.forward(x)
-           
-            _,H_new,W_new = x_new.shape
-            KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size) * self.in_channels
             
-            connections_to_padding = (4 * (2*self.kernel_size[0]-1)+ (2*H_new+2*W_new-8)*self.kernel_size[0]) * self.out_channels
+            _, H_new, W_new = x_new.shape
             
-            KQI.W -= connections_to_padding
+            KQI.W +=  (H_new - 2*self.padding[0]) * (W_new - 2*self.padding[1]) * np.prod(self.kernel_size) * self.out_channels
+            
+            corner , edge = 0 , 0 
+
+            
+            for i,j in itertools.product(range(self.padding[0]),range(self.padding[1])):
+                
+                corner += 4 * (i+self.kernel_size[0]-self.padding[0]) * (j+self.kernel_size[1]-self.padding[1]) 
+            
+            for i,j in itertools.product(range(self.padding[0]),range(self.padding[1])):    
+            
+                edge += 2 * (H_new-2*self.padding[0]) * self.kernel_size[0] * (j + self.kernel_size[1] - self.padding[1]) + 2 * (W_new - 2 * self.padding[1]) * self.kernel_size[1] *  (i + self.kernel_size[0] - self.padding[0])
+            
+            KQI.W += (corner + edge) * self.out_channels
             
             
         else:
-            x_new = self.forward(x)
+        
             KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size) * self.in_channels
             
         return x_new
@@ -35,59 +44,35 @@ class Conv2d(torch.nn.Conv2d, KQI):
         if self.padding[0] or self.padding[1]:
             if volume_backward is None:
                 
-                volume_backward = torch.zeros(self.input_size)
+                
+                size_backward = (self.input_size[0], self.input_size[1] - 1 + self.kernel_size[0], self.input_size[2] - 1 + self.kernel_size[1])
+
+                volume_backward = torch.zeros(size_backward)
+                
                 _, H, W = volume.shape
 
-                # nodes inside
-                for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(-self.padding[1], self.kernel_size[1]*self.dilation[1]-self.padding[1], self.dilation[1])):
-                    volume_backward[c, self.stride[0]+i:(H-1)*self.stride[0]+i:self.stride[0], self.stride[1]+j:(W-1)*self.stride[0]+j:self.stride[1]] += self.out_channels + (volume[:,1:-1,1:-1] / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
-
-                # nodes in the corner
-                for c, i, j in itertools.product(range(self.in_channels), [0, self.padding[0], H-2*self.padding[0],H-self.padding[0] ], [0, self.padding[1], W-2*self.padding[1], W-self.padding[1]]):
-                    i_offset = 0 if i in [0, self.padding[0]] else H-self.padding[0]
-                    j_offset = 0 if j in [0, self.padding[1]] else W-self.padding[1]
-                    volume_index = (i_offset, j_offset)
-                    volume_backward[c, i, j] += self.out_channels + (volume[:, volume_index[0], volume_index[1]] /4 / self.in_channels).sum(dim=0)
+                degree = torch.zeros(size_backward)
+                
+                for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+                    degree[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += 1
+                
+                degree = degree[:,self.padding[0]:-self.padding[0],self.padding[1]:-self.padding[1]]
                 
                 
-                # nodes on the sides  
-                for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(-1, self.kernel_size[1]*self.dilation[1]-1, self.dilation[1])):
-                    
-                    volume_backward[c, i , self.stride[1]+j:(W-1)*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume[:,0,self.padding[1]:W-self.padding[1]] / 6 / self.in_channels).sum(dim=0)
-                for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-2, self.dilation[0]), range(-1, self.kernel_size[1]*self.dilation[1]-1, self.dilation[1])):
-                    
-                    volume_backward[c, H-self.padding[0]+i , self.stride[1]+j:(W-1)*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume[:,27,1:27] / 6 / self.in_channels).sum(dim=0)
-                for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1]-1, self.dilation[1])):
-                    
-                    volume_backward[c, self.stride[0]+i:(H-1)*self.stride[0]+i:self.stride[0] ,j] += self.out_channels + (volume[:,1:27,0] / 6 / self.in_channels).sum(dim=0)
-                for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(-1, self.kernel_size[1]*self.dilation[1]-2, self.dilation[1])):
-                    
-                    volume_backward[c, self.stride[0]+i:(H-1)*self.stride[0]+i:self.stride[0] ,W-self.padding[1]+j] += self.out_channels + (volume[:,1:27,27] / 6 / self.in_channels).sum(dim=0)
-
-
-
-            for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(-1, self.kernel_size[1]*self.dilation[1]-1, self.dilation[1])):
-
-                KQI.kqi += self.KQI_formula((volume[0,1:27,1:27] / np.prod(self.kernel_size) / self.in_channels), volume_backward[c, 1+i:H-1+i, 1+j:W-1+j]) * self.out_channels
+                for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+                    volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
+                
+                
+                volume_backward = volume_backward[:,self.padding[0]:-self.padding[0],self.padding[1]:-self.padding[1]]
             
-            for c, i, j in itertools.product(range(self.in_channels), [0, self.padding[0], H-2*self.padding[0],H-self.padding[0] ], [0, self.padding[1], W-2*self.padding[1], W-self.padding[1]]):
-                i_offset = 0 if i in [0, self.padding[0]] else H-self.padding[0]
-                j_offset = 0 if j in [0, self.padding[1]] else W-self.padding[1]
-                volume_index = (i_offset, j_offset)
-                KQI.kqi += self.KQI_formula((volume[0, volume_index[0], volume_index[1]] / 4 / self.in_channels), volume_backward[c, i,j]) * self.out_channels
+            for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+                volume_back_virtuel = torch.zeros(size_backward)
             
-            for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(-1, self.kernel_size[1]*self.dilation[1]-1, self.dilation[1])):
-                KQI.kqi += self.KQI_formula((volume[0,0,1:27]/ 6 / self.in_channels), volume_backward[c, i  , 1+j:27+j]) * self.out_channels
-            for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-2, self.dilation[0]), range(-1, self.kernel_size[1]*self.dilation[1]-1, self.dilation[1])):
-                KQI.kqi += self.KQI_formula((volume[0,27,1:27]/ 6 / self.in_channels), volume_backward[c, 27+i , 1+j:27+j]) * self.out_channels
+                volume_back_virtuel[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += (volume[0] / degree[0] / self.in_channels)
                 
-            for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1]-1, self.dilation[1])):
-                KQI.kqi += self.KQI_formula((volume[0,1:27,0]/ 6 / self.in_channels), volume_backward[c, 1+i:27+i ,j]) * self.out_channels
-                 
-            for c,i,j in itertools.product(range(self.in_channels), range(-1, self.kernel_size[0]*self.dilation[0]-1, self.dilation[0]), range(-1, self.kernel_size[1]*self.dilation[1]-2, self.dilation[1])):
-                KQI.kqi += self.KQI_formula((volume[0,1:27,27]/ 6 / self.in_channels), volume_backward[c, 1+i:27+i ,27+j]) * self.out_channels
-          
-
+                volume_back_virtuel[c, ]
+                KQI.kqi += self.KQI_formula((volume[0] / degree[0] / self.in_channels), volume_back_virtuel[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
+                
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
@@ -98,6 +83,6 @@ class Conv2d(torch.nn.Conv2d, KQI):
             for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
 
                 KQI.kqi += self.KQI_formula((volume[0] / np.prod(self.kernel_size) / self.in_channels), volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
-        
+                
         logging.debug(f'Conv2d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         return volume_backward
