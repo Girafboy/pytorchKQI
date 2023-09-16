@@ -68,8 +68,9 @@ class SoftMax(torch.nn.Softmax, KQI):
                             kqi = - volume_fal[A].item() / per_tensor_size / KQI.W * np.log2(
                                 volume_fal[A].item() / per_tensor_size / volume_backward_fal[B].item())
                             KQI.kqi += kqi
-        volume_backward_fal.reshape(self.input_size)
-        volume_fal.reshape(self.input_size)
+        volume_backward = volume_backward_fal.reshape(self.input_size)
+        volume = volume_fal.reshape(self.input_size)
+        print(volume_backward)
         # print(f'KQI={KQI.kqi}')
         logging.debug(f'SoftMax: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         return volume_backward
