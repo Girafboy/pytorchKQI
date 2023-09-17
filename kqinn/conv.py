@@ -70,7 +70,8 @@ class Conv2d(torch.nn.Conv2d, KQI):
             
                 volume_back_virtuel[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += (volume[0] / degree[0] / self.in_channels)
                 
-                volume_back_virtuel[c, ]
+                volume_back_virtuel[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]][max(0,self.padding[0]-i):min(H,H-i+self.padding[0]), max(0,self.padding[0]-j):min(W,W-j+self.padding[1])]= volume_backward[c, max(0,i-self.padding[0]):min(H,H+i-self.padding[0]),max(0,j-self.padding[1]):min(W,W+j-self.padding[1])]
+               
                 KQI.kqi += self.KQI_formula((volume[0] / degree[0] / self.in_channels), volume_back_virtuel[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
                 
         else:
