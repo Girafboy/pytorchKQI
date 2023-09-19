@@ -16,13 +16,12 @@ class Conv2d(torch.nn.Conv2d, KQI):
         if self.padding[0] or self.padding[1]:
             
             _, H, W = x_new.shape
-            x_padding_size = (x.shape[0], x.shape[1]+2*self.padding[0], x.shape[2]+2*self.padding[1])
-            degree = torch.zeros(x_padding_size)
+            
+            degree = torch.zeros_like(x_new)
             
             for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                degree[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += 1
+                degree[c, max(0,i-self.padding[0]):min(H,H+i-self.padding[0]),max(0,j-self.padding[1]):min(W,W+j-self.padding[1])] += 1
             
-            degree = degree[:,self.padding[0]:-self.padding[0],self.padding[1]:-self.padding[1]]
             
             KQI.W += degree.sum()*self.out_channels
             
