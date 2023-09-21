@@ -79,8 +79,8 @@ def true_kqi():
     logging.debug(f'L2: KQI={kqi}, node={len([k for k in G.nodes() if "L2_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_" in k])}')
     kqi += sum(map(lambda k: G.kqi(k) if "L1_" in k else 0, G.nodes()))
     logging.debug(f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}') 
-    
     logging.debug(f'Total volume = {G.graph_volume()}')
+
     return sum(map(lambda k: G.kqi(k), G.nodes()))
 
 

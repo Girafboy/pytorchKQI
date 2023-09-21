@@ -3,80 +3,63 @@ import numpy as np
 import itertools
 import logging
 import math
+
 from .kqi import KQI
 
 
 class Conv2d(torch.nn.Conv2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.input_size = x.shape
-
         x_new = self.forward(x)
-        assert x_new.shape[-3] == self.out_channels
-        
+
         if self.padding[0] or self.padding[1]:
-            
-            _, H_new, W_new = x_new.shape
-            _, H, W = x.shape
-            degree = torch.zeros_like(x_new)
-            
-            for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                
-                degree[c, max(0,math.ceil((self.padding[0]-i)/self.stride[0])):min(H_new,(H-i-1+self.padding[0])//self.stride[0]+1),max(0,math.ceil((self.padding[1]-j)/self.stride[1])):min(W_new,(W-j-1+self.padding[1])//self.stride[1]+1)] += 1
-                print(degree)
-            
-            KQI.W += degree.sum()*self.out_channels
-            
+            degree = self._degree(x.shape, x_new.shape)
+            KQI.W += degree.sum() * self.out_channels
         else:
-        
             KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size) * self.in_channels
-            
+
         return x_new
 
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        _, H, W = volume.shape
+        
         if self.padding[0] or self.padding[1]:
-            
-            
+            volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1]+2*self.padding[0],  self.input_size[2]+2*self.padding[1]))
             if volume_backward is None:
-                _, H, W = volume.shape
-                H_backward, W_backward = self.input_size[1], self.input_size[2]
-
-                size_backward = (self.input_size[0], H_backward+2*self.padding[0],  W_backward+2*self.padding[1])
-                volume_backward = torch.zeros(size_backward)
-                
-
-                degree = torch.zeros_like(volume)
-            
+                degree = self._degree(self.input_size, volume.shape)
                 for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+                    volume_back_padding[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
+                volume_backward = volume_back_padding[:,self.padding[0]:-self.padding[0],self.padding[1]:-self.padding[1]].clone()
                 
-                    degree[c, max(0,math.ceil((self.padding[0]-i)/self.stride[0])):min(H,(H_backward-1-i+self.padding[0])//self.stride[0]+1),max(0,math.ceil((self.padding[1]-j)/self.stride[1])):min(W,(W_backward-1-j+self.padding[1])//self.stride[1]+1)] += 1
-                
-                for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                    volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / degree[0] / self.in_channels).sum(dim=0)
-                
-                
-                volume_backward = volume_backward[:,self.padding[0]:-self.padding[0],self.padding[1]:-self.padding[1]]
-                
-
-            for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                volume_back_virtual = torch.zeros(size_backward)
-            
-                volume_back_virtual[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += (volume[0] / degree[0] / self.in_channels)
-                
-                volume_back_virtual[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]][max(0,self.padding[0]-i):min(H,H-i+self.padding[0]), max(0,self.padding[1]-j):min(W,W-j+self.padding[1])]= volume_backward[c, max(0,i-self.padding[0]):min(H,H+i-self.padding[0]),max(0,j-self.padding[1]):min(W,W+j-self.padding[1])]
-               
-                KQI.kqi += self.KQI_formula((volume[0] / degree[0] / self.in_channels), volume_back_virtual[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
-                
+            for cin, cout,i,j in itertools.product(range(self.in_channels), range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+                reference = volume_back_padding[cin, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]
+                reference = volume[cout] / degree / self.in_channels
+                reference[max(0,self.padding[0]-i):min(H,H-i+self.padding[0]), max(0,self.padding[1]-j):min(W,W-j+self.padding[1])] = volume_backward[cin, max(0,i-self.padding[0]):min(H,H+i-self.padding[0]), max(0,j-self.padding[1]):min(W,W+j-self.padding[1])]
+                KQI.kqi += self.KQI_formula((volume[cout] / degree / self.in_channels), reference)
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                _, H, W = volume.shape
                 for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
                     volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
-                    
-            for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-
-                KQI.kqi += self.KQI_formula((volume[0] / np.prod(self.kernel_size) / self.in_channels), volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]]) * self.out_channels
-                
+            
+            for cin, cout,i,j in itertools.product(range(self.in_channels), range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+                KQI.kqi += self.KQI_formula((volume[cout] / np.prod(self.kernel_size) / self.in_channels), volume_backward[cin, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]])
+        
         logging.debug(f'Conv2d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+    
+
+    def _degree(self, input_size, output_size):
+        _, HI, WI = input_size
+        _, HO, WO = output_size
+
+        degree = torch.zeros(HO, WO)
+        for i,j in itertools.product(range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+            Hleft = max(0, math.ceil((self.padding[0]-i) / self.stride[0]))
+            Hright = min(HO, math.ceil((HI-i+self.padding[0]) / self.stride[0]))
+            Wleft = max(0, math.ceil((self.padding[1]-j) / self.stride[1]))
+            Wright = min(WO, math.ceil((WI-j+self.padding[1]) / self.stride[1]))
+            degree[Hleft:Hright, Wleft:Wright] += 1
+
+        return degree
