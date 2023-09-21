@@ -21,8 +21,8 @@ class Conv2d(torch.nn.Conv2d, KQI):
             
             for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
                 
-                degree[c, max(0,math.ceil((self.padding[0]-i)/self.stride[0])):min(H_new,(H-i+self.padding[0])//self.stride[0]),max(0,math.ceil((self.padding[1]-j)/self.stride[1])):min(W_new,(W-j+self.padding[1])//self.stride[1])] += 1
-            
+                degree[c, max(0,math.ceil((self.padding[0]-i)/self.stride[0])):min(H_new,(H-i-1+self.padding[0])//self.stride[0]+1),max(0,math.ceil((self.padding[1]-j)/self.stride[1])):min(W_new,(W-j-1+self.padding[1])//self.stride[1]+1)] += 1
+                print(degree)
             
             KQI.W += degree.sum()*self.out_channels
             
@@ -49,7 +49,7 @@ class Conv2d(torch.nn.Conv2d, KQI):
             
                 for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
                 
-                    degree[c, max(0,math.ceil((self.padding[0]-i)/self.stride[0])):min(H,(H_backward-i+self.padding[0])//self.stride[0]),max(0,math.ceil((self.padding[1]-j)/self.stride[1])):min(W,(W_backward-j+self.padding[1])//self.stride[1])] += 1
+                    degree[c, max(0,math.ceil((self.padding[0]-i)/self.stride[0])):min(H,(H_backward-1-i+self.padding[0])//self.stride[0]+1),max(0,math.ceil((self.padding[1]-j)/self.stride[1])):min(W,(W_backward-1-j+self.padding[1])//self.stride[1]+1)] += 1
                 
                 for c,i,j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
                     volume_backward[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / degree[0] / self.in_channels).sum(dim=0)
