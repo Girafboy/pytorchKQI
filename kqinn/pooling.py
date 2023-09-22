@@ -30,23 +30,22 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
         _, H, W = volume.shape
 
         if self.padding[0] or self.padding[1]:
-            volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0],
-                                               self.input_size[2] + 2 * self.padding[1]))
+            volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1]))
             if volume_backward is None:
                 degree = self._degree(self.input_size, volume.shape)
                 for c, i, j in itertools.product(range(volume.size(0)),
                                                  range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]),
                                                  range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + (volume / degree / volume.size(0)).sum(dim=0)
+                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + (volume / degree/ volume.size(0)).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
             for c, i, j in itertools.product(range(volume.size(0)),
                                                      range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]),
                                                      range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
                 reference = volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]]
-                reference = volume[c] / degree
+                reference = volume[0] / degree
                 reference[max(0,self.padding[0]-i):min(H,H-i+self.padding[0]), max(0,self.padding[1]-j):min(W,W-j+self.padding[1])] = volume_backward[c, max(0,i-self.padding[0]):min(H,H+i-self.padding[0]), max(0,j-self.padding[1]):min(W,W+j-self.padding[1])]
-                KQI.kqi += self.KQI_formula((volume[c] / degree ), reference)
+                KQI.kqi += self.KQI_formula((volume[0] / degree), reference)
 
         else:
             if volume_backward is None:
