@@ -14,7 +14,7 @@ class Conv2d(torch.nn.Conv2d, KQI):
 
         if self.padding[0] or self.padding[1]:
             degree = self._degree(x.shape, x_new.shape)
-            KQI.W += degree.sum() * self.out_channels
+            KQI.W += degree.sum() * self.out_channels * self.in_channels
         else:
             KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size) * self.in_channels
 

@@ -10,7 +10,7 @@ class CNN(torch.nn.Module, kqinn.KQI):
         super().__init__()
         self.layers1 = kqinn.Sequential(
             # 1x28x28
-            kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=1, dilation=1, bias=False),
+            kqinn.Conv2d(in_channels=3, out_channels=2, kernel_size=3, stride=1, padding=1, dilation=1, bias=False),
             # 2x28x28
             kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
         )
@@ -48,10 +48,12 @@ class CNN(torch.nn.Module, kqinn.KQI):
 def true_kqi():
     G = kqitool.DiGraph()
     for i,j in itertools.product(range(28), range(28)):
-        G.add_node(f'L1_{i}-{j}', []) 
+        G.add_node(f'L1_{i}-{j}_1', []) 
+        G.add_node(f'L1_{i}-{j}_2', []) 
+        G.add_node(f'L1_{i}-{j}_3', []) 
         
     for i,j in itertools.product(range(28), range(28)):
-        preds = [f'L1_{k1}-{k2}' for k1,k2 in itertools.product([i-1,i,i+1], [j-1,j,j+1]) if k1>=0 and k1<28 and k2>=0 and k2<28]
+        preds = [f'L1_{k1}-{k2}_{k3}' for k1,k2 in itertools.product([i-1,i,i+1], [j-1,j,j+1]) if k1>=0 and k1<28 and k2>=0 and k2<28 for k3 in [1,2,3]]
         G.add_node(f'L2_{i}-{j}_1', preds)
         G.add_node(f'L2_{i}-{j}_2', preds)
     
@@ -85,7 +87,7 @@ def true_kqi():
 
 
 def test():
-    kqi = CNN().KQI(torch.randn(1,28,28))
+    kqi = CNN().KQI(torch.randn(3,28,28))
 
     true = true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
