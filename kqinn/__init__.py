@@ -7,7 +7,7 @@ from .conv import Conv2d
 # from .conv import Conv1d, Conv2d, Conv3d, \
 #     ConvTranspose1d, ConvTranspose2d, ConvTranspose3d, \
 #     LazyConv1d, LazyConv2d, LazyConv3d, LazyConvTranspose1d, LazyConvTranspose2d, LazyConvTranspose3d
-from .activation import ReLU
+from .activation import ReLU, Tanh
 # from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
 #     Softmax, Softmax2d, LogSoftmax, ELU, SELU, CELU, GELU, Hardshrink, LeakyReLU, LogSigmoid, \
 #     Softplus, Softshrink, MultiheadAttention, PReLU, Softsign, Softmin, Tanhshrink, RReLU, GLU, \
@@ -32,6 +32,7 @@ from .dropout import Dropout
 # from .padding import ReflectionPad1d, ReflectionPad2d, ReflectionPad3d, ReplicationPad1d, ReplicationPad2d, \
 #     ReplicationPad3d, ZeroPad2d, ConstantPad1d, ConstantPad2d, ConstantPad3d
 # from .sparse import Embedding, EmbeddingBag
+from .rnn import RNN
 # from .rnn import RNNBase, RNN, LSTM, GRU, \
 #     RNNCellBase, RNNCell, LSTMCell, GRUCell
 # from .pixelshuffle import PixelShuffle, PixelUnshuffle

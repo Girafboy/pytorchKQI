@@ -5,7 +5,7 @@ import itertools
 import logging
 
 
-class CNN(torch.nn.Module, kqinn.KQI):
+class CNN_ReLU(torch.nn.Module, kqinn.KQI):
     def __init__(self) -> None:
         super().__init__()
         self.layers1 = kqinn.Sequential(
@@ -46,6 +46,46 @@ class CNN(torch.nn.Module, kqinn.KQI):
 
         return volume
 
+class CNN_Tanh(torch.nn.Module, kqinn.KQI):
+    def __init__(self) -> None:
+        super().__init__()
+        self.layers1 = kqinn.Sequential(
+            # 1x28x28
+            kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+            kqinn.Tanh(),
+            # 2x26*26
+            kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+            kqinn.Tanh(),
+        )
+        self.layers2 = kqinn.Sequential(
+            # 3*8*8
+            kqinn.Linear(in_features = 3*8*8, out_features = 100, bias=False),
+            kqinn.Linear(in_features = 100, out_features = 10, bias=False),
+        )
+
+
+    def forward(self, x):
+        x = self.layers1(x)
+        x = x.flatten()
+        x = self.layers2(x)
+
+        return x
+
+
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.layers1.KQIforward(x)
+        x = x.flatten()
+        x = self.layers2.KQIforward(x)
+
+        return x
+
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        volume = self.layers2.KQIbackward(volume)
+        volume = volume.reshape(3,8,8)
+        volume = self.layers1.KQIbackward(volume, volume_backward)
+
+        return volume
 
 def true_kqi():
     G = kqitool.DiGraph()
@@ -80,8 +120,12 @@ def true_kqi():
 
 
 def test():
-    kqi = CNN().KQI(torch.randn(1,28,28))
+    kqi = CNN_ReLU().KQI(torch.randn(1,28,28))
+    true = true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
 
+    kqi = CNN_Tanh().KQI(torch.randn(1,28,28))
     true = true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
