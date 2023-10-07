@@ -16,9 +16,9 @@ class DropoutKQI(torch.nn.Module, kqinn.KQI):
 
     def forward(self, x):
         x = self.linear1(x)
-        x=self.dropout1(x)
+        x = self.dropout1(x)
         x = self.linear2(x)
-        x=self.dropout2(x)
+        x = self.dropout2(x)
         x = self.linear3(x)
 
         return x
@@ -36,7 +36,9 @@ class DropoutKQI(torch.nn.Module, kqinn.KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         volume = self.linear3.KQIbackward(volume)
+        volume=self.dropout2.KQIbackward(volume)
         volume = self.linear2.KQIbackward(volume)
+        volume=self.dropout1.KQIbackward(volume)
         volume = self.linear1.KQIbackward(volume, volume_backward)
         
         return volume
