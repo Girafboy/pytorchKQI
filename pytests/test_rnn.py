@@ -17,7 +17,6 @@ def test_RNN():
             out = out[-1, :]
             out = self.fc(out)
             return out
-        
 
         def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
             self.length = x.shape[0]
@@ -25,7 +24,6 @@ def test_RNN():
             x = x[-1, :]
             x = self.fc.KQIforward(x)
             return x
-
 
         def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
             volume = self.fc.KQIbackward(volume)
@@ -36,7 +34,6 @@ def test_RNN():
 
             return volume_backward
     
-
         def true_kqi(self):
             G = kqitool.DiGraph()
 
