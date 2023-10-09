@@ -3,7 +3,7 @@ from .branch import Branch, SimplePass
 
 from .linear import Linear
 # from .linear import Identity, Linear, Bilinear, LazyLinear
-from .conv import Conv2d
+from .conv import Conv2d, Conv3d
 # from .conv import Conv1d, Conv2d, Conv3d, \
 #     ConvTranspose1d, ConvTranspose2d, ConvTranspose3d, \
 #     LazyConv1d, LazyConv2d, LazyConv3d, LazyConvTranspose1d, LazyConvTranspose2d, LazyConvTranspose3d
