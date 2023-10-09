@@ -61,6 +61,7 @@ class Conv1d(torch.nn.Conv1d, KQI):
             degree[Hleft:Hright] += 1
 
         return degree
+    
 class Conv2d(torch.nn.Conv2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.input_size = x.shape
