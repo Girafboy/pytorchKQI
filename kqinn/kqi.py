@@ -8,12 +8,12 @@ class KQI:
     kqi = 0
 
     def KQI(self, x: torch.Tensor) -> float:
-        KQI.W = np.prod(x.shape)
+        KQI.W = torch.tensor(np.prod(x.shape), dtype=float)
         KQI.kqi = 0
 
         x = self.KQIforward(x)
         volume = self.KQIbackward(torch.zeros_like(x))
-        KQI.kqi += self.KQI_formula(volume, torch.tensor(KQI.W))
+        KQI.kqi += self.KQI_formula(volume, KQI.W)
         
         logging.debug(f'Root: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         logging.debug(f'Total volume = {KQI.W}')
