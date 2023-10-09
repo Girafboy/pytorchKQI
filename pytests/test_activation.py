@@ -165,8 +165,8 @@ def test_Tanh():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
-def test_SoftMax():
-    class TestSoftMax(torch.nn.Module, kqinn.KQI):
+def test_Softmax():
+    class TestSoftmax(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
             self.layers1 = kqinn.Sequential(
@@ -177,9 +177,8 @@ def test_SoftMax():
 
             )
             self.layers2 = kqinn.Sequential(
-                kqinn.SoftMax(dim=1),
-
-                kqinn.SoftMax(dim=2)
+                kqinn.Softmax(dim=1),
+                kqinn.Softmax(dim=2)
             )
 
         def forward(self, x):
@@ -232,8 +231,8 @@ def test_SoftMax():
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
 
-    kqi = TestSoftMax().KQI(torch.randn(1, 28, 28))
-    true = TestSoftMax().true_kqi()
+    kqi = TestSoftmax().KQI(torch.randn(1, 28, 28))
+    true = TestSoftmax().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
     print(kqi)
@@ -242,4 +241,4 @@ def test_SoftMax():
 if __name__ == '__main__':
     test_ReLU()
     test_Tanh()
-    test_SoftMax()
+    test_Softmax()
