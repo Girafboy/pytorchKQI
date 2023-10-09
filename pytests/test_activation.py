@@ -242,3 +242,4 @@ def test_SoftMax():
 if __name__ == '__main__':
     test_ReLU()
     test_Tanh()
+    test_SoftMax()
