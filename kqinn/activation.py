@@ -31,7 +31,7 @@ class Tanh(torch.nn.Tanh, KQI):
         logging.debug(f'Tanh: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
-class SoftMax(torch.nn.Softmax, KQI):
+class Softmax(torch.nn.Softmax, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape) * x.shape[self.dim]
         return self.forward(x)
@@ -43,6 +43,6 @@ class SoftMax(torch.nn.Softmax, KQI):
 
         KQI.kqi += self.KQI_formula(volume / volume.shape[self.dim], volume_backward) * volume.shape[self.dim]
 
-        logging.debug(f'SoftMax: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        logging.debug(f'Softmax: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
