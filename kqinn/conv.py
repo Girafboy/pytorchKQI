@@ -158,7 +158,6 @@ class Conv3d(torch.nn.Conv3d, KQI):
             for cin, cout,i,j,k in itertools.product(range(self.in_channels), range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
                 KQI.kqi += self.KQI_formula((volume[cout] / np.prod(self.kernel_size) / self.in_channels), volume_backward[cin, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1], k:L*self.stride[2]+k:self.stride[2]])
         
-
         logging.debug(f'Conv3d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
         return volume_backward
     
