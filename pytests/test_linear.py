@@ -3,6 +3,7 @@ import kqinn
 import kqitool
 import logging
 
+
 def test_Linear():
     class TestLinear(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
