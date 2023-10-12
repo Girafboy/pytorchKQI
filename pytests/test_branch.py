@@ -21,16 +21,14 @@ def test_Branch():
 
         def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
             x = self.linear1.KQIforward(x)
-            x1, x2 = kqinn.Branch(kqinn.Sequential(self.linear2, kqinn.SimplePass()), kqinn.SimplePass()).KQIforward(x)
-            x = x1 + x2
+            x = kqinn.Branch(self.linear2, kqinn.EmptyModule()).KQIforward(x)
             x = self.linear3.KQIforward(x)
 
             return x
 
         def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
             volume = self.linear3.KQIbackward(volume)
-            volume1, volume2 = volume/2, volume/2
-            volume = kqinn.Branch(kqinn.Sequential(self.linear2, kqinn.SimplePass()), kqinn.SimplePass()).KQIbackward(volume1, volume2)
+            volume = kqinn.Branch(self.linear2, kqinn.EmptyModule()).KQIbackward(volume)
             volume = self.linear1.KQIbackward(volume, volume_backward)
 
             return volume
