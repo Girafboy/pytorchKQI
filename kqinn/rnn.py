@@ -14,24 +14,22 @@ class RNN(torch.nn.RNN, KQI):
 
         return self.forward(x, hx)
 
-
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         volume_layers = [torch.zeros((volume.shape[0], self.hidden_size))] * self.num_layers + [torch.zeros((volume.shape[0], self.input_size))]
         volume_layers[0] = volume
         for volume_fore, volume_back in zip(volume_layers[:-1], volume_layers[1:]):
             self._single_layer_volume(volume_fore, volume_back)
-        
+
         if volume_backward is None:
             volume_backward = volume_layers[-1]
         else:
             volume_layers[-1] = volume_backward
-        
+
         for volume_fore, volume_back in zip(volume_layers[:-1], volume_layers[1:]):
             self._single_layer_kqi(volume_fore, volume_back)
 
-        logging.debug(f'RNN: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        logging.debug(f'RNN: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
-    
 
     def _single_layer_kqi(self, volume_fore, volume_back):
         for i in reversed(range(1, volume_fore.shape[0])):
@@ -48,7 +46,6 @@ class RNN(torch.nn.RNN, KQI):
         # Linear top
         for vol in volume_back[0]:
             KQI.kqi += self.KQI_formula(volume_hidden/volume_back.shape[1], vol)
-
 
     def _single_layer_volume(self, volume_fore, volume_back):
         for i in reversed(range(1, volume_fore.shape[0])):

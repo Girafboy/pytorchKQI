@@ -11,12 +11,11 @@ class SimplePass(torch.nn.Module, KQI):
         KQI.W += np.prod(x.shape)
         return x
 
-
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         if volume_backward is None:
             volume_backward = volume + 1
         KQI.kqi += self.KQI_formula(volume, volume_backward)
-        logging.debug(f'SimplePass: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        logging.debug(f'SimplePass: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
 
@@ -24,10 +23,8 @@ class Branch(KQI):
     def __init__(self, *modules):
         self.modules = modules
 
-    
     def KQIforward(self, x: torch.Tensor) -> Tuple[torch.Tensor]:
         return (module.KQIforward(x) for module in self.modules)
-
 
     def KQIbackward(self, *volumes: Tuple[torch.Tensor]) -> torch.Tensor:
         kqi_snapshot = KQI.kqi.clone()

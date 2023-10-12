@@ -1,7 +1,6 @@
 import torch
 import kqinn
 import kqitool
-import itertools
 import logging
 
 
@@ -12,7 +11,7 @@ def test_RNN():
             self.rnn = kqinn.RNN(input_size=28, hidden_size=32, num_layers=2, bias=False)
             self.fc = kqinn.Linear(32, 10)
 
-        def forward(self, x):  
+        def forward(self, x):
             out, _ = self.rnn(x)
             out = out[-1, :]
             out = self.fc(out)
@@ -33,7 +32,7 @@ def test_RNN():
             volume_backward = self.rnn.KQIbackward(volume_output, volume_backward)
 
             return volume_backward
-    
+
         def true_kqi(self):
             G = kqitool.DiGraph()
 
@@ -81,8 +80,7 @@ def test_RNN():
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
 
-
-    kqi = TestRNN().KQI(torch.randn(3,28))
+    kqi = TestRNN().KQI(torch.randn(3, 28))
     true = TestRNN().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001

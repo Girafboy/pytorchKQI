@@ -9,34 +9,30 @@ def test_Sequential():
         def __init__(self) -> None:
             super().__init__()
             self.layers1 = kqinn.Sequential(
-                kqinn.Linear(in_features = 784, out_features = 512, bias=False),
-                kqinn.Linear(in_features = 512, out_features = 512, bias=False),
+                kqinn.Linear(in_features=784, out_features=512, bias=False),
+                kqinn.Linear(in_features=512, out_features=512, bias=False),
             )
             self.layers2 = kqinn.Sequential(
-                kqinn.Linear(in_features = 512, out_features = 10, bias=False),
+                kqinn.Linear(in_features=512, out_features=10, bias=False),
             )
 
-        
         def forward(self, x):
             x = self.layers1(x)
             x = self.layers2(x)
 
             return x
 
-
         def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
             x = self.layers1.KQIforward(x)
             x = self.layers2.KQIforward(x)
-            
+
             return x
-        
 
         def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
             volume = self.layers2.KQIbackward(volume)
             volume = self.layers1.KQIbackward(volume, volume_backward)
 
             return volume
-
 
         def true_kqi(self):
             G = kqitool.DiGraph()
@@ -50,7 +46,6 @@ def test_Sequential():
                 G.add_node(i, list(range(784+512, 784+512+512)))
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
-
 
     kqi = TestSequential().KQI(torch.randn(1*28*28))
     true = TestSequential().true_kqi()

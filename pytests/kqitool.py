@@ -18,8 +18,8 @@ class DiGraph():
         self.__succ = {node: [succ, ...]}
         decay: Percentage of decay per decade, from 0 to 1.
         '''
-        self.__pred = {}  
-        self.__succ = {}  
+        self.__pred = {}
+        self.__succ = {}
         self.__UPDATE_FLAG = False
         self.__volume = {}
         self.__graph_volume = 0
@@ -81,7 +81,7 @@ class DiGraph():
         try:
             if not self.__UPDATE_FLAG:
                 return self.sorted_list
-        except:
+        except AttributeError:
             pass
 
         indegree_map = {v: self.in_degree(v) for v in self.nodes() if self.in_degree(v) > 0}
@@ -132,11 +132,8 @@ class DiGraph():
 
         return sum(map(lambda k: -self.__volume[v]/in_deg/self.__graph_volume * math.log2(self.__volume[v]/in_deg/self.__volume[k]), self.predecessors(v)))
 
-
     def volume(self, v: int) -> float:
         return self.__volume[v]
-    
 
     def graph_volume(self) -> float:
         return self.__graph_volume
-    

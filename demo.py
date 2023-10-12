@@ -3,9 +3,6 @@ import torch.nn as nn
 import kqinn as kqinn
 
 
-
-
-
 class AlexNet(nn.Module):
     def __init__(self, num_classes=1000):
         super(AlexNet, self).__init__()
@@ -41,7 +38,7 @@ class AlexNet(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc_layers(x)
         return x
-    
+
     def graph_size(self, x):
         # 自上而下
         x, W = self.conv_layers.graph_size(x, W=0)
@@ -49,7 +46,7 @@ class AlexNet(nn.Module):
         x, W = self.fc_layers.graph_size(x, W)
 
         return x, W
-    
+
     def Kqi(self, alpha_volumes, W):
         # 自下而上
         alpha_volumes, kqi = self.fc_layers.Kqi(alpha_volumes, W)
@@ -61,6 +58,6 @@ class AlexNet(nn.Module):
 if __name__ == '__main__':
     # AlexNet
     alexnet = AlexNet()
-    x = torch.randn(3,224,224)
+    x = torch.randn(3, 224, 224)
     kqi = kqinn.caculate_Kqi(alexnet, x)
     print("AlexNet: ", kqi)
