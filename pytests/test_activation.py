@@ -164,7 +164,7 @@ def test_Softmax():
             self.layers1 = kqinn.Sequential(
                 # 1x28x28
                 kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
-                # 2x26*26
+                # 2x26x26
                 kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
 
             )
