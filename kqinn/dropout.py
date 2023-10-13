@@ -1,13 +1,17 @@
 import torch
 import numpy as np
+import logging
 
 from .kqi import KQI
 
 
 class Dropout(torch.nn.Dropout, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-        return super().KQIforward(x)
-    
+        return self.forward(x)
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-        return super().KQIbackward(volume, volume_backward)
+        if volume_backward is None:
+            volume_backward = volume
+
+        logging.debug(f'Dropout: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
