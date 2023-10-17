@@ -278,25 +278,16 @@ def test_Softmax2d():
                 G.add_node(f'L3_{i}-{j}_1', preds)
                 G.add_node(f'L3_{i}-{j}_2', preds)
                 G.add_node(f'L3_{i}-{j}_3', preds)
+            
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k}-{j}_1' for k in range(8)]
+                preds = [f'L3_{i}-{j}_{k}' for k in [1,2,3]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
-                preds1 = [f'L3_{k}-{j}_2' for k in range(8)]
-                G.add_node(f'L4_{i}-{j}_2', preds1)
-                preds2 = [f'L3_{k}-{j}_3' for k in range(8)]
-                G.add_node(f'L4_{i}-{j}_3', preds2)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
            
-            kqi = sum(map(lambda k: G.kqi(k) if "L4_" in k else 0, G.nodes()))
-            logging.debug(f'L4: KQI={kqi}, node={len([k for k in G.nodes() if "L4_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L4_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L3_" in k else 0, G.nodes()))
-            logging.debug(f'L3: KQI={kqi}, node={len([k for k in G.nodes() if "L3_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L3_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L2_" in k else 0, G.nodes()))
-            logging.debug(f'L2: KQI={kqi}, node={len([k for k in G.nodes() if "L2_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L1_" in k else 0, G.nodes()))
-            logging.debug(f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}')
-            logging.debug(f'Total volume = {G.graph_volume()}')
-
+        
             return sum(map(lambda k: G.kqi(k), G.nodes()))
+        
 
     kqi = TestSoftmax2d().KQI(torch.randn(1, 28, 28))
     true = TestSoftmax2d().true_kqi()
