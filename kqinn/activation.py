@@ -45,6 +45,7 @@ class Softmax(torch.nn.Softmax, KQI):
         logging.debug(f'Softmax: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
+
 class Softmax2d(torch.nn.Softmax2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape) * x.shape[-3]
@@ -53,8 +54,8 @@ class Softmax2d(torch.nn.Softmax2d, KQI):
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         if volume_backward is None:
             volume_backward = torch.mean(volume, -3, True).expand(volume.shape) + volume.shape[-3]
-        
-        KQI.kqi += self.KQI_formula(volume / volume.shape[-3], volume_backward) * volume.shape[-3] 
+
+        KQI.kqi += self.KQI_formula(volume / volume.shape[-3], volume_backward) * volume.shape[-3]
 
         logging.debug(f'Softmax2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
