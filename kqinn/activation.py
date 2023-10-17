@@ -48,7 +48,6 @@ class Softmax(torch.nn.Softmax, KQI):
 class Softmax2d(torch.nn.Softmax2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape) * x.shape[-3]
-        print(KQI.W)
         return self.forward(x)
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
