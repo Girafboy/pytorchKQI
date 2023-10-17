@@ -1,5 +1,5 @@
 from .kqi import KQI
-from .branch import Branch, SimplePass
+from .branch import Branch, EmptyModule
 
 from .linear import Linear
 # from .linear import Identity, Linear, Bilinear, LazyLinear
@@ -47,7 +47,7 @@ from .rnn import RNN
 
 
 __all__ = [
-    'KQI', 'Branch', 'SimplePass',
+    'KQI', 'Branch', 'EmptyModule',
     'Module', 'Identity', 'Linear', 'Conv1d', 'Conv2d', 'Conv3d', 'ConvTranspose1d',
     'ConvTranspose2d', 'ConvTranspose3d', 'Threshold', 'ReLU', 'Hardtanh', 'ReLU6',
     'Sigmoid', 'Tanh', 'Softmax', 'Softmax2d', 'LogSoftmax', 'ELU', 'SELU', 'CELU', 'GLU', 'GELU', 'Hardshrink',
