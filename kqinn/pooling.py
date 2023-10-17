@@ -4,6 +4,7 @@ import logging
 import itertools
 import math
 
+
 from .kqi import KQI
 
 
@@ -40,8 +41,8 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
             for c, i, j in itertools.product(range(volume.size(0)),
-                                                     range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]),
-                                                     range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                                             range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]),
+                                             range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
                 tmp = volume_back_padding.clone()
                 H_index = torch.LongTensor([k for k in range(i, H * self.stride[0] + i, self.stride[0])])
                 W_index = torch.LongTensor([k for k in range(j, W * self.stride[1] + j, self.stride[1])])
@@ -75,11 +76,10 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
         _, HO, WO = output_size
 
         degree = torch.zeros(HO, WO)
-        for i,j in itertools.product(range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+        for i, j in itertools.product(range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
             Hleft = max(0, math.ceil((self.padding[0] - i) / self.stride[0]))
             Hright = min(HO, math.ceil((HI - i + self.padding[0]) / self.stride[0]))
             Wleft = max(0, math.ceil((self.padding[1] - j) / self.stride[1]))
             Wright = min(WO, math.ceil((WI - j + self.padding[1]) / self.stride[1]))
             degree[Hleft:Hright, Wleft:Wright] += 1
-
         return degree
