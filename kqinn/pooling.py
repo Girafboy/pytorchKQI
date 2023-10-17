@@ -4,6 +4,7 @@ import logging
 import itertools
 import math
 
+
 from .kqi import KQI
 
 
