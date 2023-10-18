@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 from .kqi import KQI
 
@@ -10,7 +9,6 @@ class Sequential(torch.nn.Sequential, KQI):
             x = module.KQIforward(x)
 
         return x
-
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         modules = list(reversed(self))
