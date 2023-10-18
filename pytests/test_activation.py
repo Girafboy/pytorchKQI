@@ -166,7 +166,6 @@ def test_Softmax():
                 kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
                 # 2x26x26
                 kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
-
             )
             self.layers2 = kqinn.Sequential(
                 kqinn.Softmax(dim=1),
@@ -200,9 +199,7 @@ def test_Softmax():
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in
-                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
-                         [1, 2]]
+                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in [1, 2]]
                 G.add_node(f'L3_{i}-{j}_1', preds)
                 G.add_node(f'L3_{i}-{j}_2', preds)
                 G.add_node(f'L3_{i}-{j}_3', preds)
@@ -229,6 +226,7 @@ def test_Softmax():
     assert abs(kqi - true) / true < 0.0001
     print(kqi)
 
+
 def test_Softmax2d():
     class TestSoftmax2d(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -238,11 +236,9 @@ def test_Softmax2d():
                 kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
                 # 2x26x26
                 kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
-
             )
             self.layers2 = kqinn.Sequential(
                 kqinn.Softmax2d()
-
             )
 
         def forward(self, x):
@@ -272,22 +268,18 @@ def test_Softmax2d():
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in
-                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
-                         [1, 2]]
+                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in [1, 2]]
                 G.add_node(f'L3_{i}-{j}_1', preds)
                 G.add_node(f'L3_{i}-{j}_2', preds)
                 G.add_node(f'L3_{i}-{j}_3', preds)
-            
+
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{i}-{j}_{k}' for k in [1,2,3]]
+                preds = [f'L3_{i}-{j}_{k}' for k in [1, 2, 3]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
-           
-        
+
             return sum(map(lambda k: G.kqi(k), G.nodes()))
-        
 
     kqi = TestSoftmax2d().KQI(torch.randn(1, 28, 28))
     true = TestSoftmax2d().true_kqi()
