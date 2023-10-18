@@ -4,7 +4,6 @@ import logging
 import itertools
 import math
 
-
 from .kqi import KQI
 
 
@@ -37,22 +36,18 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
                 for c, i, j in itertools.product(range(volume.size(0)),
                                                  range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]),
                                                  range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / degree
+                    volume_back_padding[c, i::self.stride[0], j::self.stride[1]] += 1 + volume[c] / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
             for c, i, j in itertools.product(range(volume.size(0)),
                                              range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]),
                                              range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
+
                 tmp = volume_back_padding.clone()
-                H_index = torch.LongTensor([k for k in range(i, H * self.stride[0] + i, self.stride[0])])
-                W_index = torch.LongTensor([k for k in range(j, W * self.stride[1] + j, self.stride[1])])
-                x, y = torch.meshgrid(H_index, W_index)
-                tmp[c, x, y] = volume[c] / degree
-                H_index = torch.LongTensor([k for k in range(i, H * self.stride[0] + i, self.stride[0]) if k >= self.padding[0] and k < volume_back_padding.shape[1] - self.padding[0]])
-                W_index = torch.LongTensor([k for k in range(j, W * self.stride[1] + j, self.stride[1]) if k >= self.padding[1] and k < volume_back_padding.shape[2] - self.padding[1]])
-                x_padding, y_padding = torch.meshgrid(H_index, W_index)
-                tmp[c, x_padding, y_padding] = volume_back_padding[c, x_padding, y_padding]
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, x, y])
+                tmp[c, i::self.stride[0], j::self.stride[1]] = volume[c] / degree
+                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
+                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i::self.stride[0], j::self.stride[1]])
 
         else:
             if volume_backward is None:
@@ -67,7 +62,7 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
                                              range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
                 KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
 
-        logging.debug(f'MaxPool2d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        logging.debug(f'MaxPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
         return volume_backward
 

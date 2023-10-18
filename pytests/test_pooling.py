@@ -5,7 +5,7 @@ import itertools
 import logging
 
 
-def test_MaxPool():
+def test_MaxPool2d():
     class TestMaxPool2d(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
@@ -88,4 +88,4 @@ def test_MaxPool():
 
 
 if __name__ == '__main__':
-    test_MaxPool()
+    test_MaxPool2d()
