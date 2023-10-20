@@ -61,7 +61,6 @@ class Conv1d(torch.nn.Conv1d, KQI):
 
         return degree
 
-
 class Conv2d(torch.nn.Conv2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.input_size = x.shape
@@ -88,14 +87,11 @@ class Conv2d(torch.nn.Conv2d, KQI):
 
             for cin, cout, i, j in itertools.product(range(self.in_channels), range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
                 i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
-                
                 tmp = volume_back_padding.clone()
                 tmp[cin, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] = volume[cout] / degree / self.in_channels
                 tmp[cin, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[cin, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
-                
                 KQI.kqi += self.KQI_formula(volume[cout] / degree / self.in_channels, tmp[cin, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]])
 
-    
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
