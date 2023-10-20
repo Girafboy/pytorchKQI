@@ -272,7 +272,6 @@ def test_Softmax2d():
                 G.add_node(f'L3_{i}-{j}_1', preds)
                 G.add_node(f'L3_{i}-{j}_2', preds)
                 G.add_node(f'L3_{i}-{j}_3', preds)
-
             for i, j in itertools.product(range(8), range(8)):
                 preds = [f'L3_{i}-{j}_{k}' for k in [1, 2, 3]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
@@ -337,7 +336,6 @@ def test_LogSoftmax():
                 G.add_node(f'L3_{i}-{j}_1', preds)
                 G.add_node(f'L3_{i}-{j}_2', preds)
                 G.add_node(f'L3_{i}-{j}_3', preds)
-            
             for i, j in itertools.product(range(8), range(8)):
                 preds = [f'L3_{k}-{j}_1' for k in range(8)]
                 G.add_node(f'L4_{i}-{j}_1', preds)
@@ -345,7 +343,6 @@ def test_LogSoftmax():
                 G.add_node(f'L4_{i}-{j}_2', preds1)
                 preds2 = [f'L3_{k}-{j}_3' for k in range(8)]
                 G.add_node(f'L4_{i}-{j}_3', preds2)
-            
             for i, j in itertools.product(range(8), range(8)):
                 preds = [f'L4_{i}-{k}_1' for k in range(8)]
                 G.add_node(f'L5_{i}-{j}_1', preds)
