@@ -352,7 +352,7 @@ def test_LogSoftmax():
                 G.add_node(f'L5_{i}-{j}_3', preds2)
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
-        
+
     kqi = TestLogSoftmax().KQI(torch.randn(1, 28, 28))
     true = TestLogSoftmax().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
