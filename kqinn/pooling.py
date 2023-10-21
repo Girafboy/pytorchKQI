@@ -36,7 +36,7 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
                 for c, i, j in itertools.product(range(volume.size(0)),
                                                  range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]),
                                                  range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                    volume_back_padding[c, i::self.stride[0], j::self.stride[1]] += 1 + volume[c] / degree
+                    volume_back_padding[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += 1 + volume[c] / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
             for c, i, j in itertools.product(range(volume.size(0)),
@@ -45,9 +45,9 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
                 i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
 
                 tmp = volume_back_padding.clone()
-                tmp[c, i::self.stride[0], j::self.stride[1]] = volume[c] / degree
+                tmp[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] = volume[c] / degree
                 tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i::self.stride[0], j::self.stride[1]])
+                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]])
 
         else:
             if volume_backward is None:
