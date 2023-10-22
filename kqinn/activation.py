@@ -87,6 +87,7 @@ class Softplus(torch.nn.Softplus, KQI):
         KQI.kqi += self.KQI_formula(volume, volume_backward)
         logging.debug(f'Softplus: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+
 class Softshrink(torch.nn.Softshrink, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape)
@@ -110,7 +111,6 @@ class Softsign(torch.nn.Softshrink, KQI):
         KQI.kqi += self.KQI_formula(volume, volume_backward)
         logging.debug(f'Softsign: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
-
 
 class Softmin(torch.nn.Softmax, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
