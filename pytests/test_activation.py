@@ -358,6 +358,7 @@ def test_LogSoftmax():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_Softplus():
     class TestSoftplus(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -432,6 +433,7 @@ def test_Softplus():
     true = TestSoftplus().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_Softshrink():
     class TestSoftshrink(torch.nn.Module, kqinn.KQI):
@@ -508,6 +510,7 @@ def test_Softshrink():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_Softsign():
     class TestSoftsign(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -583,6 +586,7 @@ def test_Softsign():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_Softmin():
     class TestSoftmin(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -653,6 +657,7 @@ def test_Softmin():
     true = TestSoftmin().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 if __name__ == '__main__':
     test_ReLU()
