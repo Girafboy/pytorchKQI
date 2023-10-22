@@ -128,3 +128,45 @@ class Softmin(torch.nn.Softmax, KQI):
 
         logging.debug(f'Softmin: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+    
+
+class Sigmoid(torch.nn.Sigmoid, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape)
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if volume_backward is None:
+            volume_backward = volume + 1
+        KQI.kqi += self.KQI_formula(volume, volume_backward)
+        logging.debug(f'Sigmoid: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
+
+
+class LogSigmoid(torch.nn.LogSigmoid, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape)
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if volume_backward is None:
+            volume_backward = volume + 1
+        KQI.kqi += self.KQI_formula(volume, volume_backward)
+        logging.debug(f'LogSigmoid: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
+
+
+class Hardsigmoid(torch.nn.Hardsigmoid, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape)
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if volume_backward is None:
+            volume_backward = volume + 1
+        KQI.kqi += self.KQI_formula(volume, volume_backward)
+        logging.debug(f'Hardsigmoid: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
+
+
+
