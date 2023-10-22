@@ -74,3 +74,57 @@ class LogSoftmax(torch.nn.LogSoftmax, KQI):
 
         logging.debug(f'LogSoftmax: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+
+
+class Softplus(torch.nn.Softplus, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape)
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if volume_backward is None:
+            volume_backward = volume + 1
+        KQI.kqi += self.KQI_formula(volume, volume_backward)
+        logging.debug(f'Softplus: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
+
+
+class Softshrink(torch.nn.Softshrink, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape)
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if volume_backward is None:
+            volume_backward = volume + 1
+        KQI.kqi += self.KQI_formula(volume, volume_backward)
+        logging.debug(f'Softshrink: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
+
+
+class Softsign(torch.nn.Softshrink, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape)
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if volume_backward is None:
+            volume_backward = volume + 1
+        KQI.kqi += self.KQI_formula(volume, volume_backward)
+        logging.debug(f'Softsign: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
+
+
+class Softmin(torch.nn.Softmax, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape) * x.shape[self.dim]
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if volume_backward is None:
+            volume_backward = torch.mean(volume, self.dim, True).expand(volume.shape) + volume.shape[self.dim]
+
+        KQI.kqi += self.KQI_formula(volume / volume.shape[self.dim], volume_backward) * volume.shape[self.dim]
+
+        logging.debug(f'Softmin: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
