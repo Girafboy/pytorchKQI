@@ -4,7 +4,6 @@ import logging
 import itertools
 import math
 
-
 from .kqi import KQI
 
 class MaxPool1d(torch.nn.MaxPool1d, KQI):
@@ -183,9 +182,6 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
                 tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
 
                 KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]])
-
-
-
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
@@ -221,4 +217,3 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
 
             degree[Hleft:Hright, Wleft:Wright, Lleft:Lright] += 1
         return degree
-

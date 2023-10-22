@@ -84,6 +84,7 @@ def test_MaxPool1d():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_MaxPool2d():
     class TestMaxPool2d(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -164,6 +165,7 @@ def test_MaxPool2d():
     true = TestMaxPool2d().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_MaxPool3d():
     class TestMaxPool3d(torch.nn.Module, kqinn.KQI):
