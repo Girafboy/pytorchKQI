@@ -658,6 +658,7 @@ def test_Softmin():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_Sigmoid():
     class TestSigmoid(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -732,6 +733,7 @@ def test_Sigmoid():
     true = TestSigmoid().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_LogSigmoid():
     class TestLogSigmoid(torch.nn.Module, kqinn.KQI):
@@ -808,6 +810,7 @@ def test_LogSigmoid():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_Hardsigmoid():
     class TestHardsigmoid(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -882,6 +885,7 @@ def test_Hardsigmoid():
     true = TestHardsigmoid().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 if __name__ == '__main__':
     test_ReLU()
