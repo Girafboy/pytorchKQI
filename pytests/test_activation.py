@@ -898,5 +898,5 @@ if __name__ == '__main__':
     test_Softsign()
     test_Softmin()
     test_Sigmoid()
-    test_LogSigmoid() 
+    test_LogSigmoid()
     test_Hardsigmoid()

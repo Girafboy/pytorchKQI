@@ -129,6 +129,7 @@ class Softmin(torch.nn.Softmax, KQI):
         logging.debug(f'Softmin: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
+
 class Sigmoid(torch.nn.Sigmoid, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape)
