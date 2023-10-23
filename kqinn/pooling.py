@@ -139,6 +139,7 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
             degree[Hleft:Hright, Wleft:Wright] += 1
         return degree
 
+
 class MaxPool3d(torch.nn.MaxPool3d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.kernel_size = self.kernel_size if isinstance(self.kernel_size, tuple) else (self.kernel_size, self.kernel_size, self.kernel_size)

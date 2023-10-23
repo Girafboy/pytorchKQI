@@ -242,7 +242,6 @@ def test_MaxPool3d():
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
 
-
     kqi = TestMaxPool3d().KQI(torch.randn(1, 28, 28, 28))
     true = TestMaxPool3d().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
