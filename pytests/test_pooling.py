@@ -4,6 +4,7 @@ import kqitool
 import itertools
 import logging
 
+
 def test_MaxPool1d():
     class TestMaxPool1d(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -130,8 +131,7 @@ def test_MaxPool2d():
                 G.add_node(f'L2_{i}-{j}_3', preds)
             for i, j in itertools.product(range(14), range(14)):
                 for k3 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2-1, i*2], [j*2-1, j*2])
-                             if 0 <= k1 < 26 and 0 <= k2 < 26]
+                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2-1, i*2], [j*2-1, j*2]) if 0 <= k1 < 26 and 0 <= k2 < 26]
                     G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
             for i in range(100):
@@ -211,8 +211,7 @@ def test_MaxPool3d():
                 G.add_node(f'L2_{i}-{j}-{k}_3', preds)
             for i, j, k in itertools.product(range(14), range(14), range(14)):
                 for k4 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i*2-1, i*2], [j*2-1, j*2], [k*2-1, k*2])
-                             if 0 <= k1 < 26 and 0 <= k2 < 26 and 0 <= k3 < 26]
+                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i*2-1, i*2], [j*2-1, j*2], [k*2-1, k*2]) if 0 <= k1 < 26 and 0 <= k2 < 26 and 0 <= k3 < 26]
                     G.add_node(f'L3_{i}-{j}-{k}_{k4}', preds)
 
             for i in range(100):
@@ -240,6 +239,7 @@ def test_MaxPool3d():
             logging.debug(f'Total volume = {G.graph_volume()}')
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
+
 
     kqi = TestMaxPool3d().KQI(torch.randn(1, 28, 28, 28))
     true = TestMaxPool3d().true_kqi()
