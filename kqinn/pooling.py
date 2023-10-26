@@ -49,7 +49,7 @@ class MaxPool1d(torch.nn.MaxPool1d, KQI):
             for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size * self.dilation, self.dilation)):
                 KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride + i:self.stride])
 
-        logging.debug(f'MaxPool1d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        logging.debug(f'MaxPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
         return volume_backward
 
@@ -122,7 +122,7 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
                                              range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
                 KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
 
-        logging.debug(f'MaxPool2d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        logging.debug(f'MaxPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
         return volume_backward
 
@@ -187,7 +187,7 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
             for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
                 KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]])
 
-        logging.debug(f'MaxPool3d: KQI={KQI.kqi}, node={np.product(volume.shape)}, volume={volume.sum()}')
+        logging.debug(f'MaxPool3d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
         return volume_backward
 
