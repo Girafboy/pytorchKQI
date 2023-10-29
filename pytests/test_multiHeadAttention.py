@@ -1,6 +1,6 @@
 import itertools
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
 
 import torch
 from torch import Tensor
@@ -23,11 +23,16 @@ def test_MultiHeadAttention():
         def forward(self, x):
             return self.layer(x)
 
-        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-            return self.layer.KQIforward(x)
+        def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+            return self.layer.KQIforward(x, y, z)
 
-        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-            return self.layer.KQIbackward(volume)
+        def KQIbackward(self,
+                        volume: torch.Tensor,
+                        volume_backward_k: torch.Tensor = None,
+                        volume_backward_q: torch.Tensor = None,
+                        volume_backward_v: torch.Tensor = None,
+                        ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            return self.layer.KQIbackward(volume, volume_backward_k, volume_backward_q, volume_backward_v)
 
         def true_kqi(self):
             G = kqitool.DiGraph()
@@ -45,10 +50,10 @@ def test_MultiHeadAttention():
                           itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
                 predsV = [f'L1_V_{j}-{k}' for j, k in
                           itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
-                for j, k in itertools.product(range(sequence_length), range(head_dim)):
-                    G.add_node(f'L2_Q_{j}-{i * head_dim + k}', predsQ)
-                    G.add_node(f'L2_K_{j}-{i * head_dim + k}', predsK)
-                    G.add_node(f'L2_V_{j}-{i * head_dim + k}', predsV)
+                for j, k in itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim)):
+                    G.add_node(f'L2_Q_{j}-{k}', predsQ)
+                    G.add_node(f'L2_K_{j}-{k}', predsK)
+                    G.add_node(f'L2_V_{j}-{k}', predsV)
 
             # MatMul
             for i in range(head):

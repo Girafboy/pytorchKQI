@@ -1,6 +1,10 @@
+from typing import Tuple, Optional
+
 import torch
 import numpy as np
 import logging
+
+from torch import Tensor
 
 from .kqi import KQI
 
@@ -47,30 +51,104 @@ class Softmax(torch.nn.Softmax, KQI):
 
 
 class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
-    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-        # x 为 (3, seq_len, embed_dim)
-        # 从 x 中分离出 k, q, v
+    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+        # x, y, z 分别为 query, key, value
         # k, q, v 的 shape 为 (seq_len, embed_dim)
-        k, q, v = x.unbind(0)
-        KQI.W += (np.prod(k.shape) + np.prod(q.shape) + np.prod(v.shape)) * np.prod(v.shape)
-        res_for = self.forward(k, q, v)
-        # res = torch.zeros_like(v)
-        # for i in range(len(res_for)):
-        #     res += res_for[i]
-        # return res
-        return res_for[0]
+        seq_len, embed_dim = x.shape
+        num_heads = self.num_heads
+        head_dim = embed_dim // num_heads
 
-    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-        if volume_backward is None:
-            volume_backward_ones = torch.ones((3,) + volume.shape)
-            volume_backward = (volume_backward_ones *
-                               (np.prod(volume_backward_ones.shape) + (volume / np.prod(volume.shape)).sum()))
+        # linear
+        KQI.W += (seq_len * head_dim) ** 2 * num_heads * 3
 
-        for vol in volume_backward:
+        # MatMul
+        KQI.W += (seq_len + seq_len) * (seq_len * seq_len) * num_heads
+
+        # Scale
+        KQI.W += seq_len * seq_len * num_heads
+
+        # Mask
+        # KQI.W += seq_len * seq_len * num_heads
+
+        # Softmax
+        KQI.W += seq_len * seq_len * num_heads
+
+        # MatMul
+        KQI.W += (seq_len + head_dim) * (seq_len * head_dim) * num_heads
+
+        # linear
+        KQI.W += (seq_len * embed_dim) ** 2
+
+        return self.forward(x, y, z)
+
+    def KQIbackward(self,
+                    volume: torch.Tensor,
+                    volume_backward_k: torch.Tensor = None,
+                    volume_backward_q: torch.Tensor = None,
+                    volume_backward_v: torch.Tensor = None,
+                    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        seq_len, embed_dim = volume.shape
+        num_heads = self.num_heads
+        head_dim = embed_dim // num_heads
+
+        # linear
+        volume_7_all = torch.ones(np.prod(volume.shape)) * (
+                    np.prod(volume.shape) + (volume / np.prod(volume.shape)).sum())
+        for vol in volume_7_all:
             KQI.kqi += self.KQI_formula(volume / np.prod(volume.shape), vol)
 
+        # 从 volume_7_all(seq_len, embed_dim) 取出 volume_7(seq_len, head_dim)
+        volume_7 = volume_7_all.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
+
+        # MatMul
+        volume_6 = torch.ones((seq_len, seq_len)) * (head_dim + volume_7.sum() / (seq_len * 2) / seq_len)
+        volume_2_v = torch.ones((seq_len, head_dim)) * (head_dim + volume_7.sum() / (seq_len * 2) / seq_len)
+        for vol in volume_6:
+            KQI.kqi += self.KQI_formula(volume_7[0] / (seq_len * 2), vol) * num_heads
+        for vol in volume_2_v:
+            KQI.kqi += self.KQI_formula(volume_7[0] / (seq_len * 2), vol) * num_heads
+
+        # Softmax
+        volume_5 = torch.ones((seq_len, seq_len)) * (seq_len * seq_len + volume_6.sum() / (seq_len * seq_len))
+        for vol in volume_5:
+            KQI.kqi += self.KQI_formula(volume_6 / np.prod(volume_6.shape), vol) * num_heads
+
+        # Mask
+        # volume_4 = torch.ones((seq_len, seq_len)) * (seq_len * seq_len + volume_5.sum() / (seq_len * seq_len))
+        # for vol in volume_4:
+        #     KQI.kqi += self.KQI_formula(volume_5 / np.prod(volume_5.shape), vol) * num_heads
+
+        # Scale
+        volume_3 = volume_5 + 1
+        KQI.kqi += self.KQI_formula(volume_5, volume_3) * num_heads
+
+        # MatMul
+        volume_2_q = torch.ones((seq_len, head_dim)) * (head_dim + volume_3.sum() / (head_dim * 2) / seq_len)
+        volume_2_k = torch.ones((seq_len, head_dim)) * (head_dim + volume_3.sum() / (head_dim * 2) / seq_len)
+        for vol in volume_2_q:
+            KQI.kqi += self.KQI_formula(volume_3[0] / (head_dim * 2), vol) * num_heads
+        for vol in volume_2_k:
+            KQI.kqi += self.KQI_formula(volume_3[0] / (head_dim * 2), vol) * num_heads
+
+        # Linear
+        volume_1_q = torch.ones((seq_len, embed_dim)) * (seq_len * head_dim + volume_2_q.sum() / (seq_len * head_dim))
+        volume_1_k = torch.ones((seq_len, embed_dim)) * (seq_len * head_dim + volume_2_k.sum() / (seq_len * head_dim))
+        volume_1_v = torch.ones((seq_len, embed_dim)) * (seq_len * head_dim + volume_2_v.sum() / (seq_len * head_dim))
+        for vol in volume_1_q:
+            KQI.kqi += self.KQI_formula(volume_2_q / np.prod(volume_2_q.shape), vol) * num_heads
+        for vol in volume_1_k:
+            KQI.kqi += self.KQI_formula(volume_2_k / np.prod(volume_2_k.shape), vol) * num_heads
+        for vol in volume_1_v:
+            KQI.kqi += self.KQI_formula(volume_2_v / np.prod(volume_2_v.shape), vol) * num_heads
+
+        # 不考虑 volume_backward_k, volume_backward_q, volume_backward_v 不为 None 的情况
+        # 组装 volume_backward_k, volume_backward_q, volume_backward_v
+        volume_backward_q = volume_1_q.repeat(1, num_heads)
+        volume_backward_k = volume_1_k.repeat(1, num_heads)
+        volume_backward_v = volume_1_v.repeat(1, num_heads)
+
         logging.debug(f'MultiHeadAttention: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
-        return volume_backward
+        return volume_backward_k, volume_backward_q, volume_backward_v
 
 
 class Softmax2d(torch.nn.Softmax2d, KQI):
