@@ -94,7 +94,7 @@ class AvgPool2d(torch.nn.AvgPool2d, KQI):
                     volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1] , 1)):
+            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
                 i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
 
                 tmp = volume_back_padding.clone()
@@ -388,4 +388,3 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
 
             degree[Hleft:Hright, Wleft:Wright, Lleft:Lright] += 1
         return degree
-
