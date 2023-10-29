@@ -388,3 +388,4 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
 
             degree[Hleft:Hright, Wleft:Wright, Lleft:Lright] += 1
         return degree
+
