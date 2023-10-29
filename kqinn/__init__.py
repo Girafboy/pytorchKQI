@@ -18,7 +18,7 @@ from .activation import ReLU, Sigmoid, Tanh, Softmax, Softmax2d, LogSoftmax, Log
 #     SoftMarginLoss, CrossEntropyLoss, TripletMarginLoss, TripletMarginWithDistanceLoss, PoissonNLLLoss, GaussianNLLLoss
 from .container import Sequential
 # from .container import Container, Sequential, ModuleList, ModuleDict, ParameterList, ParameterDict
-from .pooling import MaxPool1d, MaxPool2d, MaxPool3d
+from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d
 # from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
 #     MaxUnpool1d, MaxUnpool2d, MaxUnpool3d, FractionalMaxPool2d, FractionalMaxPool3d, LPPool1d, LPPool2d, \
 #     AdaptiveMaxPool1d, AdaptiveMaxPool2d, AdaptiveMaxPool3d, AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d
