@@ -320,7 +320,7 @@ class GLU(torch.nn.GLU, KQI):
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         if volume_backward is None:
             volume_backward_half = volume / 2 + 1
-            volume_backward = torch.cat((volume_backward_half, volume_backward_half), dim = self.dim)
+            volume_backward = torch.cat((volume_backward_half, volume_backward_half), dim=self.dim)
         KQI.kqi += 2*self.KQI_formula(volume / 2, volume_backward_half)
         logging.debug(f'GLU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
