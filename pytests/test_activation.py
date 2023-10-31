@@ -4,6 +4,7 @@ import kqitool
 import itertools
 import logging
 
+
 def test_Threshold():
     class TestThreshold(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -79,6 +80,7 @@ def test_Threshold():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_ReLU():
     class TestReLU(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -153,6 +155,7 @@ def test_ReLU():
     true = TestReLU().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_Hardtanh():
     class TestHardtanh(torch.nn.Module, kqinn.KQI):
@@ -305,6 +308,7 @@ def test_ReLU6():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_Sigmoid():
     class TestSigmoid(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -379,6 +383,7 @@ def test_Sigmoid():
     true = TestSigmoid().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_Tanh():
     class TestTanh(torch.nn.Module, kqinn.KQI):
@@ -1037,6 +1042,7 @@ def test_Hardshrink():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_LeakyReLU():
     class TestLeakyReLU(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -1340,6 +1346,7 @@ def test_Softshrink():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_PReLU():
     class TestPReLU(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -1414,6 +1421,7 @@ def test_PReLU():
     true = TestPReLU().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_Softsign():
     class TestSoftsign(torch.nn.Module, kqinn.KQI):
@@ -1562,6 +1570,7 @@ def test_Softmin():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_Tanhshrink():
     class TestTanhshrink(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -1636,6 +1645,7 @@ def test_Tanhshrink():
     true = TestTanhshrink().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_RReLU():
     class TestRReLU(torch.nn.Module, kqinn.KQI):
@@ -1712,6 +1722,7 @@ def test_RReLU():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_GLU():
     class TestGLU(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -1761,17 +1772,17 @@ def test_GLU():
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(13)):
-                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1',f'L2_{i}-{j+13}_1'])
-                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2',f'L2_{i}-{j+13}_2'])
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1', f'L2_{i}-{j+13}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2', f'L2_{i}-{j+13}_2'])
             for i, j in itertools.product(range(8), range(3)):
                 preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
             for i, j in itertools.product(range(4), range(3)):
-                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1',f'L4_{i+4}-{j}_1'])
-                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2',f'L4_{i+4}-{j}_2'])
-                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3',f'L4_{i+4}-{j}_3'])
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1', f'L4_{i+4}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2', f'L4_{i+4}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3', f'L4_{i+4}-{j}_3'])
 
             for i in range(10):
                 preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(4), range(3)) for k3 in [1, 2, 3]]
@@ -2087,6 +2098,7 @@ def test_Mish():
     true = TestMish().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 if __name__ == '__main__':
     test_Threshold()
