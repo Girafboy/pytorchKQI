@@ -140,7 +140,7 @@ class ELU(torch.nn.ELU, KQI):
         logging.debug(f'ELU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
-    
+
 class SELU(torch.nn.SELU, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape)
@@ -153,7 +153,7 @@ class SELU(torch.nn.SELU, KQI):
         logging.debug(f'SELU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
-    
+
 class CELU(torch.nn.CELU, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape)
@@ -179,6 +179,7 @@ class GELU(torch.nn.GELU, KQI):
         logging.debug(f'GELU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
+
 class Hardshrink(torch.nn.Hardshrink, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape)
@@ -203,6 +204,7 @@ class LeakyReLU(torch.nn.LeakyReLU, KQI):
         KQI.kqi += self.KQI_formula(volume, volume_backward)
         logging.debug(f'LeakyReLU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+
 
 class LogSigmoid(torch.nn.LogSigmoid, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
@@ -254,6 +256,7 @@ class PReLU(torch.nn.PReLU, KQI):
         KQI.kqi += self.KQI_formula(volume, volume_backward)
         logging.debug(f'PReLU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+
 
 class Softsign(torch.nn.Softshrink, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
@@ -316,9 +319,9 @@ class GLU(torch.nn.GLU, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         if volume_backward is None:
-            volume_backward_half = volume/2 + 1
+            volume_backward_half = volume / 2 + 1
             volume_backward = torch.cat((volume_backward_half, volume_backward_half), dim = self.dim)
-        KQI.kqi += 2*self.KQI_formula(volume/2, volume_backward_half)
+        KQI.kqi += 2*self.KQI_formula(volume / 2, volume_backward_half)
         logging.debug(f'GLU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
@@ -348,7 +351,7 @@ class Hardswish(torch.nn.Hardswish, KQI):
         logging.debug(f'Hardswish: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 
-    
+
 class SiLU(torch.nn.SiLU, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape)
