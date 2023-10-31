@@ -4,6 +4,80 @@ import kqitool
 import itertools
 import logging
 
+def test_Threshold():
+    class TestThreshold(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.Threshold(0.1, 20, inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.Threshold(0.1, 20, inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestThreshold().KQI(torch.randn(1, 28, 28))
+    true = TestThreshold().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
 
 def test_ReLU():
     class TestReLU(torch.nn.Module, kqinn.KQI):
@@ -80,6 +154,231 @@ def test_ReLU():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+def test_Hardtanh():
+    class TestHardtanh(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.Hardtanh(min_val=-1.0, max_val=1.0, inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.Hardtanh(min_val=-1.0, max_val=1.0, inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestHardtanh().KQI(torch.randn(1, 28, 28))
+    true = TestHardtanh().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_ReLU6():
+    class TestReLU6(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.ReLU6(inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.ReLU6(inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestReLU6().KQI(torch.randn(1, 28, 28))
+    true = TestReLU6().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+def test_Sigmoid():
+    class TestSigmoid(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.Sigmoid(),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.Sigmoid(),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestSigmoid().KQI(torch.randn(1, 28, 28))
+    true = TestSigmoid().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
 
 def test_Tanh():
     class TestTanh(torch.nn.Module, kqinn.KQI):
@@ -359,6 +658,537 @@ def test_LogSoftmax():
     assert abs(kqi - true) / true < 0.0001
 
 
+def test_ELU():
+    class TestELU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.ELU(alpha=1.0, inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.ELU(alpha=1.0, inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestELU().KQI(torch.randn(1, 28, 28))
+    true = TestELU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_SELU():
+    class TestSELU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.SELU(inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.SELU(inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestSELU().KQI(torch.randn(1, 28, 28))
+    true = TestSELU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_CELU():
+    class TestCELU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.CELU(alpha=1.0, inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.CELU(alpha=1.0, inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestCELU().KQI(torch.randn(1, 28, 28))
+    true = TestCELU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_GELU():
+    class TestGELU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.GELU(approximate='none'),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.GELU(approximate='none'),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestGELU().KQI(torch.randn(1, 28, 28))
+    true = TestGELU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_Hardshrink():
+    class TestHardshrink(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.Hardshrink(lambd=0.5),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.Hardshrink(lambd=0.5),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestHardshrink().KQI(torch.randn(1, 28, 28))
+    true = TestHardshrink().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+def test_LeakyReLU():
+    class TestLeakyReLU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.LeakyReLU(negative_slope=0.01, inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.LeakyReLU(negative_slope=0.01, inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestLeakyReLU().KQI(torch.randn(1, 28, 28))
+    true = TestLeakyReLU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_LogSigmoid():
+    class TestLogSigmoid(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.LogSigmoid(),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.LogSigmoid(),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestLogSigmoid().KQI(torch.randn(1, 28, 28))
+    true = TestLogSigmoid().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
 def test_Softplus():
     class TestSoftplus(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -510,6 +1340,80 @@ def test_Softshrink():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+def test_PReLU():
+    class TestPReLU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.PReLU(num_parameters=1, init=0.25),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.PReLU(num_parameters=1, init=0.25),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestPReLU().KQI(torch.randn(1, 28, 28))
+    true = TestPReLU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
 
 def test_Softsign():
     class TestSoftsign(torch.nn.Module, kqinn.KQI):
@@ -518,10 +1422,10 @@ def test_Softsign():
             self.layers1 = kqinn.Sequential(
                 # 1x28x28
                 kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
-                kqinn.Softshrink(),
+                kqinn.Softsign(),
                 # 2x26*26
                 kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
-                kqinn.Softshrink(),
+                kqinn.Softsign(),
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
@@ -658,18 +1562,17 @@ def test_Softmin():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
-
-def test_Sigmoid():
-    class TestSigmoid(torch.nn.Module, kqinn.KQI):
+def test_Tanhshrink():
+    class TestTanhshrink(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
             self.layers1 = kqinn.Sequential(
                 # 1x28x28
                 kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
-                kqinn.Sigmoid(),
+                kqinn.Tanhshrink(),
                 # 2x26*26
                 kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
-                kqinn.Sigmoid(),
+                kqinn.Tanhshrink(),
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
@@ -729,23 +1632,22 @@ def test_Sigmoid():
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
 
-    kqi = TestSigmoid().KQI(torch.randn(1, 28, 28))
-    true = TestSigmoid().true_kqi()
+    kqi = TestTanhshrink().KQI(torch.randn(1, 28, 28))
+    true = TestTanhshrink().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
-
-def test_LogSigmoid():
-    class TestLogSigmoid(torch.nn.Module, kqinn.KQI):
+def test_RReLU():
+    class TestRReLU(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
             self.layers1 = kqinn.Sequential(
                 # 1x28x28
                 kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
-                kqinn.LogSigmoid(),
+                kqinn.RReLU(0.1, 0.3, inplace=True),
                 # 2x26*26
                 kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
-                kqinn.LogSigmoid(),
+                kqinn.RReLU(0.1, 0.3, inplace=True),
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
@@ -805,8 +1707,80 @@ def test_LogSigmoid():
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
 
-    kqi = TestLogSigmoid().KQI(torch.randn(1, 28, 28))
-    true = TestLogSigmoid().true_kqi()
+    kqi = TestRReLU().KQI(torch.randn(1, 28, 28))
+    true = TestRReLU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+def test_GLU():
+    class TestGLU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                # 2x26x26
+                kqinn.GLU(dim=-1),
+                # 2x26x13
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                # 3x8x3
+                kqinn.GLU(dim=-2),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3x4x3
+                kqinn.Linear(in_features=3*4*3, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 4, 3)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(13)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1',f'L2_{i}-{j+13}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2',f'L2_{i}-{j+13}_2'])
+            for i, j in itertools.product(range(8), range(3)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(4), range(3)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1',f'L4_{i+4}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2',f'L4_{i+4}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3',f'L4_{i+4}-{j}_3'])
+
+            for i in range(10):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(4), range(3)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestGLU().KQI(torch.randn(1, 28, 28))
+    true = TestGLU().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
@@ -887,16 +1861,262 @@ def test_Hardsigmoid():
     assert abs(kqi - true) / true < 0.0001
 
 
+def test_Hardswish():
+    class TestHardswish(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.Hardswish(inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.Hardswish(inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestHardswish().KQI(torch.randn(1, 28, 28))
+    true = TestHardswish().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_SiLU():
+    class TestSiLU(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.SiLU(inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.SiLU(inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestSiLU().KQI(torch.randn(1, 28, 28))
+    true = TestSiLU().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_Mish():
+    class TestMish(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = kqinn.Sequential(
+                # 1x28x28
+                kqinn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                kqinn.SiLU(inplace=True),
+                # 2x26*26
+                kqinn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                kqinn.SiLU(inplace=True),
+            )
+            self.layers2 = kqinn.Sequential(
+                # 3*8*8
+                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.layers1.KQIforward(x)
+            x = x.flatten()
+            x = self.layers2.KQIforward(x)
+
+            return x
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume = self.layers2.KQIbackward(volume)
+            volume = volume.reshape(3, 8, 8)
+            volume = self.layers1.KQIbackward(volume, volume_backward)
+
+            return volume
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i, j in itertools.product(range(28), range(28)):
+                G.add_node(f'L1_{i}-{j}', [])
+            for i, j in itertools.product(range(26), range(26)):
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                G.add_node(f'L2_{i}-{j}_1', preds)
+                G.add_node(f'L2_{i}-{j}_2', preds)
+            for i, j in itertools.product(range(26), range(26)):
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
+            for i, j in itertools.product(range(8), range(8)):
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                G.add_node(f'L4_{i}-{j}_1', preds)
+                G.add_node(f'L4_{i}-{j}_2', preds)
+                G.add_node(f'L4_{i}-{j}_3', preds)
+            for i, j in itertools.product(range(8), range(8)):
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3'])
+
+            for i in range(100):
+                preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(8), range(8)) for k3 in [1, 2, 3]]
+                G.add_node(f'L6_{i}', preds)
+
+            for i in range(10):
+                preds = [f'L6_{k}' for k in range(100)]
+                G.add_node(f'L7_{i}', preds)
+
+            return sum(map(lambda k: G.kqi(k), G.nodes()))
+
+    kqi = TestMish().KQI(torch.randn(1, 28, 28))
+    true = TestMish().true_kqi()
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
 if __name__ == '__main__':
+    test_Threshold()
     test_ReLU()
+    test_Hardtanh()
+    test_ReLU6()
+    test_Sigmoid()
     test_Tanh()
+
     test_Softmax()
     test_Softmax2d()
     test_LogSoftmax()
+    test_ELU()
+    test_SELU()
+    test_CELU()
+    test_GELU()
+    test_Hardshrink()
+    test_LeakyReLU()
+    test_LogSigmoid()
+
     test_Softplus()
     test_Softshrink()
+    test_PReLU()
     test_Softsign()
     test_Softmin()
-    test_Sigmoid()
-    test_LogSigmoid()
+    test_Tanhshrink()
+    test_RReLU()
+    test_GLU()
+
     test_Hardsigmoid()
+    test_Hardswish()
+    test_SiLU()
+    test_Mish()
