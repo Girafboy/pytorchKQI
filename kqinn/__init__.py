@@ -10,10 +10,10 @@ from .conv import Conv1d, Conv2d, Conv3d
 from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
     Softmax, Softmax2d, LogSoftmax, ELU, SELU, CELU, GELU, Hardshrink, LeakyReLU, LogSigmoid, \
     Softplus, Softshrink, PReLU, Softsign, Softmin, Tanhshrink, RReLU, GLU, \
-    Hardsigmoid, Hardswish, SiLU, Mish
+    Hardsigmoid, Hardswish, SiLU, Mish, MultiheadAttention
 # from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
 #     Softmax, Softmax2d, LogSoftmax, ELU, SELU, CELU, GELU, Hardshrink, LeakyReLU, LogSigmoid, \
-#     Softplus, Softshrink, MultiheadAttention, PReLU, Softsign, Softmin, Tanhshrink, RReLU, GLU, \
+#     Softplus, Softshrink, PReLU, Softsign, Softmin, Tanhshrink, RReLU, GLU, \
 #     Hardsigmoid, Hardswish, SiLU, Mish
 # from .loss import L1Loss, NLLLoss, KLDivLoss, MSELoss, BCELoss, BCEWithLogitsLoss, NLLLoss2d, \
 #     CosineEmbeddingLoss, CTCLoss, HingeEmbeddingLoss, MarginRankingLoss, \

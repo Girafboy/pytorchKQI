@@ -1,8 +1,10 @@
-import torch
-import kqinn
-import kqitool
 import itertools
 import logging
+
+import torch
+
+import kqinn
+import kqitool
 
 
 def test_Threshold():
@@ -19,7 +21,7 @@ def test_Threshold():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -49,14 +51,16 @@ def test_Threshold():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -95,7 +99,7 @@ def test_ReLU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -125,14 +129,16 @@ def test_ReLU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -171,7 +177,7 @@ def test_Hardtanh():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -201,14 +207,16 @@ def test_Hardtanh():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -247,7 +255,7 @@ def test_ReLU6():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -277,14 +285,16 @@ def test_ReLU6():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -323,7 +333,7 @@ def test_Sigmoid():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -353,14 +363,16 @@ def test_Sigmoid():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -399,7 +411,7 @@ def test_Tanh():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -429,14 +441,16 @@ def test_Tanh():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -503,7 +517,9 @@ def test_Softmax():
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in [1, 2]]
+                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L3_{i}-{j}_1', preds)
                 G.add_node(f'L3_{i}-{j}_2', preds)
                 G.add_node(f'L3_{i}-{j}_3', preds)
@@ -572,7 +588,9 @@ def test_Softmax2d():
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in [1, 2]]
+                preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L3_{i}-{j}_1', preds)
                 G.add_node(f'L3_{i}-{j}_2', preds)
                 G.add_node(f'L3_{i}-{j}_3', preds)
@@ -677,7 +695,7 @@ def test_ELU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -707,14 +725,16 @@ def test_ELU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -753,7 +773,7 @@ def test_SELU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -783,14 +803,16 @@ def test_SELU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -829,7 +851,7 @@ def test_CELU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -859,14 +881,16 @@ def test_CELU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -905,7 +929,7 @@ def test_GELU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -935,14 +959,16 @@ def test_GELU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -981,7 +1007,7 @@ def test_Hardshrink():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1011,14 +1037,16 @@ def test_Hardshrink():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1057,7 +1085,7 @@ def test_LeakyReLU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1087,14 +1115,16 @@ def test_LeakyReLU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1133,7 +1163,7 @@ def test_LogSigmoid():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1163,14 +1193,16 @@ def test_LogSigmoid():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1209,7 +1241,7 @@ def test_Softplus():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1239,14 +1271,16 @@ def test_Softplus():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1285,7 +1319,7 @@ def test_Softshrink():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1315,14 +1349,16 @@ def test_Softshrink():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1361,7 +1397,7 @@ def test_PReLU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1391,14 +1427,16 @@ def test_PReLU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1437,7 +1475,7 @@ def test_Softsign():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1467,14 +1505,16 @@ def test_Softsign():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1585,7 +1625,7 @@ def test_Tanhshrink():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1615,14 +1655,16 @@ def test_Tanhshrink():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1661,7 +1703,7 @@ def test_RReLU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1691,14 +1733,16 @@ def test_RReLU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1739,7 +1783,7 @@ def test_GLU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3x4x3
-                kqinn.Linear(in_features=3*4*3, out_features=10, bias=False),
+                kqinn.Linear(in_features=3 * 4 * 3, out_features=10, bias=False),
             )
 
         def forward(self, x):
@@ -1768,21 +1812,23 @@ def test_GLU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(13)):
-                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1', f'L2_{i}-{j+13}_1'])
-                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2', f'L2_{i}-{j+13}_2'])
+                G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1', f'L2_{i}-{j + 13}_1'])
+                G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2', f'L2_{i}-{j + 13}_2'])
             for i, j in itertools.product(range(8), range(3)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
             for i, j in itertools.product(range(4), range(3)):
-                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1', f'L4_{i+4}-{j}_1'])
-                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2', f'L4_{i+4}-{j}_2'])
-                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3', f'L4_{i+4}-{j}_3'])
+                G.add_node(f'L5_{i}-{j}_1', [f'L4_{i}-{j}_1', f'L4_{i + 4}-{j}_1'])
+                G.add_node(f'L5_{i}-{j}_2', [f'L4_{i}-{j}_2', f'L4_{i + 4}-{j}_2'])
+                G.add_node(f'L5_{i}-{j}_3', [f'L4_{i}-{j}_3', f'L4_{i + 4}-{j}_3'])
 
             for i in range(10):
                 preds = [f'L5_{k1}-{k2}_{k3}' for k1, k2 in itertools.product(range(4), range(3)) for k3 in [1, 2, 3]]
@@ -1810,7 +1856,7 @@ def test_Hardsigmoid():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -1840,14 +1886,16 @@ def test_Hardsigmoid():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -1872,36 +1920,56 @@ def test_Hardsigmoid():
     assert abs(kqi - true) / true < 0.0001
 
 
-def test_MultiHeadAttention():
+def test_MultiheadAttention():
     head = 8  # 注意力头数
     embedding_dim = 64  # 嵌入维度
     sequence_length = 10  # 序列长度
     head_dim = embedding_dim // head  # 每个头的维度
 
-    class TestMultiHeadAttention(torch.nn.Module, kqinn.KQI):
+    class TestMultiheadAttention(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
 
+            self.layerQKV = kqinn.Linear(in_features=embedding_dim * sequence_length,
+                                         out_features=embedding_dim * sequence_length * 3, bias=False)
             self.layer = kqinn.MultiheadAttention(embed_dim=embedding_dim, num_heads=head)
 
         def forward(self, x):
-            return self.layer(x, x, x)
+            x = x.flatten()
+            qkv = self.layerQKV(x).reshape(sequence_length, embedding_dim * 3)
+            q = qkv[:, :embedding_dim].reshape(sequence_length, embedding_dim)
+            k = qkv[:, embedding_dim:embedding_dim * 2].reshape(sequence_length, embedding_dim)
+            v = qkv[:, embedding_dim * 2:].reshape(sequence_length, embedding_dim)
+            attn_output, attn_output_weights = self.layer(k, q, v)
+            return attn_output
 
         def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-            attn_output, attn_output_weights = self.layer.KQIforward(x, x, x)
+            x = x.flatten()
+            qkv = self.layerQKV.KQIforward(x).reshape(sequence_length, embedding_dim * 3)
+            q = qkv[:, :embedding_dim].reshape(sequence_length, embedding_dim)
+            k = qkv[:, embedding_dim:embedding_dim * 2].reshape(sequence_length, embedding_dim)
+            v = qkv[:, embedding_dim * 2:].reshape(sequence_length, embedding_dim)
+            attn_output, attn_output_weights = self.layer.KQIforward(k, q, v)
             return attn_output
 
         def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-            volume_backward_k, volume_backward_q, volume_backward_v = self.layer.KQIbackward(volume, volume_backward)
-            return volume_backward_k + volume_backward_q + volume_backward_v
+            volume_backward_k, volume_backward_q, volume_backward_v = self.layer.KQIbackward(volume)
+            volume_backward_qkv = torch.cat([volume_backward_q, volume_backward_k, volume_backward_v], dim=1)
+            volume = self.layerQKV.KQIbackward(volume_backward_qkv, volume_backward)
+            return volume.reshape(sequence_length, embedding_dim)
 
         def true_kqi(self):
             G = kqitool.DiGraph()
-            # 构建 Q, K, V, 均为 sequence_length * embedding_dim 的张量
+            # 构建 Q, K, V
             for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
-                G.add_node(f'L1_Q_{i}-{j}', [])
-                G.add_node(f'L1_K_{i}-{j}', [])
-                G.add_node(f'L1_V_{i}-{j}', [])
+                G.add_node(f'L0_{i}-{j}', [])
+
+            # 构建 Q, K, V, 均为 sequence_length * embedding_dim 的张量
+            preds = [f'L0_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(embedding_dim))]
+            for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
+                G.add_node(f'L1_Q_{i}-{j}', preds)
+                G.add_node(f'L1_K_{i}-{j}', preds)
+                G.add_node(f'L1_V_{i}-{j}', preds)
 
             # linear
             for i in range(head):
@@ -1958,10 +2026,44 @@ def test_MultiHeadAttention():
             for j, k in itertools.product(range(sequence_length), range(embedding_dim)):
                 G.add_node(f'L8_{j}-{k}', preds)
 
+            kqi = sum(map(lambda k: G.kqi(k) if "L8_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L8: KQI={kqi}, node={len([k for k in G.nodes() if "L8_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L8_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L7_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L7: KQI={kqi}, node={len([k for k in G.nodes() if "L7_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L7_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L6_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L6: KQI={kqi}, node={len([k for k in G.nodes() if "L6_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L6_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L5_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L5: KQI={kqi}, node={len([k for k in G.nodes() if "L5_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L5_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L4_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L4: KQI={kqi}, node={len([k for k in G.nodes() if "L4_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L4_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L3_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L3: KQI={kqi}, node={len([k for k in G.nodes() if "L3_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L3_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L2_Q_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L2_Q: KQI={kqi}, node={len([k for k in G.nodes() if "L2_Q_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_Q_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L2_K_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L2_K: KQI={kqi}, node={len([k for k in G.nodes() if "L2_K_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_K_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L2_V_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L2_V: KQI={kqi}, node={len([k for k in G.nodes() if "L2_V_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_V_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L1_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}')
+            kqi += sum(map(lambda k: G.kqi(k) if "L0_" in k else 0, G.nodes()))
+            logging.debug(
+                f'L0: KQI={kqi}, node={len([k for k in G.nodes() if "L0_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L0_" in k])}')
+            logging.debug(f'Total volume = {G.graph_volume()}')
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
-    kqi = TestMultiHeadAttention().KQI(torch.randn(sequence_length, embedding_dim))
-    true = TestMultiHeadAttention().true_kqi()
+    kqi = TestMultiheadAttention().KQI(torch.randn(sequence_length, embedding_dim))
+    true = TestMultiheadAttention().true_kqi()
     print("true_kqi: ", true)
     print("kqi: ", kqi)
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
@@ -1982,7 +2084,7 @@ def test_Hardswish():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -2012,14 +2114,16 @@ def test_Hardswish():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -2058,7 +2162,7 @@ def test_SiLU():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -2088,14 +2192,16 @@ def test_SiLU():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -2134,7 +2240,7 @@ def test_Mish():
             )
             self.layers2 = kqinn.Sequential(
                 # 3*8*8
-                kqinn.Linear(in_features=3*8*8, out_features=100, bias=False),
+                kqinn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
                 kqinn.Linear(in_features=100, out_features=10, bias=False),
             )
 
@@ -2164,14 +2270,16 @@ def test_Mish():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
             for i, j in itertools.product(range(26), range(26)):
                 G.add_node(f'L3_{i}-{j}_1', [f'L2_{i}-{j}_1'])
                 G.add_node(f'L3_{i}-{j}_2', [f'L2_{i}-{j}_2'])
             for i, j in itertools.product(range(8), range(8)):
-                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*3, i*3+2, i*3+4], [j*3, j*3+2, j*3+4]) for k3 in [1, 2]]
+                preds = [f'L3_{k1}-{k2}_{k3}' for k1, k2 in
+                         itertools.product([i * 3, i * 3 + 2, i * 3 + 4], [j * 3, j * 3 + 2, j * 3 + 4]) for k3 in
+                         [1, 2]]
                 G.add_node(f'L4_{i}-{j}_1', preds)
                 G.add_node(f'L4_{i}-{j}_2', preds)
                 G.add_node(f'L4_{i}-{j}_3', preds)
@@ -2225,7 +2333,7 @@ if __name__ == '__main__':
     test_GLU()
 
     test_Hardsigmoid()
-    test_MultiHeadAttention()
+    test_MultiheadAttention()
     test_Hardswish()
     test_SiLU()
     test_Mish()
