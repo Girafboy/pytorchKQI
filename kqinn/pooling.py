@@ -431,11 +431,11 @@ class AdaptiveAvgPool2d(torch.nn.AdaptiveAvgPool2d, KQI):
         self.stride = [None, None]
         self.kernel_size = [None, None]
         self.padding = [0, 0]
-        for i in [0,1]:
-                if self.output_size[i] is None:
-                    self.output_size[i] = self.input_size[i+1]
-                self.stride[i] = math.floor(self.input_size[i+1]/self.output_size[i])
-                self.kernel_size[i] = self.input_size[i+1] - (self.output_size[i] - 1) * self.stride[i]
+        for i in [0, 1]:
+            if self.output_size[i] is None:
+                self.output_size[i] = self.input_size[i+1]
+            self.stride[i] = math.floor(self.input_size[i+1]/self.output_size[i])
+            self.kernel_size[i] = self.input_size[i+1] - (self.output_size[i] - 1) * self.stride[i]
         # print('self.input_size',self.input_size)
         # print('self.output_size',self.output_size)
         # print('self.kernel_size',self.kernel_size)
@@ -500,8 +500,7 @@ class AdaptiveAvgPool2d(torch.nn.AdaptiveAvgPool2d, KQI):
 class AdaptiveAvgPool3d(torch.nn.AdaptiveAvgPool3d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.input_size = x.shape
-        self.output_size = self.output_size if isinstance(self.output_size, tuple) else (
-        self.output_size, self.output_size, self.output_size)
+        self.output_size = self.output_size if isinstance(self.output_size, tuple) else (self.output_size, self.output_size, self.output_size)
         self.stride = [None, None, None]
         self.kernel_size = [None, None, None]
         self.padding = [0, 0, 0]
@@ -609,8 +608,7 @@ class AdaptiveMaxPool1d(torch.nn.AdaptiveMaxPool1d, KQI):
 class AdaptiveMaxPool2d(torch.nn.AdaptiveMaxPool2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.input_size = x.shape
-        self.output_size = self.output_size if isinstance(self.output_size, tuple) else (
-        self.output_size, self.output_size)
+        self.output_size = self.output_size if isinstance(self.output_size, tuple) else (self.output_size, self.output_size)
         self.stride = [None, None]
         self.kernel_size = [None, None]
         self.padding = [0, 0]
@@ -682,8 +680,7 @@ class AdaptiveMaxPool2d(torch.nn.AdaptiveMaxPool2d, KQI):
 class AdaptiveMaxPool3d(torch.nn.AdaptiveMaxPool3d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.input_size = x.shape
-        self.output_size = self.output_size if isinstance(self.output_size, tuple) else (
-        self.output_size, self.output_size, self.output_size)
+        self.output_size = self.output_size if isinstance(self.output_size, tuple) else (self.output_size, self.output_size, self.output_size)
         self.stride = [None, None, None]
         self.kernel_size = [None, None, None]
         self.padding = [0, 0, 0]
