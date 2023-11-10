@@ -4,6 +4,7 @@ import kqitool
 import logging
 import itertools
 
+
 def test_Dropout():
     class TestDropout(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
