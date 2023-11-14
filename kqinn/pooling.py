@@ -44,7 +44,7 @@ class AvgPool1d(torch.nn.AvgPool1d, KQI):
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
                 for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1)):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0]] += 1 + (volume / np.prod(self.kernel_size[0]) / volume.size(0)).sum(dim=0)
+                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0]] += 1 + volume[c] / np.prod(self.kernel_size[0])
 
             for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1)):
                 KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size[0]), volume_backward[c, i:H * self.stride[0] + i:self.stride[0]])
@@ -412,8 +412,7 @@ class AdaptiveAvgPool1d(torch.nn.AdaptiveAvgPool1d, KQI):
         if volume_backward is None:
             volume_backward = torch.zeros(self.input_size)
             for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
-                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + (
-                            volume / np.prod(self.kernel_size) / volume.size(0)).sum(dim=0)
+                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / np.prod(self.kernel_size)
 
         for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
             KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size),
@@ -589,8 +588,7 @@ class AdaptiveMaxPool1d(torch.nn.AdaptiveMaxPool1d, KQI):
             volume_backward = torch.zeros(self.input_size)
             for c, i in itertools.product(range(volume.size(0)),
                                           range(0, self.kernel_size * self.dilation, self.dilation)):
-                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + (
-                            volume / np.prod(self.kernel_size) / volume.size(0)).sum(dim=0)
+                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / np.prod(self.kernel_size)
 
         for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size * self.dilation, self.dilation)):
             KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size),
@@ -744,3 +742,4 @@ class AdaptiveMaxPool3d(torch.nn.AdaptiveMaxPool3d, KQI):
 
             degree[Hleft:Hright, Wleft:Wright, Lleft:Lright] += 1
         return degree
+
