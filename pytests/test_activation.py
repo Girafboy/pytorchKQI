@@ -1348,10 +1348,10 @@ def test_Softshrink():
 
 
 def test_MultiheadAttention():
-    head = 8  # 注意力头数
-    embedding_dim = 64  # 嵌入维度
-    sequence_length = 10  # 序列长度
-    head_dim = embedding_dim // head  # 每个头的维度
+    head = 8
+    embedding_dim = 64
+    sequence_length = 10
+    head_dim = embedding_dim // head
 
     class TestMultiheadAttention(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -1387,11 +1387,10 @@ def test_MultiheadAttention():
 
         def true_kqi(self):
             G = kqitool.DiGraph()
-            # 构建 Q, K, V
+            # Construct Q, K, V
             for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
                 G.add_node(f'L0_{i}-{j}', [])
 
-            # 构建 Q, K, V, 均为 sequence_length * embedding_dim 的张量
             preds = [f'L0_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(embedding_dim))]
             for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
                 G.add_node(f'L1_Q_{i}-{j}', preds)
@@ -1461,6 +1460,7 @@ def test_MultiheadAttention():
     print("kqi: ", kqi)
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 def test_PReLU():
     class TestPReLU(torch.nn.Module, kqinn.KQI):

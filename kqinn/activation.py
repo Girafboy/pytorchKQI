@@ -250,7 +250,7 @@ class Softshrink(torch.nn.Softshrink, KQI):
 class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
     def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[
         torch.Tensor, Optional[torch.Tensor]]:
-        # x, y, z 分别为 query, key, value
+        # x: query, y: key, z: value
         seq_len, embed_dim = x.shape
         num_heads = self.num_heads
         head_dim = embed_dim // num_heads
@@ -295,11 +295,9 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
         for vol in volume_7_all.flatten():
             KQI.kqi += self.KQI_formula(volume / np.prod(volume.shape), vol)
 
-        # 从 volume_7_all(seq_len, embed_dim) 取出 volume_7(seq_len, head_dim)
         volume_7 = volume_7_all.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
 
         # MatMul
-        # 使用 volume_7.sum() / seq_len 获取一行的 volume 的和，因为此时 volume 中每个元素等价
         volume_6 = torch.ones((seq_len, seq_len)) * (head_dim + volume_7.sum() / (seq_len * 2) / seq_len)
         volume_2_v = torch.ones((seq_len, head_dim)) * (seq_len + volume_7.sum() / (seq_len * 2) / head_dim)
         for col in volume_6:
@@ -343,8 +341,6 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
         KQI.kqi += self.KQI_formula(volume_2_v / np.prod(volume_2_v.shape), volume_1_v) * np.prod(
             volume_2_v.shape) * num_heads
 
-        # 不考虑 volume_backward_k, volume_backward_q, volume_backward_v 不为 None 的情况
-        # 组装 volume_backward_k, volume_backward_q, volume_backward_v
         volume_backward_q = volume_1_q.repeat(1, num_heads)
         volume_backward_k = volume_1_k.repeat(1, num_heads)
         volume_backward_v = volume_1_v.repeat(1, num_heads)
