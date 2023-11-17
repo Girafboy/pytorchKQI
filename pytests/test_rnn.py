@@ -85,6 +85,7 @@ def test_RNN():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_LSTM():
     class TestLSTM(torch.nn.Module, kqinn.KQI):
         def __init__(self):
@@ -122,7 +123,7 @@ def test_LSTM():
             for t in range(1, 4):
                 for i in range(input_size):
                     G.add_node(f'x_{t}_{i}', [])
-                
+
                 if t == 1:
                     preds = [f'x_{t}_{k}' for k in range(input_size)]
                 else:
@@ -188,7 +189,7 @@ def test_LSTM():
             for i in range(10):
                 preds = [f'l2_h_3_{k}' for k in range(hidden_size)]
                 G.add_node(f'out_{i}', preds)
-           
+
             return sum(map(lambda k: G.kqi(k), G.nodes()))
 
     kqi = TestLSTM().KQI(torch.randn(3, 28))
@@ -200,3 +201,4 @@ def test_LSTM():
 if __name__ == '__main__':
     test_RNN()
     test_LSTM()
+    

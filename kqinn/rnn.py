@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import itertools
 import logging
-from typing import List, Tuple, Optional, overload
+from typing import Tuple, Optional
 
 from .kqi import KQI
 
@@ -71,7 +71,6 @@ class LSTM(torch.nn.LSTM, KQI):
             KQI.W += (self.num_layers-1)*(self.hidden_size*self.hidden_size+self.hidden_size)*4+self.hidden_size*8 + (x.shape[0]-1)*(((self.hidden_size+self.hidden_size)*self.hidden_size+self.hidden_size)*4+self.hidden_size*9)
         return self.forward(x, hx)
 
-
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         volume_layers = [torch.zeros((volume.shape[0], self.hidden_size))] * self.num_layers + [torch.zeros((volume.shape[0], self.input_size))]
         volume_layers[0] = volume
@@ -94,41 +93,41 @@ class LSTM(torch.nn.LSTM, KQI):
         volume_Ct_list = []
         for i in reversed(range(0, volume_fore.shape[0])):
             volume_hidden_3_1 = volume_fore[i]/2 + 1
-            KQI.kqi += self.KQI_formula(volume_fore[i]/2, volume_hidden_3_1) # ht half
+            KQI.kqi += self.KQI_formula(volume_fore[i]/2, volume_hidden_3_1)  # ht half
             volume_Ot = volume_fore[i]/2 + 1
-            KQI.kqi += self.KQI_formula(volume_fore[i]/2, volume_Ot) # ht half
+            KQI.kqi += self.KQI_formula(volume_fore[i]/2, volume_Ot)  # ht half
             if i == volume_fore.shape[0]-1:
                 volume_Ct = volume_hidden_3_1 + 1
             else:
                 volume_Ct = volume_hidden_3_1 + 1 + volume_hidden_2_1_list[0]/2+1
             volume_Ct_list.insert(0, volume_Ct)
-            KQI.kqi += self.KQI_formula(volume_hidden_3_1, volume_Ct) # hidden_3_1
+            KQI.kqi += self.KQI_formula(volume_hidden_3_1, volume_Ct)  # hidden_3_1
 
             volume_hidden_2_1 = volume_Ct/2 + 1
             volume_hidden_2_1_list.insert(0, volume_hidden_2_1)
-            KQI.kqi += self.KQI_formula(volume_Ct/2, volume_hidden_2_1) # Ct half
+            KQI.kqi += self.KQI_formula(volume_Ct/2, volume_hidden_2_1)  # Ct half
             volume_hidden_2_2 = volume_Ct/2 + 1
-            KQI.kqi += self.KQI_formula(volume_Ct/2, volume_hidden_2_2) # Ct half
+            KQI.kqi += self.KQI_formula(volume_Ct/2, volume_hidden_2_2)  # Ct half
 
             if i > 0:
                 volume_ft = volume_hidden_2_1/2 + 1
-                KQI.kqi += self.KQI_formula(volume_hidden_2_1/2, volume_ft) # hidden_2_1 half
+                KQI.kqi += self.KQI_formula(volume_hidden_2_1/2, volume_ft)  # hidden_2_1 half
             else:
                 volume_ft = volume_hidden_2_1 + 1
-                KQI.kqi += self.KQI_formula(volume_hidden_2_1, volume_ft) # hidden_2_1
+                KQI.kqi += self.KQI_formula(volume_hidden_2_1, volume_ft)  # hidden_2_1
             volume_it = volume_hidden_2_2/2 + 1
-            KQI.kqi += self.KQI_formula(volume_hidden_2_2/2, volume_it) # hidden_2_2 half
+            KQI.kqi += self.KQI_formula(volume_hidden_2_2/2, volume_it)  # hidden_2_2 half
             volume_C_t = volume_hidden_2_2/2 + 1
-            KQI.kqi += self.KQI_formula(volume_hidden_2_2/2, volume_C_t) # hidden_2_2 half
+            KQI.kqi += self.KQI_formula(volume_hidden_2_2/2, volume_C_t)  # hidden_2_2 half
 
             volume_hidden_1_1 = volume_ft + 1
-            KQI.kqi += self.KQI_formula(volume_ft, volume_hidden_1_1) # ft
+            KQI.kqi += self.KQI_formula(volume_ft, volume_hidden_1_1)  # ft
             volume_hidden_1_2 = volume_it + 1
-            KQI.kqi += self.KQI_formula(volume_it, volume_hidden_1_2) # it
+            KQI.kqi += self.KQI_formula(volume_it, volume_hidden_1_2)  # it
             volume_hidden_1_3 = volume_C_t + 1
-            KQI.kqi += self.KQI_formula(volume_C_t, volume_hidden_1_3) # C_t
+            KQI.kqi += self.KQI_formula(volume_C_t, volume_hidden_1_3)  # C_t
             volume_hidden_1_4 = volume_Ot + 1
-            KQI.kqi += self.KQI_formula(volume_Ot, volume_hidden_1_4) # Ot
+            KQI.kqi += self.KQI_formula(volume_Ot, volume_hidden_1_4)  # Ot
             volume_hiddens = [volume_hidden_1_1, volume_hidden_1_2, volume_hidden_1_3, volume_hidden_1_4]
 
             if i > 0:
@@ -139,10 +138,10 @@ class LSTM(torch.nn.LSTM, KQI):
                 for volume_hidden in volume_hiddens:
                     for vol in volume_back[0]:
                         KQI.kqi += self.KQI_formula(volume_hidden/volume_back.shape[1], vol)
-        
+
         for i in reversed(range(0, volume_fore.shape[0])):
             if i > 0:
-                KQI.kqi += self.KQI_formula(volume_hidden_2_1_list[i]/2, volume_Ct_list[i-1]) # hidden_2_1 half
+                KQI.kqi += self.KQI_formula(volume_hidden_2_1_list[i]/2, volume_Ct_list[i-1])  # hidden_2_1 half
 
     def _single_layer_volume(self, volume_fore, volume_back):
         volume_hidden_2_1_list = []
