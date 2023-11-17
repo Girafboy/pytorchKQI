@@ -201,4 +201,3 @@ def test_LSTM():
 if __name__ == '__main__':
     test_RNN()
     test_LSTM()
-    
