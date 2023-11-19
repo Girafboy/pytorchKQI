@@ -797,4 +797,3 @@ class LPPool2d(torch.nn.LPPool2d, KQI):
 
         return volume_backward
 
-
