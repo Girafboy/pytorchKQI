@@ -769,7 +769,6 @@ class LPPool1d(torch.nn.LPPool1d, KQI):
         return volume_backward
 
 
-
 class LPPool2d(torch.nn.LPPool2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         self.kernel_size = self.kernel_size if isinstance(self.kernel_size, tuple) else (self.kernel_size, self.kernel_size)
@@ -796,4 +795,3 @@ class LPPool2d(torch.nn.LPPool2d, KQI):
         logging.debug(f'LPPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
         return volume_backward
-
