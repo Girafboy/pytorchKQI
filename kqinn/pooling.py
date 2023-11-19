@@ -743,3 +743,58 @@ class AdaptiveMaxPool3d(torch.nn.AdaptiveMaxPool3d, KQI):
             degree[Hleft:Hright, Wleft:Wright, Lleft:Lright] += 1
         return degree
 
+
+class LPPool1d(torch.nn.LPPool1d, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        self.input_size = x.shape
+        x_new = self.forward(x)
+
+        KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size)
+
+        return x_new
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        _, H = volume.shape
+
+        if volume_backward is None:
+            volume_backward = torch.zeros(self.input_size)
+            for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
+                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / np.prod(self.kernel_size)
+
+        for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
+            KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride + i:self.stride])
+
+        logging.debug(f'LPPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+
+        return volume_backward
+
+
+
+class LPPool2d(torch.nn.LPPool2d, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        self.kernel_size = self.kernel_size if isinstance(self.kernel_size, tuple) else (self.kernel_size, self.kernel_size)
+        self.stride = self.stride if isinstance(self.stride, tuple) else (self.stride, self.stride)
+
+        self.input_size = x.shape
+        x_new = self.forward(x)
+
+        KQI.W += np.prod(x_new.shape) * np.prod(self.kernel_size)
+
+        return x_new
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        _, H, W = volume.shape
+
+        if volume_backward is None:
+            volume_backward = torch.zeros(self.input_size)
+            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / np.prod(self.kernel_size)
+
+        for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+            KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
+
+        logging.debug(f'LPPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+
+        return volume_backward
+
+
