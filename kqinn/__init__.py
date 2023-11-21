@@ -21,7 +21,9 @@ from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
 #     SoftMarginLoss, CrossEntropyLoss, TripletMarginLoss, TripletMarginWithDistanceLoss, PoissonNLLLoss, GaussianNLLLoss
 from .container import Sequential
 # from .container import Container, Sequential, ModuleList, ModuleDict, ParameterList, ParameterDict
-from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d
+from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
+    LPPool1d, LPPool2d, \
+    AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, AdaptiveMaxPool3d
 # from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
 #     MaxUnpool1d, MaxUnpool2d, MaxUnpool3d, FractionalMaxPool2d, FractionalMaxPool3d, LPPool1d, LPPool2d, \
 #     AdaptiveMaxPool1d, AdaptiveMaxPool2d, AdaptiveMaxPool3d, AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d
@@ -35,7 +37,7 @@ from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, Fea
 # from .padding import ReflectionPad1d, ReflectionPad2d, ReflectionPad3d, ReplicationPad1d, ReplicationPad2d, \
 #     ReplicationPad3d, ZeroPad2d, ConstantPad1d, ConstantPad2d, ConstantPad3d
 # from .sparse import Embedding, EmbeddingBag
-from .rnn import RNN
+from .rnn import RNN, LSTM
 # from .rnn import RNNBase, RNN, LSTM, GRU, \
 #     RNNCellBase, RNNCell, LSTMCell, GRUCell
 # from .pixelshuffle import PixelShuffle, PixelUnshuffle
