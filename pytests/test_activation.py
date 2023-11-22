@@ -1347,6 +1347,121 @@ def test_Softshrink():
     assert abs(kqi - true) / true < 0.0001
 
 
+def test_MultiheadAttention():
+    head = 8
+    embedding_dim = 64
+    sequence_length = 10
+    head_dim = embedding_dim // head
+
+    class TestMultiheadAttention(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+
+            self.layerQKV = kqinn.Linear(in_features=embedding_dim * sequence_length,
+                                         out_features=embedding_dim * sequence_length * 3, bias=False)
+            self.layer = kqinn.MultiheadAttention(embed_dim=embedding_dim, num_heads=head)
+
+        def forward(self, x):
+            x = x.flatten()
+            qkv = self.layerQKV(x).reshape(sequence_length, embedding_dim * 3)
+            q = qkv[:, :embedding_dim].reshape(sequence_length, embedding_dim)
+            k = qkv[:, embedding_dim:embedding_dim * 2].reshape(sequence_length, embedding_dim)
+            v = qkv[:, embedding_dim * 2:].reshape(sequence_length, embedding_dim)
+            attn_output, attn_output_weights = self.layer(k, q, v)
+            return attn_output
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = x.flatten()
+            qkv = self.layerQKV.KQIforward(x).reshape(sequence_length, embedding_dim * 3)
+            q = qkv[:, :embedding_dim].reshape(sequence_length, embedding_dim)
+            k = qkv[:, embedding_dim:embedding_dim * 2].reshape(sequence_length, embedding_dim)
+            v = qkv[:, embedding_dim * 2:].reshape(sequence_length, embedding_dim)
+            attn_output, attn_output_weights = self.layer.KQIforward(k, q, v)
+            return attn_output
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume_backward_k, volume_backward_q, volume_backward_v = self.layer.KQIbackward(volume)
+            volume_backward_qkv = torch.cat([volume_backward_q, volume_backward_k, volume_backward_v], dim=1)
+            volume = self.layerQKV.KQIbackward(volume_backward_qkv, volume_backward)
+            return volume.reshape(sequence_length, embedding_dim)
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            # Construct Q, K, V
+            for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
+                G.add_node(f'L0_{i}-{j}', [])
+
+            preds = [f'L0_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(embedding_dim))]
+            for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
+                G.add_node(f'L1_Q_{i}-{j}', preds)
+                G.add_node(f'L1_K_{i}-{j}', preds)
+                G.add_node(f'L1_V_{i}-{j}', preds)
+
+            # linear
+            for i in range(head):
+                predsQ = [f'L1_Q_{j}-{k}' for j, k in
+                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
+                predsK = [f'L1_K_{j}-{k}' for j, k in
+                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
+                predsV = [f'L1_V_{j}-{k}' for j, k in
+                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
+                for j, k in itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim)):
+                    G.add_node(f'L2_Q_{j}-{k}', predsQ)
+                    G.add_node(f'L2_K_{j}-{k}', predsK)
+                    G.add_node(f'L2_V_{j}-{k}', predsV)
+
+            # MatMul
+            for i in range(head):
+                for j in range(sequence_length):
+                    for k in range(sequence_length):
+                        preds = ([f'L2_Q_{j}-{i * head_dim + m}' for m in range(head_dim)]
+                                 + [f'L2_K_{k}-{i * head_dim + m}' for m in range(head_dim)])
+                        G.add_node(f'L3_{j}-{i * sequence_length + k}', preds)
+
+            # Scale
+            for i in range(head):
+                for j in range(sequence_length):
+                    for k in range(sequence_length):
+                        preds = [f'L3_{j}-{i * sequence_length + k}']
+                        G.add_node(f'L4_{j}-{i * sequence_length + k}', preds)
+
+            # Mask
+            # for i in range(head):
+            #     for j in range(sequence_length):
+            #         for k in range(sequence_length):
+            #             preds = [f'L4_{j}-{i * sequence_length + k}']
+            #             G.add_node(f'L5_{j}-{i * sequence_length + k}', preds)
+
+            # SoftMax
+            for i in range(head):
+                preds = [f'L4_{j}-{i * sequence_length + k}' for j, k in
+                         itertools.product(range(sequence_length), range(sequence_length))]
+                for j, k in itertools.product(range(sequence_length), range(sequence_length)):
+                    G.add_node(f'L6_{j}-{i * sequence_length + k}', preds)
+
+            # MatMul
+            for i in range(head):
+                for j in range(sequence_length):
+                    for k in range(head_dim):
+                        preds = ([f'L6_{j}-{i * sequence_length + m}' for m in range(sequence_length)] +
+                                 [f'L2_V_{m}-{i * head_dim + k}' for m in range(sequence_length)])
+                        G.add_node(f'L7_{j}-{i * head_dim + k}', preds)
+
+            # Linear
+            preds = [f'L7_{j}-{k}' for j, k in itertools.product(range(sequence_length), range(embedding_dim))]
+            for j, k in itertools.product(range(sequence_length), range(embedding_dim)):
+                G.add_node(f'L8_{j}-{k}', preds)
+
+            return sum(map(lambda m: G.kqi(m), G.nodes()))
+
+    kqi = TestMultiheadAttention().KQI(torch.randn(sequence_length, embedding_dim))
+    true = TestMultiheadAttention().true_kqi()
+    print("true_kqi: ", true)
+    print("kqi: ", kqi)
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
 def test_PReLU():
     class TestPReLU(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -2129,6 +2244,7 @@ if __name__ == '__main__':
     test_GLU()
 
     test_Hardsigmoid()
+    test_MultiheadAttention()
     test_Hardswish()
     test_SiLU()
     test_Mish()

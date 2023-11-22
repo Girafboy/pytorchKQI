@@ -9,7 +9,7 @@ from .conv import Conv1d, Conv2d, Conv3d
 #     LazyConv1d, LazyConv2d, LazyConv3d, LazyConvTranspose1d, LazyConvTranspose2d, LazyConvTranspose3d
 from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
     Softmax, Softmax2d, LogSoftmax, ELU, SELU, CELU, GELU, Hardshrink, LeakyReLU, LogSigmoid, \
-    Softplus, Softshrink, PReLU, Softsign, Softmin, Tanhshrink, RReLU, GLU, \
+    Softplus, Softshrink, MultiheadAttention, PReLU, Softsign, Softmin, Tanhshrink, RReLU, GLU, \
     Hardsigmoid, Hardswish, SiLU, Mish
 # from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
 #     Softmax, Softmax2d, LogSoftmax, ELU, SELU, CELU, GELU, Hardshrink, LeakyReLU, LogSigmoid, \
@@ -22,6 +22,7 @@ from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
 from .container import Sequential
 # from .container import Container, Sequential, ModuleList, ModuleDict, ParameterList, ParameterDict
 from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
+    LPPool1d, LPPool2d, \
     AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, AdaptiveMaxPool3d
 # from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
 #     MaxUnpool1d, MaxUnpool2d, MaxUnpool3d, FractionalMaxPool2d, FractionalMaxPool3d, LPPool1d, LPPool2d, \
@@ -30,8 +31,9 @@ from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxP
 #     LazyBatchNorm1d, LazyBatchNorm2d, LazyBatchNorm3d
 # from .instancenorm import InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, \
 #     LazyInstanceNorm1d, LazyInstanceNorm2d, LazyInstanceNorm3d
+from .normalization import LayerNorm
 # from .normalization import LocalResponseNorm, CrossMapLRN2d, LayerNorm, GroupNorm
-from .dropout import Dropout
+from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout
 # from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout
 # from .padding import ReflectionPad1d, ReflectionPad2d, ReflectionPad3d, ReplicationPad1d, ReplicationPad2d, \
 #     ReplicationPad3d, ZeroPad2d, ConstantPad1d, ConstantPad2d, ConstantPad3d
