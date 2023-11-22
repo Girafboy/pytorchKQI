@@ -248,8 +248,7 @@ class Softshrink(torch.nn.Softshrink, KQI):
 
 
 class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
-    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[
-        torch.Tensor, Optional[torch.Tensor]]:
+    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # x: query, y: key, z: value
         seq_len, embed_dim = x.shape
         num_heads = self.num_heads
