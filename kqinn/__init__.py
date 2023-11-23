@@ -38,7 +38,7 @@ from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, Fea
 # from .padding import ReflectionPad1d, ReflectionPad2d, ReflectionPad3d, ReplicationPad1d, ReplicationPad2d, \
 #     ReplicationPad3d, ZeroPad2d, ConstantPad1d, ConstantPad2d, ConstantPad3d
 # from .sparse import Embedding, EmbeddingBag
-from .rnn import RNN, LSTM
+from .rnn import RNN, LSTM, GRU
 # from .rnn import RNNBase, RNN, LSTM, GRU, \
 #     RNNCellBase, RNNCell, LSTMCell, GRUCell
 # from .pixelshuffle import PixelShuffle, PixelUnshuffle
