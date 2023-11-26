@@ -31,7 +31,7 @@ from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxP
 #     LazyBatchNorm1d, LazyBatchNorm2d, LazyBatchNorm3d
 # from .instancenorm import InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, \
 #     LazyInstanceNorm1d, LazyInstanceNorm2d, LazyInstanceNorm3d
-from .normalization import LayerNorm
+from .normalization import LayerNorm, GroupNorm
 # from .normalization import LocalResponseNorm, CrossMapLRN2d, LayerNorm, GroupNorm
 from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout
 # from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout

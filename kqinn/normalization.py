@@ -54,3 +54,23 @@ class LayerNorm(torch.nn.LayerNorm, KQI):
 
         logging.debug(f'LayerNorm: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+    
+
+class GroupNorm(torch.nn.GroupNorm, KQI):
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        KQI.W += np.prod(x.shape[-3:]) ** 2  / self.num_groups
+        return self.forward(x)
+    
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        num = np.prod(volume.shape[-3:]) / self.num_groups
+        stride = int(self.num_channels / self.num_groups)
+        if volume_backward is None:
+            volume_backward = torch.zeros(volume.shape)
+            for i in range(0,self.num_channels,stride):
+                volume_backward[:,i:i+stride,:,:] += (num + (volume[:,i:i+stride,:,:] / num).sum())
+
+        for i in range(0,self.num_channels,stride):
+            for vol in volume_backward[:,i:i+stride,:,:].flatten():
+                KQI.kqi += self.KQI_formula(volume[:,i:i+stride,:,:] / num, vol)
+        logging.debug(f'GroupNorm: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume_backward
