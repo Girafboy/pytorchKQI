@@ -51,3 +51,7 @@ def test_Sequential():
     true = TestSequential().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
+
+if __name__ == '__main__':
+    test_Sequential()
