@@ -1,3 +1,5 @@
+import torch
+import numpy as np
 import logging
 from typing import Tuple, Optional
 
@@ -248,8 +250,7 @@ class Softshrink(torch.nn.Softshrink, KQI):
 
 
 class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
-    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[
-        torch.Tensor, Optional[torch.Tensor]]:
+    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # x: query, y: key, z: value
         seq_len, embed_dim = x.shape
         num_heads = self.num_heads
@@ -424,7 +425,7 @@ class GLU(torch.nn.GLU, KQI):
         if volume_backward is None:
             volume_backward_half = volume / 2 + 1
             volume_backward = torch.cat((volume_backward_half, volume_backward_half), dim=self.dim)
-        KQI.kqi += 2 * self.KQI_formula(volume / 2, volume_backward_half)
+        KQI.kqi += 2*self.KQI_formula(volume / 2, volume_backward_half)
         logging.debug(f'GLU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 

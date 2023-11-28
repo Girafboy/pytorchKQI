@@ -33,12 +33,12 @@ from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxP
 #     LazyInstanceNorm1d, LazyInstanceNorm2d, LazyInstanceNorm3d
 from .normalization import LayerNorm
 # from .normalization import LocalResponseNorm, CrossMapLRN2d, LayerNorm, GroupNorm
-from .dropout import Dropout
+from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout
 # from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout
 # from .padding import ReflectionPad1d, ReflectionPad2d, ReflectionPad3d, ReplicationPad1d, ReplicationPad2d, \
 #     ReplicationPad3d, ZeroPad2d, ConstantPad1d, ConstantPad2d, ConstantPad3d
 # from .sparse import Embedding, EmbeddingBag
-from .rnn import RNN, LSTM
+from .rnn import RNN, LSTM, GRU
 # from .rnn import RNNBase, RNN, LSTM, GRU, \
 #     RNNCellBase, RNNCell, LSTMCell, GRUCell
 # from .pixelshuffle import PixelShuffle, PixelUnshuffle
