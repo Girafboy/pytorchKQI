@@ -7,6 +7,10 @@ from .kqi import KQI
 
 
 class TransformerEncoderLayer(torch.nn.TransformerEncoderLayer, KQI):
+    """
+    This module is modified from torch.nn.TransformerEncoderLayer.
+    We only consider the case of norm_first=True.
+    """
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         seq_len, batch_size, embed_dim = x.shape
         d_model = embed_dim
@@ -73,22 +77,18 @@ class TransformerEncoderLayer(torch.nn.TransformerEncoderLayer, KQI):
 
         KQI.kqi += self.KQI_formula(volume / 2, volume_12)
         KQI.kqi += self.KQI_formula(volume / 2, volume_9)
-        logging.debug(f'L13: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+
         volume_12 = volume_12.sum(0).sum(0) / (seq_len * batch_size)
         for vol in volume_11:
             KQI.kqi += self.KQI_formula(volume_12 / dim_feedforward, vol) * seq_len * batch_size
-        volume_12 = volume_12.expand(seq_len, batch_size, d_model)
-        logging.debug(f'L12: KQI={KQI.kqi}, node={np.prod(volume_12.shape)}, volume={volume_12.sum()}')
+
         for vol in volume_10:
             KQI.kqi += self.KQI_formula(volume_11 / d_model, vol) * seq_len * batch_size
-        volume_11 = volume_11.expand(seq_len, batch_size, dim_feedforward)
-        logging.debug(f'L11: KQI={KQI.kqi}, node={np.prod(volume_11.shape)}, volume={volume_11.sum()}')
+
         volume_9 = volume_9.sum(0).sum(0) / (seq_len * batch_size)
         for vol in volume_9:
             KQI.kqi += self.KQI_formula(volume_10 / d_model, vol) * seq_len * batch_size
         volume_9 = volume_9.expand(seq_len, batch_size, d_model)
-        volume_10 = volume_10.expand(seq_len, batch_size, d_model)
-        logging.debug(f'L10: KQI={KQI.kqi}, node={np.prod(volume_10.shape)}, volume={volume_10.sum()}')
 
         # Add
         volume_8 = volume_9 / 2 + 1
@@ -139,44 +139,39 @@ class TransformerEncoderLayer(torch.nn.TransformerEncoderLayer, KQI):
             volume_backward = volume_0
         KQI.kqi += self.KQI_formula(volume_9 / 2, volume_backward)
         KQI.kqi += self.KQI_formula(volume_9 / 2, volume_8)
-        logging.debug(f'L9: KQI={KQI.kqi}, node={np.prod(volume_9.shape)}, volume={volume_9.sum()}')
 
         for vol in volume_7_all.flatten():
             KQI.kqi += self.KQI_formula(volume_8 / np.prod(volume_8.shape), vol) * batch_size
-        logging.debug(f'L8: KQI={KQI.kqi}, node={np.prod(volume_8.shape)}, volume={volume_8.sum()}')
+
         for col in volume_6:
             for vol in col:
                 KQI.kqi += self.KQI_formula(volume_7[0, :] / (seq_len * 2), vol) * num_heads * batch_size
         for col in volume_2_v:
             for vol in col:
                 KQI.kqi += self.KQI_formula(volume_7[:, 0] / (seq_len * 2), vol) * num_heads * batch_size
-        logging.debug(f'L7: KQI={KQI.kqi}, node={np.prod(volume_7.shape)}, volume={volume_7.sum()}')
+
         KQI.kqi += self.KQI_formula(volume_6 / np.prod(volume_6.shape), volume_4) * np.prod(
             volume_6.shape) * num_heads * batch_size
-        logging.debug(f'L6: KQI={KQI.kqi}, node={np.prod(volume_6.shape)}, volume={volume_6.sum()}')
+
         # KQI.kqi += self.KQI_formula(volume_5, volume_4) * num_heads
         KQI.kqi += self.KQI_formula(volume_4, volume_3) * num_heads * batch_size
-        logging.debug(f'L4: KQI={KQI.kqi}, node={np.prod(volume_4.shape)}, volume={volume_4.sum()}')
+
         for col in volume_2_q:
             for vol in col:
                 KQI.kqi += self.KQI_formula(volume_3[0, :] / (head_dim * 2), vol) * num_heads * batch_size
         for col in volume_2_k:
             for vol in col:
                 KQI.kqi += self.KQI_formula(volume_3[0, :] / (head_dim * 2), vol) * num_heads * batch_size
-        logging.debug(f'L3: KQI={KQI.kqi}, node={np.prod(volume_3.shape)}, volume={volume_3.sum()}')
 
         volume_2_kqv = torch.cat([volume_2_q, volume_2_k, volume_2_v], dim=1)
         volume_1_kqv = volume_1_q + volume_1_k + volume_1_v
         for vol in volume_1_kqv.flatten():
             KQI.kqi += self.KQI_formula(volume_2_kqv / np.prod(volume_1_kqv.shape), vol) * num_heads * batch_size
-        volume_2 = volume_2_kqv.repeat(1, num_heads)
-        logging.debug(f'L2: KQI={KQI.kqi}, node={np.prod(volume_2.shape)}, volume={volume_2.sum()}')
 
         volume_backward = volume_backward.sum(0).sum(0) / (seq_len * batch_size)
         for vol in volume_backward:
             KQI.kqi += self.KQI_formula(volume_1 / d_model, vol) * seq_len * batch_size
         volume_backward = volume_backward.expand(seq_len, batch_size, d_model)
-        logging.debug(f'L1: KQI={KQI.kqi}, node={np.prod(volume_1.shape)}, volume={volume_1.sum()}')
 
         logging.debug(
             f'TransformerEncoderLayer: KQI={KQI.kqi}, node={np.prod(volume_0.shape)}, volume={volume_0.sum()}')

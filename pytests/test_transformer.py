@@ -122,47 +122,6 @@ def test_TransformerEncoderLayer():
                 preds = ([f'L9_{i}'] + [f'L12_{i}'])
                 G.add_node(f'L13_{i}', preds)
 
-            kqi = sum(map(lambda k: G.kqi(k) if "L13_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L13: KQI={kqi}, node={len([k for k in G.nodes() if "L13_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L13_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L12_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L12: KQI={kqi}, node={len([k for k in G.nodes() if "L12_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L12_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L11_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L11: KQI={kqi}, node={len([k for k in G.nodes() if "L11_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L11_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L10_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L10: KQI={kqi}, node={len([k for k in G.nodes() if "L10_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L10_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L9_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L9: KQI={kqi}, node={len([k for k in G.nodes() if "L9_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L9_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L8_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L8: KQI={kqi}, node={len([k for k in G.nodes() if "L8_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L8_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L7_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L7: KQI={kqi}, node={len([k for k in G.nodes() if "L7_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L7_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L6_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L6: KQI={kqi}, node={len([k for k in G.nodes() if "L6_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L6_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L4_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L4: KQI={kqi}, node={len([k for k in G.nodes() if "L4_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L4_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L3_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L3: KQI={kqi}, node={len([k for k in G.nodes() if "L3_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L3_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L2_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L2: KQI={kqi}, node={len([k for k in G.nodes() if "L2_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L1_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L0_" in k else 0, G.nodes()))
-            logging.debug(
-                f'L0: KQI={kqi}, node={len([k for k in G.nodes() if "L0_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L0_" in k])}')
-            logging.debug(f'Total volume = {G.graph_volume()}')
-
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
     kqi = TestTransformerEncoderLayer().KQI(torch.randn(sequence_length, batch_size, d_model))
