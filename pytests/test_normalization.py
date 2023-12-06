@@ -223,9 +223,9 @@ def test_LocalResponseNorm():
 
             # LocalResponseNorm(3)
             for i, j, k in itertools.product(range(10), range(10), range(6)):
-                preds = [f'L0_{i}-{j}-{m}' for m in range(max(0,k-1),min(5,k+1)+1)]
+                preds = [f'L0_{i}-{j}-{m}' for m in range(max(0, k-1), min(5, k+1)+1)]
                 G.add_node(f'L1_{i}-{j}-{k}', preds)
-            
+
             # Linear
             preds = [f'L1_{i}-{j}-{k}' for i, j, k in itertools.product(range(10), range(10), range(6))]
             for i, j, k in itertools.product(range(10), range(10), range(6)):
@@ -233,9 +233,9 @@ def test_LocalResponseNorm():
 
             # LocalResponseNorm(2)
             for i, j, k in itertools.product(range(10), range(10), range(6)):
-                preds = [f'L2_{i}-{j}-{m}' for m in range(max(0, k-1),min(5, k+1)+1)]
+                preds = [f'L2_{i}-{j}-{m}' for m in range(max(0, k-1), min(5, k+1)+1)]
                 G.add_node(f'L3_{i}-{j}-{k}', preds)
-            
+
             # Linear
             preds = [f'L3_{i}-{j}-{k}' for i, j, k in itertools.product(range(10), range(10), range(6))]
             for i, j, k in itertools.product(range(10), range(10), range(6)):
@@ -243,7 +243,7 @@ def test_LocalResponseNorm():
 
             # LocalResponseNorm(4)
             for i, j, k in itertools.product(range(10), range(10), range(6)):
-                preds = [f'L4_{i}-{j}-{m}' for m in range(max(0, k-2),min(5, k+2)+1)]
+                preds = [f'L4_{i}-{j}-{m}' for m in range(max(0, k-2), min(5, k+2)+1)]
                 G.add_node(f'L5_{i}-{j}-{k}', preds)
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))

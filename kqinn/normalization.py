@@ -66,10 +66,10 @@ class GroupNorm(torch.nn.GroupNorm, KQI):
         stride = int(self.num_channels / self.num_groups)
         if volume_backward is None:
             volume_backward = torch.zeros(volume.shape)
-            for i in range(0, self.num_channels,stride):
+            for i in range(0, self.num_channels, stride):
                 volume_backward[:, i:i+stride, :, :] += (num + (volume[:, i:i+stride, :, :] / num).sum())
 
-        for i in range(0,self.num_channels,stride):
+        for i in range(0, self.num_channels, stride):
             for vol in volume_backward[:, i:i+stride, :, :].flatten():
                 KQI.kqi += self.KQI_formula(volume[:, i:i+stride, :, :] / num, vol)
         logging.debug(f'GroupNorm: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
@@ -95,24 +95,23 @@ class LocalResponseNorm(torch.nn.LocalResponseNorm, KQI):
 
                 for m in range(left, right+1):
                     volume_backward[0, k, i, j] += volume[0, m, i, j] / degree[m, i, j]
-                volume_backward[0, k, i, j] += degree[k, i, j] 
-            
+                volume_backward[0, k, i, j] += degree[k, i, j]
+
         for i, j, k in itertools.product(range(H), range(W), range(channel)):
             left = max(0, k-self.size//2)
             right = min(k+self.size//2, channel-1)
 
             for m in range(left, right+1):
-                KQI.kqi += self.KQI_formula(volume[0, k, i, j] / degree[k, i, j], volume_backward[0, m, i, j]) 
+                KQI.kqi += self.KQI_formula(volume[0, k, i, j] / degree[k, i, j], volume_backward[0, m, i, j])
 
         logging.debug(f'LocalResponseNorm: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
-    
+
     def _degree(self, input_size):
         channel, H, W = input_size
         degree = torch.zeros(input_size)
         for i, j, k in itertools.product(range(H), range(W), range(channel)):
             left = max(0, k-self.size//2)
             right = min(k+self.size//2, channel-1)
-            
             degree[k, i, j] = right - left + 1
         return degree
