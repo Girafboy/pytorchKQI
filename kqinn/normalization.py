@@ -58,7 +58,7 @@ class LayerNorm(torch.nn.LayerNorm, KQI):
 
 class GroupNorm(torch.nn.GroupNorm, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-        KQI.W += np.prod(x.shape[-3:])**2  / self.num_groups
+        KQI.W += np.prod(x.shape[-3:]) ** 2 / self.num_groups
         return self.forward(x)
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
