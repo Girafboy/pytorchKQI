@@ -12,7 +12,7 @@ def test_TransformerEncoderLayer():
     sequence_length = 1
     d_model = 32
     head = 8
-    dim_feedforward = 32
+    dim_feedforward = 48
 
     class TestTransformerEncoderLayer(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -109,11 +109,11 @@ def test_TransformerEncoderLayer():
 
             # Linear1
             preds = [f'L10_{i}' for i in range(d_model)]
-            for i in range(d_model):
+            for i in range(dim_feedforward):
                 G.add_node(f'L11_{i}', preds)
 
             # Linear2
-            preds = [f'L11_{i}' for i in range(d_model)]
+            preds = [f'L11_{i}' for i in range(dim_feedforward)]
             for i in range(d_model):
                 G.add_node(f'L12_{i}', preds)
 
@@ -142,15 +142,22 @@ def test_TransformerDecoderLayer():
     class TestTransformerDecoderLayer(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
-
             self.layer = kqinn.TransformerDecoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward,
                                                        norm_first=True)
+            self.encoder_output = None  # Initialize a placeholder for memory
+
+        def set_encoder_output(self, encoder_output):
+            """ Set the encoder output to be used in the KQIforward method. """
+            self.encoder_output = encoder_output
 
         def forward(self, x, encoder_output):
             return self.layer(x, encoder_output)
 
-        def KQIforward(self, x: torch.Tensor, encoder_output: torch.Tensor) -> torch.Tensor:
-            return self.layer.KQIforward(x, encoder_output)
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            if self.encoder_output is None:
+                raise ValueError("Encoder output not set")
+            return self.layer(x, self.encoder_output)
+
 
         def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
             return self.layer.KQIbackward(volume, volume_backward)
@@ -314,8 +321,12 @@ def test_TransformerDecoderLayer():
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
-    kqi = TestTransformerDecoderLayer().KQI(torch.randn(sequence_length, batch_size, d_model))
-    true = TestTransformerDecoderLayer().true_kqi()
+    encoder_output_tensor = torch.randn(sequence_length, batch_size, d_model)
+    test_layer = TestTransformerDecoderLayer()
+    test_layer.set_encoder_output(encoder_output_tensor)
+
+    kqi = test_layer.KQI(torch.randn(sequence_length, batch_size, d_model))
+    true = test_layer.true_kqi()
     print("true_kqi: ", true)
     print("kqi: ", kqi)
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
@@ -324,4 +335,4 @@ def test_TransformerDecoderLayer():
 
 if __name__ == '__main__':
     test_TransformerEncoderLayer()
-    #test_TransformerDecoderLayer()
+    test_TransformerDecoderLayer()
