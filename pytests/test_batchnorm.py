@@ -4,6 +4,7 @@ import kqitool
 import logging
 import itertools
 
+
 def test_BatchNorm2d():
     class TestBatchNorm2d(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
@@ -16,7 +17,7 @@ def test_BatchNorm2d():
             self.layer4 = kqinn.Linear(in_features=1*6*10*10, out_features=1*6*10*10,
                                        bias=False)
             self.layer5 = kqinn.BatchNorm2d(6)
-        
+
         def forward(self, x):
             x = self.layer1(x)
             x = self.layer2(x.flatten())
@@ -32,7 +33,7 @@ def test_BatchNorm2d():
             x = self.layer4.KQIforward(x.flatten())
             x = self.layer5.KQIforward(x.reshape(1, 6, 10, 10))
             return x
-        
+
         def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
             volume = self.layer5.KQIbackward(volume)
             volume = self.layer4.KQIbackward(volume.flatten())
@@ -69,22 +70,7 @@ def test_BatchNorm2d():
                 preds = [f'L4_{i}-{j}-{k}' for i, j in itertools.product(range(10), range(10))]
                 G.add_node(f'L5_{i}-{j}-{k}', preds)
 
-
-            kqi = sum(map(lambda k: G.kqi(k) if "L5_" in k else 0, G.nodes()))
-            logging.debug(f'L5: KQI={kqi}, node={len([k for k in G.nodes() if "L5_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L5_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L4_" in k else 0, G.nodes()))
-            logging.debug(f'L4: KQI={kqi}, node={len([k for k in G.nodes() if "L4_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L4_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L3_" in k else 0, G.nodes()))
-            logging.debug(f'L3: KQI={kqi}, node={len([k for k in G.nodes() if "L3_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L3_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L2_" in k else 0, G.nodes()))
-            logging.debug(f'L2: KQI={kqi}, node={len([k for k in G.nodes() if "L2_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L2_" in k])}')
-            kqi += sum(map(lambda k: G.kqi(k) if "L1_" in k else 0, G.nodes()))
-            logging.debug(f'L1: KQI={kqi}, node={len([k for k in G.nodes() if "L1_" in k])}, volume={sum([G.volume(k) for k in G.nodes() if "L1_" in k])}')
-            logging.debug(f'Total volume = {G.graph_volume()}')
-
             return sum(map(lambda m: G.kqi(m), G.nodes()))
-        
-
 
     kqi = TestBatchNorm2d().KQI(torch.randn(1, 6, 10, 10))
     true = TestBatchNorm2d().true_kqi()
