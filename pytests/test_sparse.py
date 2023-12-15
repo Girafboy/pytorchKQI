@@ -36,12 +36,12 @@ def test_Embedding():
             for i, j, k in itertools.product(range(1), range(4), range(2)):
                 G.add_node(f'L0_{i}-{j}-{k}', [])
 
-            #embedding
+            # embedding
             for i, j, k in itertools.product(range(4), range(3), range(2)):
                 preds = [f'L0_{0}-{i}-{k}']
                 G.add_node(f'L1_{i}-{j}-{k}', preds)
 
-            #linear
+            # linear
             preds = [f'L1_{i}-{j}-{k}' for i, j, k in itertools.product(range(4), range(3), range(2))]
             for i, j, k in itertools.product(range(4), range(3), range(2)):
                 G.add_node(f'L2_{i}-{j}-{k}', preds)
@@ -58,6 +58,7 @@ def test_Embedding():
     true = TestEmbedding().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 if __name__ == '__main__':
     test_Embedding()

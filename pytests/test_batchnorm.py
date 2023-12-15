@@ -52,7 +52,7 @@ def test_BatchNorm2d():
                 preds = [f'L0_{i}-{j}-{k}' for i, j in itertools.product(range(10), range(10))]
                 G.add_node(f'L1_{i}-{j}-{k}', preds)
 
-            #linear
+            # linear
             preds = [f'L1_{i}-{j}-{k}' for i, j, k in itertools.product(range(10), range(10), range(6))]
             for i, j, k in itertools.product(range(10), range(10), range(6)):
                 G.add_node(f'L2_{i}-{j}-{k}', preds)
@@ -76,6 +76,7 @@ def test_BatchNorm2d():
     true = TestBatchNorm2d().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
+
 
 if __name__ == '__main__':
     test_BatchNorm2d()
