@@ -5,6 +5,7 @@ import logging
 
 from .kqi import KQI
 
+
 class BatchNorm1d(torch.nn.BatchNorm1d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         KQI.W += np.prod(x.shape[-1]) ** 2 * x.shape[-2]
@@ -15,7 +16,7 @@ class BatchNorm1d(torch.nn.BatchNorm1d, KQI):
         if volume_backward is None:
             volume_backward = torch.zeros(volume.shape)
             for i, k in itertools.product(range(H), range(C)):
-                volume_backward[0, k, i] += H  + (volume[0, k, :] / H).sum()
+                volume_backward[0, k, i] += H + (volume[0, k, :] / H).sum()
 
         for k in range(C):
             for vol in volume_backward[0, k, :].flatten():
@@ -23,6 +24,7 @@ class BatchNorm1d(torch.nn.BatchNorm1d, KQI):
 
         logging.debug(f'BatchNorm1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
+
 
 class BatchNorm2d(torch.nn.BatchNorm2d, KQI):
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:

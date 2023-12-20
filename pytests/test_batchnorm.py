@@ -77,6 +77,7 @@ def test_BatchNorm1d():
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
 
+
 def test_BatchNorm2d():
     class TestBatchNorm2d(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
