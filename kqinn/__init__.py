@@ -27,16 +27,18 @@ from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxP
 # from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
 #     MaxUnpool1d, MaxUnpool2d, MaxUnpool3d, FractionalMaxPool2d, FractionalMaxPool3d, LPPool1d, LPPool2d, \
 #     AdaptiveMaxPool1d, AdaptiveMaxPool2d, AdaptiveMaxPool3d, AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d
+from .batchnorm import BatchNorm1d, BatchNorm2d
 # from .batchnorm import BatchNorm1d, BatchNorm2d, BatchNorm3d, SyncBatchNorm, \
 #     LazyBatchNorm1d, LazyBatchNorm2d, LazyBatchNorm3d
 # from .instancenorm import InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, \
 #     LazyInstanceNorm1d, LazyInstanceNorm2d, LazyInstanceNorm3d
-from .normalization import LayerNorm
+from .normalization import LocalResponseNorm, LayerNorm, GroupNorm
 # from .normalization import LocalResponseNorm, CrossMapLRN2d, LayerNorm, GroupNorm
 from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout
 # from .dropout import Dropout, Dropout1d, Dropout2d, Dropout3d, AlphaDropout, FeatureAlphaDropout
 # from .padding import ReflectionPad1d, ReflectionPad2d, ReflectionPad3d, ReplicationPad1d, ReplicationPad2d, \
 #     ReplicationPad3d, ZeroPad2d, ConstantPad1d, ConstantPad2d, ConstantPad3d
+from .sparse import Embedding
 # from .sparse import Embedding, EmbeddingBag
 from .rnn import RNN, LSTM, GRU
 # from .rnn import RNNBase, RNN, LSTM, GRU, \
