@@ -25,8 +25,8 @@ class Conv1d(torch.nn.Conv1d, KQI):
 
         if self.padding[0]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1]+2*self.padding[0]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
                 for c, i in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0])):
                     volume_back_padding[c, i:H*self.stride[0]+i:self.stride[0]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0]].clone()
@@ -81,8 +81,8 @@ class Conv2d(torch.nn.Conv2d, KQI):
 
         if self.padding[0] or self.padding[1]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1]+2*self.padding[0],  self.input_size[2]+2*self.padding[1]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
                 for c, i, j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
                     volume_back_padding[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
@@ -139,8 +139,8 @@ class Conv3d(torch.nn.Conv3d, KQI):
 
         if self.padding[0] or self.padding[1] or self.padding[2]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1]+2*self.padding[0],  self.input_size[2]+2*self.padding[1], self.input_size[3]+2*self.padding[2]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
                 for c, i, j, k in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
                     volume_back_padding[c, i:H*self.stride[0]+i:self.stride[0], j:W*self.stride[1]+j:self.stride[1], k:L*self.stride[2]+k:self.stride[2]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
