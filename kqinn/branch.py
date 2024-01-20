@@ -50,8 +50,10 @@ class Branch(KQI):
 
     def KQIbackward(self, volume: torch.Tensor) -> torch.Tensor:
         kqi_snapshot = KQI.kqi.clone()
+        logging.debug('>>> Branch: Trying')
         volumes = self.merge.KQIbackward(volume)
         volume_forward = sum(module.KQIbackward(volume) for module, volume in zip(self.modules, volumes))
+        logging.debug('<<< Branch: Trying down')
 
         KQI.kqi = kqi_snapshot
         volumes = self.merge.KQIbackward(volume, (volume_forward if isinstance(module, EmptyModule) else None for module in self.modules))

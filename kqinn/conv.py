@@ -35,6 +35,9 @@ class Conv1d(torch.nn.Conv1d, KQI):
             volume_back_padding[:, self.padding[0]:-self.padding[0]] = volume_backward
             tmp = volume_back_padding.clone()
             for cout, i in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0])):
+            volume_back_padding[:, self.padding[0]:-self.padding[0]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for cout, i in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0])):
                 i_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0])
                 tmp[indexing(i)] = volume[cout] / degree / self.in_channels
                 tmp[:, i_:-self.padding[0]:self.stride[0]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0]]
@@ -90,6 +93,9 @@ class Conv2d(torch.nn.Conv2d, KQI):
                     volume_back_padding[c, indexing(i, j)[1], indexing(i, j)[2]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for cout, i, j in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
             volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]] = volume_backward
             tmp = volume_back_padding.clone()
             for cout, i, j in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
@@ -150,6 +156,9 @@ class Conv3d(torch.nn.Conv3d, KQI):
                     volume_back_padding[c, indexing(i, j, k)[1], indexing(i, j, k)[2], indexing(i, j, k)[3]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
 
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for cout, i, j, k in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
             volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
             tmp = volume_back_padding.clone()
             for cout, i, j, k in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
