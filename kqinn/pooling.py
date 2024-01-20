@@ -337,39 +337,31 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W, L = volume.shape
+        indexing = lambda i, j, k: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1]), slice(k, L * self.stride[2] + k, self.stride[2])]
 
         if self.padding[0] or self.padding[1] or self.padding[2]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1], self.input_size[3] + 2 * self.padding[2]))
             degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
                 for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_back_padding[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] += 1 + volume / degree
-                for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_back_padding[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] += 1 + volume / degree
+                    volume_back_padding[indexing(i, j, k)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
 
             volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
             tmp = volume_back_padding.clone()
             for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
                 i_, j_, k_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1]), next(m for m in range(k, volume_back_padding.shape[3], self.stride[2]) if m >= self.padding[2])
-                tmp[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] = volume / degree
+                tmp[indexing(i, j, k)] = volume / degree
                 tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
-                KQI.kqi += self.KQI_formula(volume / degree, tmp[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]])
-                tmp[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] = volume / degree
-                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
-                KQI.kqi += self.KQI_formula(volume / degree, tmp[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]])
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j, k)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
                 for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_backward[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]] += 1 + volume / np.prod(self.kernel_size)
-                for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_backward[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]] += 1 + volume / np.prod(self.kernel_size)
+                    volume_backward[indexing(i, j, k)] += 1 + volume / np.prod(self.kernel_size)
 
             for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]])
-            for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[:, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]])
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j, k)])
 
         logging.debug(f'MaxPool3d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
