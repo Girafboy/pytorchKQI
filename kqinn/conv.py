@@ -87,25 +87,25 @@ class Conv2d(torch.nn.Conv2d, KQI):
             degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
                 for c, i, j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                    volume_back_padding[c, indexing(i,j)[1], indexing(i,j)[2]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
+                    volume_back_padding[c, indexing(i, j)[1], indexing(i, j)[2]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
             volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]] = volume_backward
             tmp = volume_back_padding.clone()
             for cout, i, j in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
                 i_, j_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1])
-                tmp[indexing(i,j)] = volume[cout] / degree / self.in_channels
+                tmp[indexing(i, j)] = volume[cout] / degree / self.in_channels
                 tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
-                KQI.kqi += self.KQI_formula((volume[cout] / degree / self.in_channels).expand(self.in_channels, -1, -1), tmp[indexing(i,j)])
+                KQI.kqi += self.KQI_formula((volume[cout] / degree / self.in_channels).expand(self.in_channels, -1, -1), tmp[indexing(i, j)])
 
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
                 for c, i, j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                    volume_backward[c, indexing(i,j)[1], indexing(i,j)[2]] += self.out_channels + (volume / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
+                    volume_backward[c, indexing(i, j)[1], indexing(i, j)[2]] += self.out_channels + (volume / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
 
             for cout, i, j in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-                KQI.kqi += self.KQI_formula((volume[cout] / np.prod(self.kernel_size) / self.in_channels).expand(self.in_channels, -1, -1), volume_backward[indexing(i,j)])
+                KQI.kqi += self.KQI_formula((volume[cout] / np.prod(self.kernel_size) / self.in_channels).expand(self.in_channels, -1, -1), volume_backward[indexing(i, j)])
 
         logging.debug(f'Conv2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
@@ -147,24 +147,24 @@ class Conv3d(torch.nn.Conv3d, KQI):
             degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
                 for c, i, j, k in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
-                    volume_back_padding[c, indexing(i,j,k)[1], indexing(i,j,k)[2], indexing(i,j,k)[3]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
+                    volume_back_padding[c, indexing(i, j, k)[1], indexing(i, j, k)[2], indexing(i, j, k)[3]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
 
             volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
             tmp = volume_back_padding.clone()
             for cout, i, j, k in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
                 i_, j_, k_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1]), next(m for m in range(k, volume_back_padding.shape[3], self.stride[2]) if m >= self.padding[2])
-                tmp[indexing(i,j,k)] = volume[cout] / degree / self.in_channels
+                tmp[indexing(i, j, k)] = volume[cout] / degree / self.in_channels
                 tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
-                KQI.kqi += self.KQI_formula((volume[cout] / degree / self.in_channels).expand(self.in_channels, -1, -1, -1), tmp[indexing(i,j,k)])
+                KQI.kqi += self.KQI_formula((volume[cout] / degree / self.in_channels).expand(self.in_channels, -1, -1, -1), tmp[indexing(i, j, k)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
                 for c, i, j, k in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
-                    volume_backward[c, indexing(i,j,k)[1], indexing(i,j,k)[2], indexing(i,j,k)[3]] += self.out_channels + (volume / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
+                    volume_backward[c, indexing(i, j, k)[1], indexing(i, j, k)[2], indexing(i, j, k)[3]] += self.out_channels + (volume / np.prod(self.kernel_size) / self.in_channels).sum(dim=0)
 
             for cout, i, j, k in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
-                KQI.kqi += self.KQI_formula((volume[cout] / np.prod(self.kernel_size) / self.in_channels).expand(self.in_channels, -1, -1, -1), volume_backward[indexing(i,j,k)])
+                KQI.kqi += self.KQI_formula((volume[cout] / np.prod(self.kernel_size) / self.in_channels).expand(self.in_channels, -1, -1, -1), volume_backward[indexing(i, j, k)])
 
         logging.debug(f'Conv3d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
