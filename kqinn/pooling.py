@@ -24,6 +24,7 @@ class AvgPool1d(torch.nn.AvgPool1d, KQI):
         else:
             indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i if (H-1) * self.stride[0] + i < self.input_size[1] + 2 * self.padding[0] else (H-1) * self.stride[0] + i, self.stride[0])]
             index = lambda i: [slice(0, H if (H-1) * self.stride[0] + i < self.input_size[1] + 2 * self.padding[0] else H-1, 1)]
+        indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0])]
 
         if self.padding[0]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0]))
