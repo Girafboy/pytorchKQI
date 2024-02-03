@@ -22,32 +22,31 @@ class AvgPool1d(torch.nn.AvgPool1d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
+        indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0])]
 
         if self.padding[0]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1)):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0]] += 1 + volume[c] / degree
+                for i in range(0, self.kernel_size[0], 1):
+                    volume_back_padding[indexing(i)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0]].clone()
 
-            for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1)):
+            volume_back_padding[:, self.padding[0]:-self.padding[0]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i in range(0, self.kernel_size[0], 1):
                 i_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0]])
-
+                tmp[indexing(i)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1)):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0]] += 1 + volume[c] / np.prod(self.kernel_size[0])
+                for i in range(0, self.kernel_size[0], 1):
+                    volume_backward[indexing(i)] += 1 + volume / np.prod(self.kernel_size[0])
 
-            for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1)):
-                KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size[0]), volume_backward[c, i:H * self.stride[0] + i:self.stride[0]])
+            for i in range(0, self.kernel_size[0], 1):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size[0]), volume_backward[indexing(i)])
 
         logging.debug(f'AvgPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -85,32 +84,31 @@ class AvgPool2d(torch.nn.AvgPool2d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W = volume.shape
+        indexing = lambda i, j: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1])]
 
         if self.padding[0] or self.padding[1]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / degree
+                for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                    volume_back_padding[indexing(i, j)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
                 i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
-
+                tmp[indexing(i, j)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                    volume_backward[indexing(i, j)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
+            for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j)])
 
         logging.debug(f'AvgPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -149,32 +147,31 @@ class AvgPool3d(torch.nn.AvgPool3d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W, L = volume.shape
+        indexing = lambda i, j, k: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1]), slice(k, L * self.stride[2] + k, self.stride[2])]
 
         if self.padding[0] or self.padding[1] or self.padding[2]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1], self.input_size[3] + 2 * self.padding[2]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] += 1 + volume[c] / degree
+                for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+                    volume_back_padding[indexing(i, j, k)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
                 i_, j_, k_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1]), next(m for m in range(k, volume_back_padding.shape[3], self.stride[2]) if m >= self.padding[2])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]])
-
+                tmp[indexing(i, j, k)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j, k)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+                    volume_backward[indexing(i, j, k)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]])
+            for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j, k)])
 
         logging.debug(f'AvgPool3d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -212,32 +209,31 @@ class MaxPool1d(torch.nn.MaxPool1d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
+        indexing = lambda i: [slice(None), slice(i, H * self.stride + i, self.stride)]
 
         if self.padding:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size * self.dilation, self.dilation)):
-                    volume_back_padding[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / degree
+                for i in range(0, self.kernel_size * self.dilation, self.dilation):
+                    volume_back_padding[indexing(i)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding:-self.padding].clone()
 
-            for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size * self.dilation, self.dilation)):
+            volume_back_padding[:, self.padding:-self.padding] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i in range(0, self.kernel_size * self.dilation, self.dilation):
                 i_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride) if k >= self.padding)
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride + i:self.stride] = volume[c] / degree
-                tmp[c, i_:-self.padding:self.stride] = volume_back_padding[c, i_:-self.padding:self.stride]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride + i:self.stride])
-
+                tmp[indexing(i)] = volume / degree
+                tmp[:, i_:-self.padding:self.stride] = volume_back_padding[:, i_:-self.padding:self.stride]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size * self.dilation, self.dilation)):
-                    volume_backward[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i in range(0, self.kernel_size * self.dilation, self.dilation):
+                    volume_backward[indexing(i)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size * self.dilation, self.dilation)):
-                KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride + i:self.stride])
+            for i in range(0, self.kernel_size * self.dilation, self.dilation):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i)])
 
         logging.debug(f'MaxPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -277,32 +273,31 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W = volume.shape
+        indexing = lambda i, j: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1])]
 
         if self.padding[0] or self.padding[1]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / degree
+                for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                    volume_back_padding[indexing(i, j)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
                 i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
-
+                tmp[indexing(i, j)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                    volume_backward[indexing(i, j)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
+            for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j)])
 
         logging.debug(f'MaxPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -342,32 +337,31 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W, L = volume.shape
+        indexing = lambda i, j, k: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1]), slice(k, L * self.stride[2] + k, self.stride[2])]
 
         if self.padding[0] or self.padding[1] or self.padding[2]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1], self.input_size[3] + 2 * self.padding[2]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] += 1 + volume[c] / degree
+                for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+                    volume_back_padding[indexing(i, j, k)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
                 i_, j_, k_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1]), next(m for m in range(k, volume_back_padding.shape[3], self.stride[2]) if m >= self.padding[2])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]])
-
+                tmp[indexing(i, j, k)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j, k)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+                    volume_backward[indexing(i, j, k)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]])
+            for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j, k)])
 
         logging.debug(f'MaxPool3d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -408,15 +402,16 @@ class AdaptiveAvgPool1d(torch.nn.AdaptiveAvgPool1d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
+        indexing = lambda i: [slice(None), slice(i, H * self.stride + i, self.stride)]
 
         if volume_backward is None:
             volume_backward = torch.zeros(self.input_size)
-            for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
-                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / np.prod(self.kernel_size)
+            for i in range(0, self.kernel_size, 1):
+                volume_backward[indexing(i)] += 1 + volume / np.prod(self.kernel_size)
 
-        for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
-            KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size),
-                                        volume_backward[c, i:H * self.stride + i:self.stride])
+        for i in range(0, self.kernel_size, 1):
+            KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size),
+                                        volume_backward[indexing(i)])
 
         logging.debug(f'AdaptiveAvgPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -447,32 +442,31 @@ class AdaptiveAvgPool2d(torch.nn.AdaptiveAvgPool2d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W = volume.shape
+        indexing = lambda i, j: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1])]
 
         if self.padding[0] or self.padding[1]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / degree
+                for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                    volume_back_padding[indexing(i, j)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
                 i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
-
+                tmp[indexing(i, j)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                    volume_backward[indexing(i, j)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
+            for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j)])
 
         logging.debug(f'AdaptiveAvgPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -516,32 +510,31 @@ class AdaptiveAvgPool3d(torch.nn.AdaptiveAvgPool3d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W, L = volume.shape
+        indexing = lambda i, j, k: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1]), slice(k, L * self.stride[2] + k, self.stride[2])]
 
         if self.padding[0] or self.padding[1] or self.padding[2]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1], self.input_size[3] + 2 * self.padding[2]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] += 1 + volume[c] / degree
+                for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+                    volume_back_padding[indexing(i, j, k)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
                 i_, j_, k_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1]), next(m for m in range(k, volume_back_padding.shape[3], self.stride[2]) if m >= self.padding[2])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]])
-
+                tmp[indexing(i, j, k)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j, k)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+                    volume_backward[indexing(i, j, k)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]])
+            for i, j, k in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1), range(0, self.kernel_size[2], 1)):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j, k)])
 
         logging.debug(f'AdaptiveAvgPool3d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -583,16 +576,16 @@ class AdaptiveMaxPool1d(torch.nn.AdaptiveMaxPool1d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
+        indexing = lambda i: [slice(None), slice(i, H * self.stride + i, self.stride)]
 
         if volume_backward is None:
             volume_backward = torch.zeros(self.input_size)
-            for c, i in itertools.product(range(volume.size(0)),
-                                          range(0, self.kernel_size * self.dilation, self.dilation)):
-                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / np.prod(self.kernel_size)
+            for i in range(0, self.kernel_size * self.dilation, self.dilation):
+                volume_backward[indexing(i)] += 1 + volume / np.prod(self.kernel_size)
 
-        for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size * self.dilation, self.dilation)):
-            KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size),
-                                        volume_backward[c, i:H * self.stride + i:self.stride])
+        for i in range(0, self.kernel_size * self.dilation, self.dilation):
+            KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size),
+                                        volume_backward[indexing(i)])
 
         logging.debug(f'AdaptiveMaxPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -626,32 +619,31 @@ class AdaptiveMaxPool2d(torch.nn.AdaptiveMaxPool2d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W = volume.shape
+        indexing = lambda i, j: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1])]
 
         if self.padding[0] or self.padding[1]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / degree
+                for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                    volume_back_padding[indexing(i, j)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]].clone()
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
                 i_, j_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0]), next(k for k in range(j, volume_back_padding.shape[2], self.stride[1]) if k >= self.padding[1])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
-
+                tmp[indexing(i, j)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                    volume_backward[indexing(i, j)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
+            for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j)])
 
         logging.debug(f'AdaptiveMaxPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -696,32 +688,31 @@ class AdaptiveMaxPool3d(torch.nn.AdaptiveMaxPool3d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W, L = volume.shape
+        indexing = lambda i, j, k: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1]), slice(k, L * self.stride[2] + k, self.stride[2])]
 
         if self.padding[0] or self.padding[1] or self.padding[2]:
             volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1], self.input_size[3] + 2 * self.padding[2]))
+            degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
-                degree = self._degree(self.input_size, volume.shape)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_back_padding[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] += 1 + volume[c] / degree
+                for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+                    volume_back_padding[indexing(i, j, k)] += 1 + volume / degree
                 volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]].clone()
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+            volume_back_padding[:, self.padding[0]:-self.padding[0], self.padding[1]:-self.padding[1], self.padding[2]:-self.padding[2]] = volume_backward
+            tmp = volume_back_padding.clone()
+            for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
                 i_, j_, k_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1]), next(m for m in range(k, volume_back_padding.shape[3], self.stride[2]) if m >= self.padding[2])
-
-                tmp = volume_back_padding.clone()
-                tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]] = volume[c] / degree
-                tmp[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[c, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
-
-                KQI.kqi += self.KQI_formula(volume[c] / degree, tmp[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + k:self.stride[2]])
-
+                tmp[indexing(i, j, k)] = volume / degree
+                tmp[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0], j_:-self.padding[1]:self.stride[1], k_:-self.padding[2]:self.stride[2]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i, j, k)])
         else:
             if volume_backward is None:
                 volume_backward = torch.zeros(self.input_size)
-                for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                    volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]] += 1 + volume[c] / np.prod(self.kernel_size)
+                for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+                    volume_backward[indexing(i, j, k)] += 1 + volume / np.prod(self.kernel_size)
 
-            for c, i, j, k in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
-                KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1], k:L * self.stride[2] + j:self.stride[2]])
+            for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+                KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j, k)])
 
         logging.debug(f'AdaptiveMaxPool3d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -755,14 +746,15 @@ class LPPool1d(torch.nn.LPPool1d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
+        indexing = lambda i: [slice(None), slice(i, H * self.stride + i, self.stride)]
 
         if volume_backward is None:
             volume_backward = torch.zeros(self.input_size)
-            for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
-                volume_backward[c, i:H * self.stride + i:self.stride] += 1 + volume[c] / np.prod(self.kernel_size)
+            for i in range(0, self.kernel_size, 1):
+                volume_backward[indexing(i)] += 1 + volume / np.prod(self.kernel_size)
 
-        for c, i in itertools.product(range(volume.size(0)), range(0, self.kernel_size, 1)):
-            KQI.kqi += self.KQI_formula(volume[c] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride + i:self.stride])
+        for i in range(0, self.kernel_size, 1):
+            KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i)])
 
         logging.debug(f'LPPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
@@ -783,14 +775,15 @@ class LPPool2d(torch.nn.LPPool2d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H, W = volume.shape
+        indexing = lambda i, j: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1])]
 
         if volume_backward is None:
             volume_backward = torch.zeros(self.input_size)
-            for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-                volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]] += 1 + volume[c] / np.prod(self.kernel_size)
+            for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+                volume_backward[indexing(i, j)] += 1 + volume / np.prod(self.kernel_size)
 
-        for c, i, j in itertools.product(range(volume.size(0)), range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
-            KQI.kqi += self.KQI_formula(volume[0] / np.prod(self.kernel_size), volume_backward[c, i:H * self.stride[0] + i:self.stride[0], j:W * self.stride[1] + j:self.stride[1]])
+        for i, j in itertools.product(range(0, self.kernel_size[0], 1), range(0, self.kernel_size[1], 1)):
+            KQI.kqi += self.KQI_formula(volume / np.prod(self.kernel_size), volume_backward[indexing(i, j)])
 
         logging.debug(f'LPPool2d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
