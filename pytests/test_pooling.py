@@ -13,7 +13,7 @@ def test_AvgPool1d():
                 # 1x28
                 kqinn.Conv1d(in_channels=1, out_channels=3, kernel_size=3, bias=False),
                 # 3x26
-                kqinn.AvgPool1d(kernel_size=5, stride=2, padding=1)
+                kqinn.AvgPool1d(kernel_size=2, stride=2, padding=1, ceil_mode= True)
             )
             self.layers2 = kqinn.Sequential(
                 # 3x14

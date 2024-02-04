@@ -18,36 +18,39 @@ class AvgPool1d(torch.nn.AvgPool1d, KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
-        if not self.ceil_mode:
-            indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0])]
-            index = lambda i: [slice(None)]
-        else:
-            indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i if (H-1) * self.stride[0] + i < self.input_size[1] + 2 * self.padding[0] else (H-1) * self.stride[0] + i, self.stride[0])]
-            index = lambda i: [slice(0, H if (H-1) * self.stride[0] + i < self.input_size[1] + 2 * self.padding[0] else H-1, 1)]
+        indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0])]
+        
+        add = max(0, (H-1) * self.stride[0] + self.kernel_size[0] - self.input_size[1] - 2 * self.padding[0])
 
         if self.padding[0]:
-            volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0]))
+            volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0] + add))
             degree = self._degree(self.input_size, volume.shape)
             if volume_backward is None:
                 for i in range(0, self.kernel_size[0], 1):
-                    volume_back_padding[indexing(i)] += 1 + volume[[slice(None)] + index(i)] / degree[index(i)]
-                volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0]].clone()
+                    volume_back_padding[indexing(i)] += 1 + volume / degree
+                volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0] - add].clone()
 
-            volume_back_padding[:, self.padding[0]:-self.padding[0]] = volume_backward
+            volume_back_padding[:, self.padding[0]:-self.padding[0] - add] = volume_backward
             tmp = volume_back_padding.clone()
             for i in range(0, self.kernel_size[0], 1):
                 i_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0])
-                tmp[indexing(i)] = volume[[slice(None)]+index(i)] / degree[index(i)]
-                tmp[:, i_:-self.padding[0]:self.stride[0]] = volume_back_padding[:, i_:-self.padding[0]:self.stride[0]]
-                KQI.kqi += self.KQI_formula(volume[[slice(None)] + index(i)] / degree[index(i)], tmp[indexing(i)])
+                tmp[indexing(i)] = volume / degree
+                tmp[:, i_:-self.padding[0] - add:self.stride[0]] = volume_back_padding[:, i_:-self.padding[0] - add:self.stride[0]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i)])
+
         else:
             if volume_backward is None:
-                volume_backward = torch.zeros(self.input_size)
+                volume_back_adding = torch.zeros(self.input_size + add)
                 for i in range(0, self.kernel_size[0], 1):
-                    volume_backward[indexing(i)] += 1 + volume[[slice(None)] + index(i)] / np.prod(self.kernel_size[0])
+                    volume_back_adding[indexing(i)] += 1 + volume / degree
+                volume_backward = volume_back_adding[:, :-add]
 
+            volume_back_adding[:, :-add] = volume_backward
+            tmp = volume_back_adding.clone()
             for i in range(0, self.kernel_size[0], 1):
-                KQI.kqi += self.KQI_formula(volume[[slice(None)] + index(i)] / np.prod(self.kernel_size[0]), volume_backward[indexing(i)])
+                tmp[indexing(i)] = volume / degree
+                tmp[:, :-add:self.stride[0]] = volume_back_padding[:, :-add:self.stride[0]]
+                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i)])
 
         logging.debug(f'AvgPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
