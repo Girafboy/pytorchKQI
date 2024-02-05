@@ -168,9 +168,8 @@ def test_TransformerDecoderLayer():
 
             # Define Memory nodes representing the encoder output
             for i in range(sequence_length):
-                for j in range(batch_size):
-                    for k in range(d_model):
-                        G.add_node(f'M_{i}-{j}-{k}', [])  # No predecessors for encoder output nodes
+                for k in range(d_model):
+                    G.add_node(f'M_{i}-{k}', [])  # No predecessors for encoder output nodes
 
             for i in range(d_model):
                 G.add_node(f'L0_{i}', [])
@@ -242,24 +241,24 @@ def test_TransformerDecoderLayer():
                     G.add_node(f'L9_{i}-{j}', preds)
 
             # Norm2
-            preds = [f'L9_{i}' for i in range(d_model)]
+            preds = [f'L9_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(embedding_dim))]
+            # resize L10
             for i in range(d_model):
-                G.add_node(f'L10_{i}', preds)
+                for j in range(embedding_dim):
+                    G.add_node(f'L10_{i}-{j}', preds)
 
             # ------------------------- MultiheadAttention -------------------------
-            embedding_dim = d_model
-            head_dim = embedding_dim // head
+            # embedding_dim = d_model
+            # head_dim = embedding_dim // head
             # linear
             for i in range(head):
                 predsQ = [f'L10_{j}-{k}' for j, k in
+                          itertools.product(range(sequence_length), range(embedding_dim))]
+                predsK = [f'M_{j}-{k}' for j, k in  # These preds come from the Memory (encoder output)
                           itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
-                predsK = [f'M_{j}-{m}-{k}' for j, k, m in  # These preds come from the Memory (encoder output)
-                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim),
-                                            range(batch_size))]
-                predsV = [f'M_{j}-{m}-{k}' for j, k, m in  # These preds come from the Memory (encoder output)
-                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim),
-                                            range(batch_size))]
-            for j, k in itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim)):
+                predsV = [f'M_{j}-{k}' for j, k in  # These preds come from the Memory (encoder output)
+                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
+                for j, k in itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim)):
                     G.add_node(f'L11_Q_{j}-{k}', predsQ)
                     G.add_node(f'L11_K_{j}-{k}', predsK)
                     G.add_node(f'L11_V_{j}-{k}', predsV)
@@ -305,7 +304,7 @@ def test_TransformerDecoderLayer():
             # Add
             for i in range(sequence_length):
                 for j in range(d_model):
-                    preds = ([f'L9_{j}'] + [f'L17_{i}-{j}'])
+                    preds = ([f'L9_{i}-{j}'] + [f'L17_{i}-{j}'])
                     G.add_node(f'L18_{j}', preds)
 
             # Norm3
