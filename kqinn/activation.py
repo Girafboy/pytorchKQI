@@ -1,5 +1,3 @@
-import torch
-import numpy as np
 import logging
 from typing import Tuple, Optional
 
@@ -254,7 +252,16 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
     This module is modified from torch.nn.MultiheadAttention.
     We only consider the case of Query embeddings of shape (seq_len, embed_dim) for unbatched input
     """
-    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+
+    def __init__(self, embed_dim, num_heads, dropout=0., bias=True, add_bias_kv=False, add_zero_attn=False, kdim=None,
+                 vdim=None, batch_first=False, device=None, dtype=None):
+        super().__init__(embed_dim, num_heads, dropout, bias, add_bias_kv, add_zero_attn, kdim, vdim, batch_first,
+                         device, dtype)
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+
+    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[
+        torch.Tensor, Optional[torch.Tensor]]:
         # x: query, y: key, z: value
         seq_len, embed_dim = x.shape
         num_heads = self.num_heads
@@ -429,7 +436,7 @@ class GLU(torch.nn.GLU, KQI):
         if volume_backward is None:
             volume_backward_half = volume / 2 + 1
             volume_backward = torch.cat((volume_backward_half, volume_backward_half), dim=self.dim)
-        KQI.kqi += 2*self.KQI_formula(volume / 2, volume_backward_half)
+        KQI.kqi += 2 * self.KQI_formula(volume / 2, volume_backward_half)
         logging.debug(f'GLU: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
 

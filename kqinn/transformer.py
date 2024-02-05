@@ -3,7 +3,33 @@ import logging
 import numpy as np
 import torch
 
+import kqinn
 from .kqi import KQI
+
+
+class TransformerEncoder(torch.nn.TransformerEncoder, KQI):
+    """
+    This module is modified from torch.nn.TransformerEncoder.
+    We only consider the case of norm_first=True.
+    """
+
+    def __init__(self, encoder_layer, num_layers, norm=None, enable_nested_tensor=True, mask_check=True):
+        super().__init__(encoder_layer, num_layers, norm, enable_nested_tensor, mask_check)
+        self.encoder_layer = encoder_layer
+        self.num_layers = num_layers
+
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        for i in range(self.num_layers):
+            self.encoder_layer.KQIforward(x)
+
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        volume = torch.zeros_like(volume)
+        for i in range(self.num_layers):
+            volume = self.encoder_layer.KQIbackward(volume)
+
+        return volume
 
 
 class TransformerEncoderLayer(torch.nn.TransformerEncoderLayer, KQI):
@@ -11,6 +37,15 @@ class TransformerEncoderLayer(torch.nn.TransformerEncoderLayer, KQI):
     This module is modified from torch.nn.TransformerEncoderLayer.
     We only consider the case of norm_first=True.
     """
+
+    def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, norm_first: bool = False):
+        super().__init__(d_model, nhead, dim_feedforward, norm_first)
+        self.d_model = d_model
+        self.nhead = nhead
+        self.dim_feedforward = dim_feedforward
+        self.norm_first = norm_first
+        self.self_attn = kqinn.MultiheadAttention(d_model, nhead)
+
     def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
         seq_len, batch_size, embed_dim = x.shape
         d_model = embed_dim
