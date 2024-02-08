@@ -22,35 +22,23 @@ class AvgPool1d(torch.nn.AvgPool1d, KQI):
         
         add = max(0, (H-1) * self.stride[0] + self.kernel_size[0] - self.input_size[1] - 2 * self.padding[0])
 
-        if self.padding[0]:
-            volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0] + add))
-            degree = self._degree(self.input_size, volume.shape)
-            if volume_backward is None:
-                for i in range(0, self.kernel_size[0], 1):
-                    volume_back_padding[indexing(i)] += 1 + volume / degree
-                volume_backward = volume_back_padding[:, self.padding[0]:-self.padding[0] - add].clone()
+        start = self.padding[0]
+        end = None if self.padding[0] + add == 0 else -self.padding[0] - add
 
-            volume_back_padding[:, self.padding[0]:-self.padding[0] - add] = volume_backward
-            tmp = volume_back_padding.clone()
+        volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0] + add))
+        degree = self._degree(self.input_size, volume.shape)
+        if volume_backward is None:
             for i in range(0, self.kernel_size[0], 1):
-                i_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0])
-                tmp[indexing(i)] = volume / degree
-                tmp[:, i_:-self.padding[0] - add:self.stride[0]] = volume_back_padding[:, i_:-self.padding[0] - add:self.stride[0]]
-                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i)])
+                volume_back_padding[indexing(i)] += 1 + volume / degree
+            volume_backward = volume_back_padding[:, start:end].clone()
 
-        else:
-            if volume_backward is None:
-                volume_back_adding = torch.zeros(self.input_size + add)
-                for i in range(0, self.kernel_size[0], 1):
-                    volume_back_adding[indexing(i)] += 1 + volume / degree
-                volume_backward = volume_back_adding[:, :-add]
-
-            volume_back_adding[:, :-add] = volume_backward
-            tmp = volume_back_adding.clone()
-            for i in range(0, self.kernel_size[0], 1):
-                tmp[indexing(i)] = volume / degree
-                tmp[:, :-add:self.stride[0]] = volume_back_padding[:, :-add:self.stride[0]]
-                KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i)])
+        volume_back_padding[:, start:end] = volume_backward
+        tmp = volume_back_padding.clone()
+        for i in range(0, self.kernel_size[0], 1):
+            i_ = next(k for k in range(i, volume_back_padding.shape[1], self.stride[0]) if k >= self.padding[0])
+            tmp[indexing(i)] = volume / degree
+            tmp[:, i_:end:self.stride[0]] = volume_back_padding[:, i_:end:self.stride[0]]
+            KQI.kqi += self.KQI_formula(volume / degree, tmp[indexing(i)])
 
         logging.debug(f'AvgPool1d: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
 
