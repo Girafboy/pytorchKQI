@@ -4,7 +4,10 @@ import numpy as np
 import torch
 
 from .kqi import KQI
-
+from .normalization import LayerNorm as LayerNormKQI
+from .activation import MultiheadAttention as MultiheadAttentionKQI
+from .linear import Linear as LinearKQI
+from .dropout import Dropout as DropoutKQI
 
 class TransformerEncoderLayer(torch.nn.TransformerEncoderLayer, KQI):
     """
@@ -178,7 +181,7 @@ class TransformerEncoderLayer(torch.nn.TransformerEncoderLayer, KQI):
         return volume_backward
 
 
-class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
+class TransformerDecoderLayer_old(torch.nn.TransformerDecoderLayer, KQI):
     """
     This module is modified from torch.nn.TransformerDecoderLayer.
     We only consider the case of norm_first=True.
@@ -470,3 +473,91 @@ class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
         logging.debug(
             f'TransformerDecoderLayer: KQI={KQI.kqi}, node={np.prod(volume_0.shape)}, volume={volume_0.sum()}')
         return volume_backward
+
+
+class TransformerDecoder_tbc(torch.nn.TransformerEncoder, KQI):
+    """
+    This module is modified from torch.nn.TransformerEncoder.
+    We only consider the case of norm_first=True.
+    """
+    def __init__(self, decoder_layer, num_layers, norm=None, enable_nested_tensor=True, mask_check=True):
+        super().__init__(decoder_layer, num_layers, norm, enable_nested_tensor, mask_check)
+        self.decoder_layer = decoder_layer
+        self.num_layers = num_layers
+
+    def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+        for i in range(self.num_layers):
+            self.decoder_layer.KQIforward(x)
+
+        return self.forward(x)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        volume = torch.zeros_like(volume)
+        for i in range(self.num_layers):
+            volume = self.decoder_layer.KQIbackward(volume)
+
+        return volume
+
+
+class TransformerDecoderLayer_current(torch.nn.TransformerDecoderLayer, KQI):
+    """
+    This module is modified from torch.nn.TransformerDecoderLayer.
+    We only consider the case of norm_first=True.
+    """
+
+    def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
+                 activation: str = 'relu', layer_norm_eps: float = 1e-5, norm_first: bool = False,
+                 bias: bool = True, device=None, dtype=None):
+        super().__init__(d_model, nhead, dim_feedforward, norm_first)
+
+        self.self_attn = MultiheadAttentionKQI(embed_dim=d_model, num_heads=nhead)  # mask to be added
+        self.multihead_attn = MultiheadAttentionKQI(embed_dim=d_model, num_heads=nhead)
+        self.linear1 = LinearKQI(in_features=d_model, out_features=dim_feedforward, bias=False)
+        self.linear2 = LinearKQI(in_features=d_model, out_features=dim_feedforward, bias=False)
+        self.norm1 = LayerNormKQI(normalized_shape=d_model)
+        self.norm2 = LayerNormKQI(normalized_shape=d_model)  # to be revised
+        self.norm3 = LayerNormKQI(normalized_shape=d_model)  # to be revised
+
+
+    def KQIforward(self, x: torch.Tensor, memory: torch.Tensor) -> torch.Tensor:
+        seq_len, batch_size, embed_dim = x.size()
+        if self.memory is None:
+            raise ValueError("Encoder output not found.")
+        if self.norm_first:
+            tgt = x
+            x = self.norm1.KQIforward(x)
+            x = self.self_attn.KQIforward(x, x, x)
+            # ADD to be implemented
+            x = self.norm2.KQIforward(x)
+            x = self.multihead_attn.KQIforward(x, memory, memory)
+            # ADD to be implemented
+            x = self.norm3(x)
+            x = self.linear1.KQIforward(x)  # _ff_block
+            x = self.linear2.KQIforward(x)  # _ff_block
+            # ADD to be implemented
+        else:
+            raise ValueError("Non-norm_first not implemented.")
+        return x
+
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+        if self.memory is None:
+            raise ValueError("Encoder output not found.")
+        if self.norm_first:
+            # ADD to be implemented
+            volume = self.linear2.KQIbackward(volume.flatten())  # _ff_block
+            volume = self.linear1.KQIbackward(volume.flatten())  # _ff_block
+            volume = self.norm3.KQIbackward(volume)   # to be revised
+            # ADD to be implemented
+            volume_backward_k, volume_backward_q, volume_backward_v = self.multihead_attn.KQIbackward(volume)  # _mha_block
+            volume = torch.cat([volume_backward_q, volume_backward_k, volume_backward_v], dim=1)  # _mha_block
+            volume = self.norm2.KQIbackward(volume)   # to be revised
+            # ADD to be implemented
+            volume = self.self_attn.KQIbackward(volume)
+            volume = self.norm1.KQIbackward(volume, volume_backward)
+        else:
+            raise ValueError("Non-norm_first not implemented.")
+        return volume
+
+
+
