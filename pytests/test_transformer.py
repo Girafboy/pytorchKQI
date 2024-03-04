@@ -137,11 +137,12 @@ def test_TransformerDecoderLayer():
     sequence_length = 1
     d_model = 32
     head = 8
-    dim_feedforward = 32
+    dim_feedforward = 48
 
     class TestTransformerDecoderLayer(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
+
             self.layer = kqinn.TransformerDecoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward,
                                                        norm_first=True)
             self.encoder_output = None  # Initialize a placeholder for memory
@@ -164,6 +165,11 @@ def test_TransformerDecoderLayer():
 
         def true_kqi(self):
             G = kqitool.DiGraph()
+
+            # Define Memory nodes representing the encoder output
+            for i in range(sequence_length):
+                for k in range(d_model):
+                    G.add_node(f'M_{i}-{k}', [])  # No predecessors for encoder output nodes
 
             for i in range(d_model):
                 G.add_node(f'L0_{i}', [])
@@ -232,23 +238,25 @@ def test_TransformerDecoderLayer():
             for i in range(sequence_length):
                 for j in range(d_model):
                     preds = ([f'L0_{j}'] + [f'L8_{i}-{j}'])
-                    G.add_node(f'L9_{j}', preds)
+                    G.add_node(f'L9_{i}-{j}', preds)
 
             # Norm2
-            preds = [f'L9_{i}' for i in range(d_model)]
+            preds = [f'L9_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(embedding_dim))]
+            # resize L10
             for i in range(d_model):
-                G.add_node(f'L10_{i}', preds)
+                for j in range(embedding_dim):
+                    G.add_node(f'L10_{i}-{j}', preds)
 
             # ------------------------- MultiheadAttention -------------------------
-            embedding_dim = d_model
-            head_dim = embedding_dim // head
+            # embedding_dim = d_model
+            # head_dim = embedding_dim // head
             # linear
             for i in range(head):
                 predsQ = [f'L10_{j}-{k}' for j, k in
+                          itertools.product(range(sequence_length), range(embedding_dim))]
+                predsK = [f'M_{j}-{k}' for j, k in  # These preds come from the Memory (encoder output)
                           itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
-                predsK = [f'L10_{j}-{k}' for j, k in
-                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
-                predsV = [f'L10_{j}-{k}' for j, k in
+                predsV = [f'M_{j}-{k}' for j, k in  # These preds come from the Memory (encoder output)
                           itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
                 for j, k in itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim)):
                     G.add_node(f'L11_Q_{j}-{k}', predsQ)
@@ -268,11 +276,11 @@ def test_TransformerDecoderLayer():
                         preds = [f'L12_{j}-{i * sequence_length + k}']
                         G.add_node(f'L13_{j}-{i * sequence_length + k}', preds)
             # Mask
-            for i in range(head):
-                for j in range(sequence_length):
-                    for k in range(sequence_length):
-                        preds = [f'L13_{j}-{i * sequence_length + k}']
-                        G.add_node(f'L14_{j}-{i * sequence_length + k}', preds)
+            # for i in range(head):
+            #     for j in range(sequence_length):
+            #         for k in range(sequence_length):
+            #             preds = [f'L13_{j}-{i * sequence_length + k}']
+            #             G.add_node(f'L14_{j}-{i * sequence_length + k}', preds)
             # SoftMax
             for i in range(head):
                 preds = [f'L13_{j}-{i * sequence_length + k}' for j, k in
@@ -296,7 +304,7 @@ def test_TransformerDecoderLayer():
             # Add
             for i in range(sequence_length):
                 for j in range(d_model):
-                    preds = ([f'L9_{j}'] + [f'L17_{i}-{j}'])
+                    preds = ([f'L9_{i}-{j}'] + [f'L17_{i}-{j}'])
                     G.add_node(f'L18_{j}', preds)
 
             # Norm3
@@ -306,11 +314,11 @@ def test_TransformerDecoderLayer():
 
             # Linear1
             preds = [f'L19_{i}' for i in range(d_model)]
-            for i in range(d_model):
+            for i in range(dim_feedforward):
                 G.add_node(f'L20_{i}', preds)
 
             # Linear2
-            preds = [f'L20_{i}' for i in range(d_model)]
+            preds = [f'L20_{i}' for i in range(dim_feedforward)]
             for i in range(d_model):
                 G.add_node(f'L21_{i}', preds)
 
@@ -318,6 +326,7 @@ def test_TransformerDecoderLayer():
             for i in range(d_model):
                 preds = ([f'L18_{i}'] + [f'L21_{i}'])
                 G.add_node(f'L22_{i}', preds)
+
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
