@@ -7,8 +7,10 @@ import kqinn
 import kqitool
 
 
+# logging.basicConfig(level=logging.DEBUG)
+
+
 def test_TransformerEncoder():
-    batch_size = 1
     sequence_length = 1
     d_model = 32
     head = 8
@@ -219,7 +221,7 @@ def test_TransformerEncoder():
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
-    kqi = TestTransformerEncoder().KQI(torch.randn(sequence_length, batch_size, d_model))
+    kqi = TestTransformerEncoder().KQI(torch.randn(sequence_length, d_model))
     true = TestTransformerEncoder().true_kqi()
     print("true_kqi: ", true)
     print("kqi: ", kqi)
@@ -228,7 +230,6 @@ def test_TransformerEncoder():
 
 
 def test_TransformerEncoderLayer():
-    batch_size = 1
     sequence_length = 1
     d_model = 32
     head = 8
@@ -344,7 +345,7 @@ def test_TransformerEncoderLayer():
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
-    kqi = TestTransformerEncoderLayer().KQI(torch.randn(sequence_length, batch_size, d_model))
+    kqi = TestTransformerEncoderLayer().KQI(torch.randn(sequence_length, d_model))
     true = TestTransformerEncoderLayer().true_kqi()
     print("true_kqi: ", true)
     print("kqi: ", kqi)
