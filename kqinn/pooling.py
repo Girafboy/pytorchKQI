@@ -19,9 +19,7 @@ class AvgPool1d(torch.nn.AvgPool1d, KQI):
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
         indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0])]
-
         add = max(0, (H-1) * self.stride[0] + self.kernel_size[0] - self.input_size[1] - 2 * self.padding[0])
-
         start = self.padding[0]
         end = None if self.padding[0] + add == 0 else -self.padding[0] - add
 
