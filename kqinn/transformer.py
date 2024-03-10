@@ -5,11 +5,11 @@ import torch
 from torch import Tensor
 
 import kqinn
-from .kqi import KQI
-from .normalization import LayerNorm as LayerNormKQI
 from .activation import MultiheadAttention as MultiheadAttentionKQI
+from .kqi import KQI
 from .linear import Linear as LinearKQI
-from .dropout import Dropout as DropoutKQI
+from .normalization import LayerNorm as LayerNormKQI
+
 
 class TransformerEncoder(torch.nn.TransformerEncoder, KQI):
     """
@@ -138,7 +138,6 @@ class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
         self.norm2 = LayerNormKQI(normalized_shape=d_model)  # to be revised
         self.norm3 = LayerNormKQI(normalized_shape=d_model)  # to be revised
 
-
     def KQIforward(self, x: torch.Tensor, memory: torch.Tensor) -> torch.Tensor:
         seq_len, batch_size, embed_dim = x.size()
         if self.memory is None:
@@ -159,7 +158,6 @@ class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
             raise ValueError("Non-norm_first not implemented.")
         return x
 
-
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         if self.memory is None:
             raise ValueError("Encoder output not found.")
@@ -167,17 +165,15 @@ class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
             # ADD to be implemented
             volume = self.linear2.KQIbackward(volume.flatten())  # _ff_block
             volume = self.linear1.KQIbackward(volume.flatten())  # _ff_block
-            volume = self.norm3.KQIbackward(volume)   # to be revised
+            volume = self.norm3.KQIbackward(volume)  # to be revised
             # ADD to be implemented
-            volume_backward_k, volume_backward_q, volume_backward_v = self.multihead_attn.KQIbackward(volume)  # _mha_block
+            volume_backward_k, volume_backward_q, volume_backward_v = self.multihead_attn.KQIbackward(
+                volume)  # _mha_block
             volume = torch.cat([volume_backward_q, volume_backward_k, volume_backward_v], dim=1)  # _mha_block
-            volume = self.norm2.KQIbackward(volume)   # to be revised
+            volume = self.norm2.KQIbackward(volume)  # to be revised
             # ADD to be implemented
             volume = self.self_attn.KQIbackward(volume)
             volume = self.norm1.KQIbackward(volume, volume_backward)
         else:
             raise ValueError("Non-norm_first not implemented.")
         return volume
-
-
-
