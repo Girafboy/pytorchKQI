@@ -11,10 +11,10 @@ def test_BatchNorm1d():
             super().__init__()
 
             self.layer1 = kqinn.BatchNorm1d(6)
-            self.layer2 = kqinn.Linear(in_features=1*6*10, out_features=1*6*10,
+            self.layer2 = kqinn.Linear(in_features=1 * 6 * 10, out_features=1 * 6 * 10,
                                        bias=False)
             self.layer3 = kqinn.BatchNorm1d(6)
-            self.layer4 = kqinn.Linear(in_features=1*6*10, out_features=1*6*10,
+            self.layer4 = kqinn.Linear(in_features=1 * 6 * 10, out_features=1 * 6 * 10,
                                        bias=False)
             self.layer5 = kqinn.BatchNorm1d(6)
 
@@ -84,10 +84,10 @@ def test_BatchNorm2d():
             super().__init__()
 
             self.layer1 = kqinn.BatchNorm2d(6)
-            self.layer2 = kqinn.Linear(in_features=1*6*10*10, out_features=1*6*10*10,
+            self.layer2 = kqinn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
                                        bias=False)
             self.layer3 = kqinn.BatchNorm2d(6)
-            self.layer4 = kqinn.Linear(in_features=1*6*10*10, out_features=1*6*10*10,
+            self.layer4 = kqinn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
                                        bias=False)
             self.layer5 = kqinn.BatchNorm2d(6)
 

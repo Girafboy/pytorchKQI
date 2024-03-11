@@ -295,8 +295,7 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
         head_dim = embed_dim // num_heads
 
         # linear
-        volume_7_all = torch.ones(volume.shape) * (
-                np.prod(volume.shape) + (volume / np.prod(volume.shape)).sum())
+        volume_7_all = torch.ones(volume.shape) * (np.prod(volume.shape) + (volume / np.prod(volume.shape)).sum())
         for vol in volume_7_all.flatten():
             KQI.kqi += self.KQI_formula(volume / np.prod(volume.shape), vol)
 
