@@ -248,6 +248,18 @@ class Softshrink(torch.nn.Softshrink, KQI):
 
 
 class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
+    """
+    This module is modified from torch.nn.MultiheadAttention.
+    We only consider the case of Query embeddings of shape (seq_len, embed_dim) for unbatched input
+    """
+
+    def __init__(self, embed_dim, num_heads, dropout=0., bias=True, add_bias_kv=False, add_zero_attn=False, kdim=None,
+                 vdim=None, batch_first=False, device=None, dtype=None):
+        super().__init__(embed_dim, num_heads, dropout, bias, add_bias_kv, add_zero_attn, kdim, vdim, batch_first,
+                         device, dtype)
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+
     def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # x: query, y: key, z: value
         seq_len, embed_dim = x.shape
@@ -328,14 +340,25 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
                 KQI.kqi += self.KQI_formula(volume_3[0, :] / (head_dim * 2), vol) * num_heads
 
         # Linear
-        volume_1_q = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_q.sum() / (seq_len * head_dim))
-        volume_1_k = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_k.sum() / (seq_len * head_dim))
-        volume_1_v = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_v.sum() / (seq_len * head_dim))
+        if volume_backward_q is None:
+            volume_1_q = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_q.sum() / (seq_len * head_dim))
+        else:
+            volume_1_q = volume_backward_q.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
+        if volume_backward_k is None:
+            volume_1_k = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_k.sum() / (seq_len * head_dim))
+        else:
+            volume_1_k = volume_backward_k.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
+        if volume_backward_v is None:
+            volume_1_v = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_v.sum() / (seq_len * head_dim))
+        else:
+            volume_1_v = volume_backward_v.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
+
+        KQI.kqi += self.KQI_formula(volume_2_k / np.prod(volume_2_k.shape), volume_1_k) * np.prod(
+            volume_2_k.shape) * num_heads
 
         KQI.kqi += self.KQI_formula(volume_2_q / np.prod(volume_2_q.shape), volume_1_q) * np.prod(
             volume_2_q.shape) * num_heads
-        KQI.kqi += self.KQI_formula(volume_2_k / np.prod(volume_2_k.shape), volume_1_k) * np.prod(
-            volume_2_k.shape) * num_heads
+
         KQI.kqi += self.KQI_formula(volume_2_v / np.prod(volume_2_v.shape), volume_1_v) * np.prod(
             volume_2_v.shape) * num_heads
 

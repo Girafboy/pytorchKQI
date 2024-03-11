@@ -1,6 +1,7 @@
-import torch
-import numpy as np
 import logging
+
+import numpy as np
+import torch
 
 
 class KQI:
@@ -9,7 +10,7 @@ class KQI:
 
     def KQI(self, x: torch.Tensor) -> float:
         KQI.W = torch.tensor(np.prod(x.shape), dtype=float)
-        KQI.kqi = 0
+        KQI.kqi = torch.tensor(0, dtype=float)
 
         x = self.KQIforward(x)
         volume = self.KQIbackward(torch.zeros_like(x))
@@ -27,7 +28,8 @@ class KQI:
 
     def KQI_formula(self, volume: torch.Tensor, volume_backward: torch.Tensor) -> float:
         if volume.shape != volume_backward.shape and volume_backward.dim():
-            raise ValueError(f'Shape of volume {volume.shape} is incompatible with volume_backward {volume_backward.shape}')
+            raise ValueError(
+                f'Shape of volume {volume.shape} is incompatible with volume_backward {volume_backward.shape}')
         if volume.dim():
             pos = torch.where(volume != 0)
             if volume_backward.dim():

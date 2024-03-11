@@ -48,6 +48,7 @@ from .rnn import RNN, LSTM, GRU
 # from .distance import PairwiseDistance, CosineSimilarity
 # from .fold import Fold, Unfold
 # from .adaptive import AdaptiveLogSoftmaxWithLoss
+from .transformer import TransformerEncoder, TransformerEncoderLayer
 # from .transformer import TransformerEncoder, TransformerDecoder, \
 #     TransformerEncoderLayer, TransformerDecoderLayer, Transformer
 # from .flatten import Flatten, Unflatten
