@@ -260,7 +260,8 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
 
-    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[
+        torch.Tensor, Optional[torch.Tensor]]:
         # x: query, y: key, z: value
         seq_len, embed_dim = x.shape
         num_heads = self.num_heads
@@ -341,18 +342,15 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
 
         # Linear
         if volume_backward_q is None:
-            volume_1_q = torch.ones((seq_len, head_dim)) * (
-                        seq_len * head_dim + volume_2_q.sum() / (seq_len * head_dim))
+            volume_1_q = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_q.sum() / (seq_len * head_dim))
         else:
             volume_1_q = volume_backward_q.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
         if volume_backward_k is None:
-            volume_1_k = torch.ones((seq_len, head_dim)) * (
-                        seq_len * head_dim + volume_2_k.sum() / (seq_len * head_dim))
+            volume_1_k = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_k.sum() / (seq_len * head_dim))
         else:
             volume_1_k = volume_backward_k.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
         if volume_backward_v is None:
-            volume_1_v = torch.ones((seq_len, head_dim)) * (
-                        seq_len * head_dim + volume_2_v.sum() / (seq_len * head_dim))
+            volume_1_v = torch.ones((seq_len, head_dim)) * (seq_len * head_dim + volume_2_v.sum() / (seq_len * head_dim))
         else:
             volume_1_v = volume_backward_v.reshape((seq_len, num_heads, head_dim)).sum(1) / num_heads
 
