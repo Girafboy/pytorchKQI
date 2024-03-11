@@ -260,8 +260,7 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
 
-    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[
-        torch.Tensor, Optional[torch.Tensor]]:
+    def KQIforward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # x: query, y: key, z: value
         seq_len, embed_dim = x.shape
         num_heads = self.num_heads
