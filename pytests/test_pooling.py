@@ -45,13 +45,13 @@ def test_AvgPool1d():
             for i in range(28):
                 G.add_node(f'L1_{i}', [])
             for i in range(26):
-                preds = [f'L1_{k1}' for k1 in [i, i+1, i+2]]
+                preds = [f'L1_{k1}' for k1 in [i, i + 1, i + 2]]
                 G.add_node(f'L2_{i}_1', preds)
                 G.add_node(f'L2_{i}_2', preds)
                 G.add_node(f'L2_{i}_3', preds)
             for i in range(14):
                 for k2 in [1, 2, 3]:
-                    preds = [f'L2_{k1}_{k2}' for k1 in [i*2-1, i*2] if 0 <= k1 < 26]
+                    preds = [f'L2_{k1}_{k2}' for k1 in [i * 2 - 1, i * 2] if 0 <= k1 < 26]
                     G.add_node(f'L3_{i}_{k2}', preds)
 
             for i in range(100):
@@ -126,13 +126,13 @@ def test_AvgPool2d():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
                 G.add_node(f'L2_{i}-{j}_3', preds)
             for i, j in itertools.product(range(13), range(13)):
                 for k3 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2, i*2+1], [j*2, j*2+1])]
+                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1])]
                     G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
             for i in range(100):
@@ -207,13 +207,13 @@ def test_AvgPool3d():
             for i, j, k in itertools.product(range(8), range(8), range(8)):
                 G.add_node(f'L1_{i}-{j}-{k}', [])
             for i, j, k in itertools.product(range(6), range(6), range(6)):
-                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i+1, i+2], [j, j+1, j+2], [k, k+1, k+2])]
+                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2], [k, k + 1, k + 2])]
                 G.add_node(f'L2_{i}-{j}-{k}_1', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_2', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_3', preds)
             for i, j, k in itertools.product(range(4), range(4), range(4)):
                 for k4 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i*2-1, i*2], [j*2-1, j*2], [k*2-1, k*2]) if 0 <= k1 < 6 and 0 <= k2 < 6 and 0 <= k3 < 6]
+                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i * 2 - 1, i * 2], [j * 2 - 1, j * 2], [k * 2 - 1, k * 2]) if 0 <= k1 < 6 and 0 <= k2 < 6 and 0 <= k3 < 6]
                     G.add_node(f'L3_{i}-{j}-{k}_{k4}', preds)
 
             for i in range(100):
@@ -288,13 +288,13 @@ def test_MaxPool1d():
             for i in range(28):
                 G.add_node(f'L1_{i}', [])
             for i in range(26):
-                preds = [f'L1_{k1}' for k1 in [i, i+1, i+2]]
+                preds = [f'L1_{k1}' for k1 in [i, i + 1, i + 2]]
                 G.add_node(f'L2_{i}_1', preds)
                 G.add_node(f'L2_{i}_2', preds)
                 G.add_node(f'L2_{i}_3', preds)
             for i in range(14):
                 for k2 in [1, 2, 3]:
-                    preds = [f'L2_{k1}_{k2}' for k1 in [i*2-1, i*2] if 0 <= k1 < 26]
+                    preds = [f'L2_{k1}_{k2}' for k1 in [i * 2 - 1, i * 2] if 0 <= k1 < 26]
                     G.add_node(f'L3_{i}_{k2}', preds)
 
             for i in range(100):
@@ -369,13 +369,13 @@ def test_MaxPool2d():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
                 G.add_node(f'L2_{i}-{j}_3', preds)
             for i, j in itertools.product(range(14), range(14)):
                 for k3 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2-1, i*2], [j*2-1, j*2]) if 0 <= k1 < 26 and 0 <= k2 < 26]
+                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 2 - 1, i * 2], [j * 2 - 1, j * 2]) if 0 <= k1 < 26 and 0 <= k2 < 26]
                     G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
             for i in range(100):
@@ -450,13 +450,13 @@ def test_MaxPool3d():
             for i, j, k in itertools.product(range(8), range(8), range(8)):
                 G.add_node(f'L1_{i}-{j}-{k}', [])
             for i, j, k in itertools.product(range(6), range(6), range(6)):
-                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i+1, i+2], [j, j+1, j+2], [k, k+1, k+2])]
+                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2], [k, k + 1, k + 2])]
                 G.add_node(f'L2_{i}-{j}-{k}_1', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_2', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_3', preds)
             for i, j, k in itertools.product(range(4), range(4), range(4)):
                 for k4 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i*2-1, i*2], [j*2-1, j*2], [k*2-1, k*2]) if 0 <= k1 < 6 and 0 <= k2 < 6 and 0 <= k3 < 6]
+                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i * 2 - 1, i * 2], [j * 2 - 1, j * 2], [k * 2 - 1, k * 2]) if 0 <= k1 < 6 and 0 <= k2 < 6 and 0 <= k3 < 6]
                     G.add_node(f'L3_{i}-{j}-{k}_{k4}', preds)
 
             for i in range(100):
@@ -531,13 +531,13 @@ def test_AdaptiveAvgPool1d():
             for i in range(28):
                 G.add_node(f'L1_{i}', [])
             for i in range(26):
-                preds = [f'L1_{k1}' for k1 in [i, i+1, i+2]]
+                preds = [f'L1_{k1}' for k1 in [i, i + 1, i + 2]]
                 G.add_node(f'L2_{i}_1', preds)
                 G.add_node(f'L2_{i}_2', preds)
                 G.add_node(f'L2_{i}_3', preds)
             for i in range(13):
                 for k2 in [1, 2, 3]:
-                    preds = [f'L2_{k1}_{k2}' for k1 in [i*2, i*2+1]]
+                    preds = [f'L2_{k1}_{k2}' for k1 in [i * 2, i * 2 + 1]]
                     G.add_node(f'L3_{i}_{k2}', preds)
 
             for i in range(100):
@@ -612,13 +612,13 @@ def test_AdaptiveAvgPool2d():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
                 G.add_node(f'L2_{i}-{j}_3', preds)
             for i, j in itertools.product(range(13), range(13)):
                 for k3 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2, i*2+1], [j*2, j*2+1])]
+                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1])]
                     G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
             for i in range(100):
@@ -693,13 +693,13 @@ def test_AdaptiveAvgPool3d():
             for i, j, k in itertools.product(range(8), range(8), range(8)):
                 G.add_node(f'L1_{i}-{j}-{k}', [])
             for i, j, k in itertools.product(range(6), range(6), range(6)):
-                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i+1, i+2], [j, j+1, j+2], [k, k+1, k+2])]
+                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2], [k, k + 1, k + 2])]
                 G.add_node(f'L2_{i}-{j}-{k}_1', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_2', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_3', preds)
             for i, j, k in itertools.product(range(3), range(3), range(3)):
                 for k4 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i*2, i*2+1], [j*2, j*2+1], [k*2, k*2+1])]
+                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1], [k * 2, k * 2 + 1])]
                     G.add_node(f'L3_{i}-{j}-{k}_{k4}', preds)
 
             for i in range(100):
@@ -774,13 +774,13 @@ def test_AdaptiveMaxPool1d():
             for i in range(28):
                 G.add_node(f'L1_{i}', [])
             for i in range(26):
-                preds = [f'L1_{k1}' for k1 in [i, i+1, i+2]]
+                preds = [f'L1_{k1}' for k1 in [i, i + 1, i + 2]]
                 G.add_node(f'L2_{i}_1', preds)
                 G.add_node(f'L2_{i}_2', preds)
                 G.add_node(f'L2_{i}_3', preds)
             for i in range(13):
                 for k2 in [1, 2, 3]:
-                    preds = [f'L2_{k1}_{k2}' for k1 in [i*2, i*2+1]]
+                    preds = [f'L2_{k1}_{k2}' for k1 in [i * 2, i * 2 + 1]]
                     G.add_node(f'L3_{i}_{k2}', preds)
 
             for i in range(100):
@@ -855,13 +855,13 @@ def test_AdaptiveMaxPool2d():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
                 G.add_node(f'L2_{i}-{j}_3', preds)
             for i, j in itertools.product(range(13), range(13)):
                 for k3 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2, i*2+1], [j*2, j*2+1])]
+                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1])]
                     G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
             for i in range(100):
@@ -936,13 +936,13 @@ def test_AdaptiveMaxPool3d():
             for i, j, k in itertools.product(range(8), range(8), range(8)):
                 G.add_node(f'L1_{i}-{j}-{k}', [])
             for i, j, k in itertools.product(range(6), range(6), range(6)):
-                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i+1, i+2], [j, j+1, j+2], [k, k+1, k+2])]
+                preds = [f'L1_{k1}-{k2}-{k3}' for k1, k2, k3 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2], [k, k + 1, k + 2])]
                 G.add_node(f'L2_{i}-{j}-{k}_1', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_2', preds)
                 G.add_node(f'L2_{i}-{j}-{k}_3', preds)
             for i, j, k in itertools.product(range(3), range(3), range(3)):
                 for k4 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i*2, i*2+1], [j*2, j*2+1], [k*2, k*2+1])]
+                    preds = [f'L2_{k1}-{k2}-{k3}_{k4}' for k1, k2, k3 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1], [k * 2, k * 2 + 1])]
                     G.add_node(f'L3_{i}-{j}-{k}_{k4}', preds)
 
             for i in range(100):
@@ -1017,13 +1017,13 @@ def test_LPPool1d():
             for i in range(28):
                 G.add_node(f'L1_{i}', [])
             for i in range(26):
-                preds = [f'L1_{k1}' for k1 in [i, i+1, i+2]]
+                preds = [f'L1_{k1}' for k1 in [i, i + 1, i + 2]]
                 G.add_node(f'L2_{i}_1', preds)
                 G.add_node(f'L2_{i}_2', preds)
                 G.add_node(f'L2_{i}_3', preds)
             for i in range(13):
                 for k2 in [1, 2, 3]:
-                    preds = [f'L2_{k1}_{k2}' for k1 in [i*2, i*2+1]]
+                    preds = [f'L2_{k1}_{k2}' for k1 in [i * 2, i * 2 + 1]]
                     G.add_node(f'L3_{i}_{k2}', preds)
 
             for i in range(100):
@@ -1098,13 +1098,13 @@ def test_LPPool2d():
             for i, j in itertools.product(range(28), range(28)):
                 G.add_node(f'L1_{i}-{j}', [])
             for i, j in itertools.product(range(26), range(26)):
-                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i+1, i+2], [j, j+1, j+2])]
+                preds = [f'L1_{k1}-{k2}' for k1, k2 in itertools.product([i, i + 1, i + 2], [j, j + 1, j + 2])]
                 G.add_node(f'L2_{i}-{j}_1', preds)
                 G.add_node(f'L2_{i}-{j}_2', preds)
                 G.add_node(f'L2_{i}-{j}_3', preds)
             for i, j in itertools.product(range(13), range(13)):
                 for k3 in [1, 2, 3]:
-                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i*2, i*2+1], [j*2, j*2+1])]
+                    preds = [f'L2_{k1}-{k2}_{k3}' for k1, k2 in itertools.product([i * 2, i * 2 + 1], [j * 2, j * 2 + 1])]
                     G.add_node(f'L3_{i}-{j}_{k3}', preds)
 
             for i in range(100):

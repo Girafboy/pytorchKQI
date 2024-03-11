@@ -97,10 +97,10 @@ def test_GroupNorm():
             super().__init__()
 
             self.layer1 = kqinn.GroupNorm(num_groups=3, num_channels=6, affine=False)
-            self.layer2 = kqinn.Linear(in_features=1*6*10*10, out_features=1*6*10*10,
+            self.layer2 = kqinn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
                                        bias=False)
             self.layer3 = kqinn.GroupNorm(num_groups=2, num_channels=6, affine=False)
-            self.layer4 = kqinn.Linear(in_features=1*6*10*10, out_features=1*6*10*10,
+            self.layer4 = kqinn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
                                        bias=False)
             self.layer5 = kqinn.GroupNorm(num_groups=1, num_channels=6, affine=False)
 
@@ -184,10 +184,10 @@ def test_LocalResponseNorm():
             super().__init__()
 
             self.layer1 = kqinn.LocalResponseNorm(3)
-            self.layer2 = kqinn.Linear(in_features=1*6*10*10, out_features=1*6*10*10,
+            self.layer2 = kqinn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
                                        bias=False)
             self.layer3 = kqinn.LocalResponseNorm(2)
-            self.layer4 = kqinn.Linear(in_features=1*6*10*10, out_features=1*6*10*10,
+            self.layer4 = kqinn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
                                        bias=False)
             self.layer5 = kqinn.LocalResponseNorm(4)
 
@@ -223,7 +223,7 @@ def test_LocalResponseNorm():
 
             # LocalResponseNorm(3)
             for i, j, k in itertools.product(range(10), range(10), range(6)):
-                preds = [f'L0_{i}-{j}-{m}' for m in range(max(0, k-1), min(5, k+1)+1)]
+                preds = [f'L0_{i}-{j}-{m}' for m in range(max(0, k - 1), min(5, k + 1) + 1)]
                 G.add_node(f'L1_{i}-{j}-{k}', preds)
 
             # Linear
@@ -233,7 +233,7 @@ def test_LocalResponseNorm():
 
             # LocalResponseNorm(2)
             for i, j, k in itertools.product(range(10), range(10), range(6)):
-                preds = [f'L2_{i}-{j}-{m}' for m in range(max(0, k-1), min(5, k+1)+1)]
+                preds = [f'L2_{i}-{j}-{m}' for m in range(max(0, k - 1), min(5, k + 1) + 1)]
                 G.add_node(f'L3_{i}-{j}-{k}', preds)
 
             # Linear
@@ -243,7 +243,7 @@ def test_LocalResponseNorm():
 
             # LocalResponseNorm(4)
             for i, j, k in itertools.product(range(10), range(10), range(6)):
-                preds = [f'L4_{i}-{j}-{m}' for m in range(max(0, k-2), min(5, k+2)+1)]
+                preds = [f'L4_{i}-{j}-{m}' for m in range(max(0, k - 2), min(5, k + 2) + 1)]
                 G.add_node(f'L5_{i}-{j}-{k}', preds)
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))

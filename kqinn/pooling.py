@@ -19,7 +19,7 @@ class AvgPool1d(torch.nn.AvgPool1d, KQI):
     def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
         _, H = volume.shape
         indexing = lambda i: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0])]
-        add = max(0, (H-1) * self.stride[0] + self.kernel_size[0] - self.input_size[1] - 2 * self.padding[0])
+        add = max(0, (H - 1) * self.stride[0] + self.kernel_size[0] - self.input_size[1] - 2 * self.padding[0])
         start = self.padding[0]
         end = None if self.padding[0] + add == 0 else -self.padding[0] - add
 
@@ -73,7 +73,7 @@ class AvgPool2d(torch.nn.AvgPool2d, KQI):
         _, H, W = volume.shape
         indexing = lambda i, j: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1])]
 
-        add = [max(0, (s-1) * self.stride[k] + self.kernel_size[k] - self.input_size[k+1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1])]
+        add = [max(0, (s - 1) * self.stride[k] + self.kernel_size[k] - self.input_size[k + 1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1])]
 
         start = self.padding
         end = [None if self.padding[i] + add[i] == 0 else -self.padding[i] - add[i] for i in range(2)]
@@ -129,7 +129,7 @@ class AvgPool3d(torch.nn.AvgPool3d, KQI):
         _, H, W, L = volume.shape
         indexing = lambda i, j, k: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1]), slice(k, L * self.stride[2] + k, self.stride[2])]
 
-        add = [max(0, (s-1) * self.stride[k] + self.kernel_size[k] - self.input_size[k+1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1, 2])]
+        add = [max(0, (s - 1) * self.stride[k] + self.kernel_size[k] - self.input_size[k + 1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1, 2])]
 
         start = self.padding
         end = [None if self.padding[i] + add[i] == 0 else -self.padding[i] - add[i] for i in range(3)]
@@ -184,7 +184,7 @@ class MaxPool1d(torch.nn.MaxPool1d, KQI):
         _, H = volume.shape
         indexing = lambda i: [slice(None), slice(i, H * self.stride + i, self.stride)]
 
-        add = max(0, (H-1) * self.stride + self.kernel_size * self.dilation - self.input_size[1] - 2 * self.padding)
+        add = max(0, (H - 1) * self.stride + self.kernel_size * self.dilation - self.input_size[1] - 2 * self.padding)
 
         start = self.padding
         end = None if self.padding + add == 0 else -self.padding - add
@@ -241,7 +241,7 @@ class MaxPool2d(torch.nn.MaxPool2d, KQI):
         _, H, W = volume.shape
         indexing = lambda i, j: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1])]
 
-        add = [max(0, (s-1) * self.stride[k] + self.kernel_size[k] * self.dilation[k] - self.input_size[k+1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1])]
+        add = [max(0, (s - 1) * self.stride[k] + self.kernel_size[k] * self.dilation[k] - self.input_size[k + 1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1])]
 
         start = self.padding
         end = [None if self.padding[i] + add[i] == 0 else -self.padding[i] - add[i] for i in range(2)]
@@ -298,7 +298,7 @@ class MaxPool3d(torch.nn.MaxPool3d, KQI):
         _, H, W, L = volume.shape
         indexing = lambda i, j, k: [slice(None), slice(i, H * self.stride[0] + i, self.stride[0]), slice(j, W * self.stride[1] + j, self.stride[1]), slice(k, L * self.stride[2] + k, self.stride[2])]
 
-        add = [max(0, (s-1) * self.stride[k] + self.kernel_size[k] * self.dilation[k] - self.input_size[k+1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1, 2])]
+        add = [max(0, (s - 1) * self.stride[k] + self.kernel_size[k] * self.dilation[k] - self.input_size[k + 1] - 2 * self.padding[k]) for s, k in zip(volume.shape[1:], [0, 1, 2])]
 
         start = self.padding
         end = [None if self.padding[i] + add[i] == 0 else -self.padding[i] - add[i] for i in range(3)]
@@ -382,9 +382,9 @@ class AdaptiveAvgPool2d(torch.nn.AdaptiveAvgPool2d, KQI):
         self.padding = [0, 0]
         for i in [0, 1]:
             if self.output_size[i] is None:
-                self.output_size[i] = self.input_size[i+1]
-            self.stride[i] = math.floor(self.input_size[i+1]/self.output_size[i])
-            self.kernel_size[i] = self.input_size[i+1] - (self.output_size[i] - 1) * self.stride[i]
+                self.output_size[i] = self.input_size[i + 1]
+            self.stride[i] = math.floor(self.input_size[i + 1] / self.output_size[i])
+            self.kernel_size[i] = self.input_size[i + 1] - (self.output_size[i] - 1) * self.stride[i]
         x_new = self.forward(x)
 
         degree = self._degree(x.shape, x_new.shape)
