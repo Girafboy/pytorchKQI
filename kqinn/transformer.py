@@ -1,14 +1,12 @@
 import logging
+from typing import Tuple
 
 import numpy as np
 import torch
 from torch import Tensor
 
 import kqinn
-from .activation import MultiheadAttention as MultiheadAttentionKQI
 from .kqi import KQI
-from .linear import Linear as LinearKQI
-from .normalization import LayerNorm as LayerNormKQI
 
 
 class TransformerEncoder(torch.nn.TransformerEncoder, KQI):
@@ -119,6 +117,45 @@ class ff_block(KQI):
         return volume
 
 
+class mha_block(KQI):
+    def __init__(self, d_model: int, nhead: int, dropout: float = 0.1):
+        self.multihead_attn = kqinn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.norm2 = kqinn.LayerNorm(d_model)
+        self.dropout2 = kqinn.Dropout(dropout)
+
+    def KQIforward(self, x: Tensor, memory: Tensor) -> Tensor:
+        x = self.norm2.KQIforward(x)
+        x = self.multihead_attn.KQIforward(x, memory, memory)[0]
+        x = self.dropout2.KQIforward(x)
+
+        return x
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None,
+                    volume_backward_mem: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        volume = self.dropout2.KQIbackward(volume)
+
+        # Save the original KQI and volume
+        tmp_kqi = KQI.kqi.clone()
+        tmp_volume = volume
+        # Calculate the volume for the backward pass
+        volume_backward_k, volume_backward_q, volume_backward_v = self.multihead_attn.KQIbackward(volume)
+        # Get true volume
+        volume_mem = volume_backward_k + volume_backward_v
+        volume = volume_backward_q
+        # Restore the original KQI and volume and perform the backward pass
+        KQI.kqi = tmp_kqi
+        if volume_backward_mem is None:
+            self.multihead_attn.KQIbackward(volume=tmp_volume, volume_backward_k=volume_mem, volume_backward_q=volume,
+                                            volume_backward_v=volume_mem)
+        else:
+            self.multihead_attn.KQIbackward(volume=tmp_volume, volume_backward_k=volume_backward_mem,
+                                            volume_backward_q=volume, volume_backward_v=volume_backward_mem)
+
+        volume = self.norm2.KQIbackward(volume, volume_backward)
+        logging.debug(f'mha_block: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume, volume_mem
+
+
 class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
     """
     This module is modified from torch.nn.TransformerDecoderLayer.
@@ -128,52 +165,35 @@ class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
     def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
                  activation: str = 'relu', layer_norm_eps: float = 1e-5, norm_first: bool = False,
                  bias: bool = True, device=None, dtype=None):
-        super().__init__(d_model, nhead, dim_feedforward, norm_first)
+        if not norm_first:
+            raise NotImplementedError('norm_first=False is not supported now')
 
-        self.self_attn = MultiheadAttentionKQI(embed_dim=d_model, num_heads=nhead)  # mask to be added
-        self.multihead_attn = MultiheadAttentionKQI(embed_dim=d_model, num_heads=nhead)
-        self.linear1 = LinearKQI(in_features=d_model, out_features=dim_feedforward, bias=False)
-        self.linear2 = LinearKQI(in_features=d_model, out_features=dim_feedforward, bias=False)
-        self.norm1 = LayerNormKQI(normalized_shape=d_model)
-        self.norm2 = LayerNormKQI(normalized_shape=d_model)  # to be revised
-        self.norm3 = LayerNormKQI(normalized_shape=d_model)  # to be revised
+        super().__init__(d_model, nhead, dim_feedforward, norm_first=norm_first)
+        self.norm_first = norm_first
+        self.sa_block = sa_block(d_model, nhead, dropout)
+        self.mha_block = mha_block(d_model, nhead, dropout)
+        self.ff_block = ff_block(d_model, dim_feedforward, dropout)
 
     def KQIforward(self, x: torch.Tensor, memory: torch.Tensor) -> torch.Tensor:
-        seq_len, batch_size, embed_dim = x.size()
-        if self.memory is None:
-            raise ValueError("Encoder output not found.")
-        if self.norm_first:
-            tgt = x
-            x = self.norm1.KQIforward(x)
-            x = self.self_attn.KQIforward(x, x, x)
-            # ADD to be implemented
-            x = self.norm2.KQIforward(x)
-            x = self.multihead_attn.KQIforward(x, memory, memory)
-            # ADD to be implemented
-            x = self.norm3(x)
-            x = self.linear1.KQIforward(x)  # _ff_block
-            x = self.linear2.KQIforward(x)  # _ff_block
-            # ADD to be implemented
-        else:
-            raise ValueError("Non-norm_first not implemented.")
-        return x
+        x = kqinn.Branch(self.sa_block, kqinn.EmptyModule()).KQIforward(x)
+        x = self.mha_block.KQIforward(x, memory)
+        KQI.W += np.prod(x.shape) * 2
+        x = kqinn.Branch(self.ff_block, kqinn.EmptyModule()).KQIforward(x)
 
-    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-        if self.memory is None:
-            raise ValueError("Encoder output not found.")
-        if self.norm_first:
-            # ADD to be implemented
-            volume = self.linear2.KQIbackward(volume.flatten())  # _ff_block
-            volume = self.linear1.KQIbackward(volume.flatten())  # _ff_block
-            volume = self.norm3.KQIbackward(volume)  # to be revised
-            # ADD to be implemented
-            volume_backward_k, volume_backward_q, volume_backward_v = self.multihead_attn.KQIbackward(
-                volume)  # _mha_block
-            volume = torch.cat([volume_backward_q, volume_backward_k, volume_backward_v], dim=1)  # _mha_block
-            volume = self.norm2.KQIbackward(volume)  # to be revised
-            # ADD to be implemented
-            volume = self.self_attn.KQIbackward(volume)
-            volume = self.norm1.KQIbackward(volume, volume_backward)
-        else:
-            raise ValueError("Non-norm_first not implemented.")
-        return volume
+        return self.forward(x, memory)
+
+    def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None,
+                    volume_backward_mem: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        volume = kqinn.Branch(self.ff_block, kqinn.EmptyModule()).KQIbackward(volume)
+
+        tmp_kqi = KQI.kqi.clone()
+        tmp_volume = volume
+        volume, volume_mem = self.mha_block.KQIbackward(tmp_volume / 2, None, volume_backward_mem)
+        volume += tmp_volume / 2
+        KQI.kqi = tmp_kqi
+        volume, volume_mem = self.mha_block.KQIbackward(tmp_volume / 2, volume, volume_backward_mem)
+
+        volume = kqinn.Branch(self.sa_block, kqinn.EmptyModule()).KQIbackward(volume)
+
+        logging.debug(f'TransformerDecoderLayer: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+        return volume, volume_mem
