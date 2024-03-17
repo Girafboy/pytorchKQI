@@ -108,7 +108,6 @@ def test_TransformerEncoder():
             G = TransformerEncoderLayer_add_nodes(G, "TEL1_out", sequence_length,
                                                   d_model, head, dim_feedforward,
                                                   name_in="TEL2", name_out="TEL2_out")
-
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
     kqi = TestTransformerEncoder().KQI(torch.randn(sequence_length, d_model))
@@ -181,7 +180,6 @@ def TransformerEncoderLayer_add_nodes(G, predecessors, sequence_length, d_model,
 def test_TransformerEncoderLayer():
     # Currently, we only support the case of sequence_length = 1
     sequence_length = 1
-
     d_model = 32
     head = 8
     dim_feedforward = 48
@@ -286,7 +284,6 @@ def TransformerDecoderLayer_add_nodes(G, tgt, mem, sequence_length, d_model, hea
 def test_TransformerDecoderLayer():
     # Currently, we only support the case of sequence_length = 1
     sequence_length = 1
-
     d_model = 32
     head = 8
     dim_feedforward = 48

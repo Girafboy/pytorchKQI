@@ -197,3 +197,4 @@ class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
 
         logging.debug(f'TransformerDecoderLayer: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume, volume_mem
+

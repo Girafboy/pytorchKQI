@@ -238,7 +238,7 @@ def test_GRU():
             for layer in range(1, 3):
                 for t in range(1, 4):
                     x_preds = [f'x_{t}_{k}' for k in range(input_size)] if layer == 1 else [f'l{layer-1}_h_{t}_{k}' for k in range(hidden_size)]
-                    preds = x_preds if t == 1 else x_preds+[f'l{layer}_h_{t-1}_{k}' for k in range(hidden_size)]
+                    preds = x_preds if t == 1 else x_preds + [f'l{layer}_h_{t-1}_{k}' for k in range(hidden_size)]
 
                     for i in range(hidden_size):
                         G.add_node(f'l{layer}_hr_{t}_{i}', preds)
@@ -255,7 +255,7 @@ def test_GRU():
                             G.add_node(f'l{layer}_r_{t}_hn_{i}', [f'l{layer}_r_{t}_{i}', f'l{layer}_hn_{t}_{i}'])
                             G.add_node(f'l{layer}_h_{t}_pre_right_{i}', [f'l{layer}_z_{t}_{i}', f'l{layer}_h_{t-1}_{i}'])  # ht_pre_right
 
-                        G.add_node(f'l{layer}_n_{t}_pre_{i}', x_preds+[f'l{layer}_r_{t}_hn_{i}'])
+                        G.add_node(f'l{layer}_n_{t}_pre_{i}', x_preds + [f'l{layer}_r_{t}_hn_{i}'])
                         G.add_node(f'l{layer}_n_{t}_{i}', [f'l{layer}_n_{t}_pre_{i}'])  # nt
 
                         G.add_node(f'l{layer}_h_{t}_pre_left_{i}', [f'l{layer}_n_{t}_{i}', f'l{layer}_1_z_{t}_{i}'])  # ht_pre_left
