@@ -137,3 +137,14 @@ class DiGraph():
 
     def graph_volume(self) -> float:
         return self.__graph_volume
+
+    def print_kqi(self, names: list):
+        """
+        Print KQI of the graph.
+        :param names: A list of names of nodes.
+        :return:
+        """
+        kqi = 0
+        for name in names:
+            kqi += sum(map(lambda k: self.kqi(k) if name in k else 0, self.nodes()))
+            print(f'{name}: KQI={kqi}, node={len([k for k in self.nodes() if name in k])}, volume={sum([self.volume(k) for k in self.nodes() if name in k])}')

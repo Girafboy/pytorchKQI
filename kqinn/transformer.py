@@ -136,7 +136,7 @@ class mha_block(KQI):
 
         # Save the original KQI and volume
         tmp_kqi = KQI.kqi.clone()
-        tmp_volume = volume
+        tmp_volume = volume.clone()
         # Calculate the volume for the backward pass
         volume_backward_k, volume_backward_q, volume_backward_v = self.multihead_attn.KQIbackward(volume)
         # Get true volume
@@ -187,13 +187,18 @@ class TransformerDecoderLayer(torch.nn.TransformerDecoderLayer, KQI):
         volume = kqinn.Branch(self.ff_block, kqinn.EmptyModule()).KQIbackward(volume)
 
         tmp_kqi = KQI.kqi.clone()
-        tmp_volume = volume
-        volume, volume_mem = self.mha_block.KQIbackward(tmp_volume / 2, None, volume_backward_mem)
+        tmp_volume = volume.clone()
+        # Need to add 1 to the volume of input because of the branch of add
+        volume, volume_mem = self.mha_block.KQIbackward(tmp_volume / 2 + 1, None, volume_backward_mem)
         volume += tmp_volume / 2
         KQI.kqi = tmp_kqi
-        volume, volume_mem = self.mha_block.KQIbackward(tmp_volume / 2, volume, volume_backward_mem)
+        volume, volume_mem = self.mha_block.KQIbackward(tmp_volume / 2 + 1, volume, volume_backward_mem)
+        KQI.kqi += self.KQI_formula(tmp_volume / 2, tmp_volume / 2 + 1)
+        KQI.kqi += self.KQI_formula(tmp_volume / 2, volume + 1)
 
-        volume = kqinn.Branch(self.sa_block, kqinn.EmptyModule()).KQIbackward(volume)
+        logging.debug(f'mha_block: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+
+        volume = kqinn.Branch(self.sa_block, kqinn.EmptyModule()).KQIbackward(volume + 1)
 
         logging.debug(f'TransformerDecoderLayer: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume, volume_mem

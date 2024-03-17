@@ -228,56 +228,56 @@ def TransformerDecoderLayer_add_nodes(G, tgt, mem, sequence_length, d_model, hea
     preds = [f'{tgt}_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
     for i in range(sequence_length):
         for j in range(d_model):
-            G.add_node(f'{name_in}_L1_{i}-{j}', preds)
+            G.add_node(f'{name_in}_TDL_norm1_{i}-{j}', preds)
 
     # Self-Attention
-    G = MultiheadAttention_add_nodes(G, name_in + "_L1", name_in + "_L1", name_in + "_L1", head, d_model // head,
+    G = MultiheadAttention_add_nodes(G, name_in + "_TDL_norm1", name_in + "_TDL_norm1", name_in + "_TDL_norm1", head, d_model // head,
                                      sequence_length, d_model, name_in=name_in + "_SA_in", name_out=name_in + "_SA_out")
 
-    # Add
+    # Add1
     for i in range(sequence_length):
         for j in range(d_model):
             preds = ([f'{tgt}_{i}-{j}'] + [f'{name_in}_SA_out_{i}-{j}'])
-            G.add_node(f'{name_in}_L3_{i}-{j}', preds)
+            G.add_node(f'{name_in}_TDL_add1_{i}-{j}', preds)
 
     # Norm2
-    preds = [f'{name_in}_L3_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
-    for i in range(d_model):
+    preds = [f'{name_in}_TDL_add1_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
+    for i in range(sequence_length):
         for j in range(d_model):
-            G.add_node(f'{name_in}_L4_{i}-{j}', preds)
+            G.add_node(f'{name_in}_TDL_norm2_{i}-{j}', preds)
 
     # MultiheadAttention
-    G = MultiheadAttention_add_nodes(G, name_in + "_L4", mem, mem, head, d_model // head, sequence_length, d_model,
+    G = MultiheadAttention_add_nodes(G, name_in + "_TDL_norm2", mem, mem, head, d_model // head, sequence_length, d_model,
                                      name_in=name_in + "_MHA_in", name_out=name_in + "_MHA_out")
 
-    # Add
+    # Add2
     for i in range(sequence_length):
         for j in range(d_model):
-            preds = ([f'{name_in}_L3_{i}-{j}'] + [f'{name_in}_MHA_out_{i}-{j}'])
-            G.add_node(f'{name_in}_L6_{i}-{j}', preds)
+            preds = ([f'{name_in}_TDL_add1_{i}-{j}'] + [f'{name_in}_MHA_out_{i}-{j}'])
+            G.add_node(f'{name_in}_TDL_add2_{i}-{j}', preds)
 
     # Norm3
-    preds = [f'{name_in}_L6_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
+    preds = [f'{name_in}_TDL_add2_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
     for i in range(sequence_length):
         for j in range(d_model):
-            G.add_node(f'{name_in}_L7_{i}-{j}', preds)
+            G.add_node(f'{name_in}_TDL_norm3_{i}-{j}', preds)
 
     # Linear1
-    preds = [f'{name_in}_L7_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
+    preds = [f'{name_in}_TDL_norm3_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
     for i in range(sequence_length):
         for j in range(dim_feedforward):
-            G.add_node(f'{name_in}_L9_{i}-{j}', preds)
+            G.add_node(f'{name_in}_TDL_linear1_{i}-{j}', preds)
 
     # Linear2
-    preds = [f'{name_in}_L9_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(dim_feedforward))]
+    preds = [f'{name_in}_TDL_linear1_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(dim_feedforward))]
     for i in range(sequence_length):
         for j in range(d_model):
-            G.add_node(f'{name_in}_L10_{i}-{j}', preds)
+            G.add_node(f'{name_in}_TDL_linear2_{i}-{j}', preds)
 
-    # Add
+    # Add3
     for i in range(sequence_length):
         for j in range(d_model):
-            preds = ([f'{name_in}_L6_{i}-{j}'] + [f'{name_in}_L10_{i}-{j}'])
+            preds = ([f'{name_in}_TDL_add2_{i}-{j}'] + [f'{name_in}_TDL_linear2_{i}-{j}'])
             G.add_node(f'{name_out}_{i}-{j}', preds)
 
     return G
@@ -324,13 +324,18 @@ def test_TransformerDecoderLayer():
 
             # Construct mem and tgt nodes
             for i, j in itertools.product(range(sequence_length), range(d_model)):
-                G.add_node(f'L_{i}-{j}', [])
-            preds = [f'L_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
+                G.add_node(f'start_{i}-{j}', [])
+            preds = [f'start_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
             for i, j in itertools.product(range(sequence_length), range(d_model)):
                 G.add_node(f'mem_{i}-{j}', preds)
                 G.add_node(f'tgt_{i}-{j}', preds)
 
             G = TransformerDecoderLayer_add_nodes(G, "tgt", "mem", sequence_length, d_model, head, dim_feedforward)
+
+            names = ["TDL_out", "TDL_in_TDL_linear2", "TDL_in_TDL_linear1", "TDL_in_TDL_norm3", "TDL_in_TDL_add2",
+                     "TDL_in_MHA_out", "TDL_in_MHA_in", "TDL_in_TDL_norm2", "TDL_in_TDL_add1", "TDL_in_SA_out",
+                     "TDL_in_SA_in", "TDL_in_TDL_norm1", "mem", "tgt", "start"]
+            G.print_kqi(names)
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
