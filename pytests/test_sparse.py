@@ -12,7 +12,7 @@ def test_Embedding():
             # 2*1*4
             self.layers1 = kqinn.Embedding(10, 3)
             # 2*4*3
-            self.layers2 = kqinn.Linear(in_features=2*4*3, out_features=2*4*3, bias=False)
+            self.layers2 = kqinn.Linear(in_features=2 * 4 * 3, out_features=2 * 4 * 3, bias=False)
 
         def forward(self, x):
             x = self.layers1(x)

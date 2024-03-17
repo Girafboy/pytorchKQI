@@ -82,6 +82,5 @@ __all__ = [
     'LazyConvTranspose1d', 'LazyConvTranspose2d', 'LazyConvTranspose3d',
     'LazyBatchNorm1d', 'LazyBatchNorm2d', 'LazyBatchNorm3d',
     'LazyInstanceNorm1d', 'LazyInstanceNorm2d', 'LazyInstanceNorm3d',
-    'Flatten', 'Unflatten', 'Hardsigmoid', 'Hardswish', 'SiLU', 'Mish', 'TripletMarginWithDistanceLoss',
-    'ChannelShuffle'
+    'Flatten', 'Unflatten', 'Hardsigmoid', 'Hardswish', 'SiLU', 'Mish', 'TripletMarginWithDistanceLoss', 'ChannelShuffle'
 ]

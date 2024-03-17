@@ -37,18 +37,18 @@ def test_Branch():
             G = kqitool.DiGraph()
             for i in range(0, 784):
                 G.add_node(i, [])
-            for i in range(784, 784+512):
+            for i in range(784, 784 + 512):
                 G.add_node(i, list(range(0, 784)))
-            for i in range(784+512, 784+512+512):
-                G.add_node(i, list(range(784, 784+512)))
-            for i in range(784+512+512, 784+512+512+512):
-                G.add_node(i, [i-512, i-512-512])
-            for i in range(784+512+512+512, 784+512+512+512+10):
-                G.add_node(i, list(range(784+512+512, 784+512+512+512)))
+            for i in range(784 + 512, 784 + 512 + 512):
+                G.add_node(i, list(range(784, 784 + 512)))
+            for i in range(784 + 512 + 512, 784 + 512 + 512 + 512):
+                G.add_node(i, [i - 512, i - 512 - 512])
+            for i in range(784 + 512 + 512 + 512, 784 + 512 + 512 + 512 + 10):
+                G.add_node(i, list(range(784 + 512 + 512, 784 + 512 + 512 + 512)))
 
             return sum(map(lambda k: G.kqi(k), G.nodes()))
 
-    kqi = TestBranch().KQI(torch.randn(1*28*28))
+    kqi = TestBranch().KQI(torch.randn(1 * 28 * 28))
     true = TestBranch().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
