@@ -1379,8 +1379,7 @@ def MultiheadAttention_add_nodes(G, preds_q, preds_k, preds_v, head, head_dim, s
     for i in range(head):
         for j in range(sequence_length):
             for k in range(sequence_length):
-                preds = ([f'{name_in}_L1_Q_{j}-{i * head_dim + m}' for m in range(head_dim)]
-                         + [f'{name_in}_L1_K_{k}-{i * head_dim + m}' for m in range(head_dim)])
+                preds = ([f'{name_in}_L1_Q_{j}-{i * head_dim + m}' for m in range(head_dim)] + [f'{name_in}_L1_K_{k}-{i * head_dim + m}' for m in range(head_dim)])
                 G.add_node(f'{name_in}_L2_{j}-{i * sequence_length + k}', preds)
 
     # Scale
@@ -1408,8 +1407,7 @@ def MultiheadAttention_add_nodes(G, preds_q, preds_k, preds_v, head, head_dim, s
     for i in range(head):
         for j in range(sequence_length):
             for k in range(head_dim):
-                preds = ([f'{name_in}_L5_{j}-{i * sequence_length + m}' for m in range(sequence_length)] +
-                         [f'{name_in}_L1_V_{m}-{i * head_dim + k}' for m in range(sequence_length)])
+                preds = ([f'{name_in}_L5_{j}-{i * sequence_length + m}' for m in range(sequence_length)] + [f'{name_in}_L1_V_{m}-{i * head_dim + k}' for m in range(sequence_length)])
                 G.add_node(f'{name_in}_L6_{j}-{i * head_dim + k}', preds)
 
     # Linear

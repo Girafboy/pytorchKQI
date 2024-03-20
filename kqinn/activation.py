@@ -1,10 +1,8 @@
 import numpy as np
 import logging
-from typing import Tuple, Optional
-
-import numpy as np
 import torch
 
+from typing import Tuple, Optional
 from .kqi import KQI
 
 
