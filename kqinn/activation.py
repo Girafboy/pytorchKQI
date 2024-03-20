@@ -367,6 +367,8 @@ class MultiheadAttention(torch.nn.MultiheadAttention, KQI):
         volume_backward_k = volume_1_k.repeat(1, num_heads)
         volume_backward_v = volume_1_v.repeat(1, num_heads)
 
+        logging.debug(f'MultiheadAttention: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
+
         return volume_backward_k, volume_backward_q, volume_backward_v
 
 

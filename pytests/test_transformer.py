@@ -15,60 +15,61 @@ def test_Transformer():
     d_model = 32
     head = 8
     dim_feedforward = 48
-    num_encoder_layers = 1
+    num_encoder_layers = 3
+    num_decoder_layers = 3
 
     class TestTransformer(torch.nn.Module, kqinn.KQI):
         def __init__(self) -> None:
             super().__init__()
+            self.linear = kqinn.Linear(in_features=d_model * sequence_length, out_features=d_model * sequence_length * 2, bias=False)
+            self.layer = kqinn.Transformer(d_model=d_model, nhead=head, num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers, dim_feedforward=dim_feedforward)
 
-            self.linear = kqinn.Linear(in_features=d_model * sequence_length,
-                                       out_features=d_model * sequence_length * 2, bias=False)
-            self.encoder_layer = kqinn.TransformerEncoderLayer(d_model=d_model, nhead=head,
-                                                               dim_feedforward=dim_feedforward,
-                                                               norm_first=True)
-            self.encoder = kqinn.TransformerEncoder(self.encoder_layer, num_layers=num_encoder_layers)
-            self.decoder_layer = kqinn.TransformerDecoderLayer(d_model=d_model, nhead=head,
-                                                               dim_feedforward=dim_feedforward,
-                                                               norm_first=True)
-            self.decoder = kqinn.TransformerDecoder(self.decoder_layer, num_layers=1)
-
-        def forward(self, src, tgt):
-            memory = self.encoder(src)
-            return self.decoder(tgt, memory)
+        def forward(self, x):
+            x = x.flatten()
+            x = self.linear(x).reshape(sequence_length, d_model * 2)
+            tgt = x[:, :d_model].reshape(sequence_length, d_model)
+            mem = x[:, d_model:].reshape(sequence_length, d_model)
+            return self.layer(tgt, mem)
 
         def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
             x = x.flatten()
             x = self.linear.KQIforward(x).reshape(sequence_length, d_model * 2)
-            src = x[:, :d_model].reshape(sequence_length, d_model)
-            tgt = x[:, d_model:d_model * 2].reshape(sequence_length, d_model)
+            tgt = x[:, :d_model].reshape(sequence_length, d_model)
+            mem = x[:, d_model:].reshape(sequence_length, d_model)
+            return self.layer.KQIforward(tgt, mem)
 
-            memory = self.encoder.KQIforward(src)
-            return self.decoder.KQIforward(tgt, memory)
-
-        def KQIbackward(self, volume: torch.Tensor, volume_backward=None) -> torch.Tensor:
-            volume_backward_memory, volume_backward_tgt = self.decoder.KQIbackward(volume)
-            volume_backward_src = self.encoder.KQIbackward(volume_backward_memory)
-            volume = self.linear.KQIbackward(volume_backward_src, volume_backward_tgt)
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume_backward_tgt, volume_backward_mem = self.layer.KQIbackward(volume)
+            volume_backward_tgt_mem = torch.cat([volume_backward_tgt, volume_backward_mem], dim=1)
+            volume = self.linear.KQIbackward(volume_backward_tgt_mem, volume_backward)
             return volume.reshape(sequence_length, d_model)
 
         def true_kqi(self):
             G = kqitool.DiGraph()
-            # Construct src and tgt nodes
-            for i in itertools.product(range(sequence_length * d_model)):
-                G.add_node(f'L_{i}', [])
 
-            preds = [f'L_{i}' for i in itertools.product(range(sequence_length * d_model))]
+            # Construct mem and tgt nodes
             for i, j in itertools.product(range(sequence_length), range(d_model)):
-                G.add_node(f'L0_src_{i}', preds)
-                G.add_node(f'L0_tgt_{i}', preds)
+                G.add_node(f'start_{i}-{j}', [])
+            preds = [f'start_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
+            for i, j in itertools.product(range(sequence_length), range(d_model)):
+                G.add_node(f'src_{i}-{j}', preds)
+                G.add_node(f'tgt_{i}-{j}', preds)
 
-            G = TransformerEncoderLayer_add_nodes(G, "L0_src", sequence_length, d_model,
-                                                  head, dim_feedforward,
-                                                  name_in="TEL", name_out="TEL_out")
-            G = TransformerDecoderLayer_add_nodes(G, "L0_tgt", "TEL_out", sequence_length, d_model, head,
-                                                  dim_feedforward, name_in="TDL", name_out="TDL_out")
+            G = TransformerEncoderLayer_add_nodes(G, "src", sequence_length, d_model, head, dim_feedforward, name_in="TEL1", name_out="TEL1_out")
+            G = TransformerEncoderLayer_add_nodes(G, "TEL1_out", sequence_length, d_model, head, dim_feedforward, name_in="TEL2", name_out="TEL2_out")
+            G = TransformerEncoderLayer_add_nodes(G, "TEL2_out", sequence_length, d_model, head, dim_feedforward, name_in="TEL3", name_out="TEL3_out")
+            G = TransformerDecoderLayer_add_nodes(G, "tgt", "TEL3_out", sequence_length, d_model, head, dim_feedforward, name_in="TDL1", name_out="TDL1_out")
+            G = TransformerDecoderLayer_add_nodes(G, "TDL1_out", "TEL3_out", sequence_length, d_model, head, dim_feedforward, name_in="TDL2", name_out="TDL2_out")
+            G = TransformerDecoderLayer_add_nodes(G, "TDL2_out", "TEL3_out", sequence_length, d_model, head, dim_feedforward, name_in="TDL3", name_out="TDL3_out")
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
+
+    kqi = TestTransformer().KQI(torch.randn(sequence_length, d_model))
+    true = TestTransformer().true_kqi()
+    print("true_kqi: ", true)
+    print("kqi: ", kqi)
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
 
 
 def test_TransformerEncoder():
@@ -102,12 +103,8 @@ def test_TransformerEncoder():
             for i in range(sequence_length):
                 for j in range(d_model):
                     G.add_node(f'L0_{i}-{j}', [])
-            G = TransformerEncoderLayer_add_nodes(G, "L0", sequence_length, d_model,
-                                                  head, dim_feedforward,
-                                                  name_in="TEL1", name_out="TEL1_out")
-            G = TransformerEncoderLayer_add_nodes(G, "TEL1_out", sequence_length,
-                                                  d_model, head, dim_feedforward,
-                                                  name_in="TEL2", name_out="TEL2_out")
+            G = TransformerEncoderLayer_add_nodes(G, "L0", sequence_length, d_model, head, dim_feedforward, name_in="TEL1", name_out="TEL1_out")
+            G = TransformerEncoderLayer_add_nodes(G, "TEL1_out", sequence_length, d_model, head, dim_feedforward, name_in="TEL2", name_out="TEL2_out")
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
@@ -119,9 +116,171 @@ def test_TransformerEncoder():
     assert abs(kqi - true) / true < 0.0001
 
 
-def TransformerEncoderLayer_add_nodes(G, predecessors, sequence_length, d_model, head, dim_feedforward,
-                                      name_in="TEL_in",
-                                      name_out="TEL_out"):
+def test_TransformerDecoder():
+    # Currently, we only support the case of sequence_length = 1
+    sequence_length = 1
+
+    d_model = 32
+    head = 8
+    dim_feedforward = 48
+
+    class TestTransformerDecoder(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.linear = kqinn.Linear(in_features=d_model * sequence_length, out_features=d_model * sequence_length * 2, bias=False)
+            self.decoder_layer = kqinn.TransformerDecoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward, norm_first=True)
+            self.layer = kqinn.TransformerDecoder(self.decoder_layer, num_layers=2)
+
+        def forward(self, x):
+            x = x.flatten()
+            x = self.linear(x).reshape(sequence_length, d_model * 2)
+            tgt = x[:, :d_model].reshape(sequence_length, d_model)
+            mem = x[:, d_model:].reshape(sequence_length, d_model)
+            return self.layer(tgt, mem)
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = x.flatten()
+            x = self.linear.KQIforward(x).reshape(sequence_length, d_model * 2)
+            tgt = x[:, :d_model].reshape(sequence_length, d_model)
+            mem = x[:, d_model:].reshape(sequence_length, d_model)
+            return self.layer.KQIforward(tgt, mem)
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume_backward_tgt, volume_backward_mem = self.layer.KQIbackward(volume)
+            volume_backward_tgt_mem = torch.cat([volume_backward_tgt, volume_backward_mem], dim=1)
+            volume = self.linear.KQIbackward(volume_backward_tgt_mem, volume_backward)
+            return volume.reshape(sequence_length, d_model)
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+
+            for i, j in itertools.product(range(sequence_length), range(d_model)):
+                G.add_node(f'start_{i}-{j}', [])
+            preds = [f'start_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
+            for i, j in itertools.product(range(sequence_length), range(d_model)):
+                G.add_node(f'mem_{i}-{j}', preds)
+                G.add_node(f'tgt_{i}-{j}', preds)
+
+            G = TransformerDecoderLayer_add_nodes(G, "tgt", "mem", sequence_length, d_model, head, dim_feedforward, name_in="TDL1", name_out="TDL1_out")
+            G = TransformerDecoderLayer_add_nodes(G, "TDL1_out", "mem", sequence_length, d_model, head, dim_feedforward, name_in="TDL2", name_out="TDL2_out")
+
+            names = ["TDL2_out", "TDL2_TDL_linear2", "TDL2_TDL_linear1", "TDL2_TDL_norm3", "TDL2_TDL_add2", "TDL2_MHA_out",
+                     "TDL2_MHA_in", "TDL2_TDL_norm2", "TDL2_TDL_add1", "TDL2_SA_out", "TDL2_SA_in", "TDL2_TDL_norm1",
+                     "TDL1_out", "TDL1_TDL_linear2", "TDL1_TDL_linear1", "TDL1_TDL_norm3", "TDL1_TDL_add2", "TDL1_MHA_out",
+                     "TDL1_MHA_in", "TDL1_TDL_norm2", "TDL1_TDL_add1", "TDL1_SA_out", "TDL1_SA_in", "TDL1_TDL_norm1",
+                     "mem", "tgt", "start"]
+            G.print_kqi(names)
+
+            return sum(map(lambda m: G.kqi(m), G.nodes()))
+
+    kqi = TestTransformerDecoder().KQI(torch.randn(sequence_length, d_model))
+    true = TestTransformerDecoder().true_kqi()
+    print("true_kqi: ", true)
+    print("kqi: ", kqi)
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_TransformerEncoderLayer():
+    # Currently, we only support the case of sequence_length = 1
+    sequence_length = 1
+
+    d_model = 32
+    head = 8
+    dim_feedforward = 48
+
+    class TestTransformerEncoderLayer(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+
+            self.layer = kqinn.TransformerEncoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward,
+                                                       norm_first=True)
+
+        def forward(self, x):
+            return self.layer(x)
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            return self.layer.KQIforward(x)
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            return self.layer.KQIbackward(volume, volume_backward)
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+            for i in range(sequence_length):
+                for j in range(d_model):
+                    G.add_node(f'L0_{i}-{j}', [])
+
+            G = TransformerEncoderLayer_add_nodes(G, "L0", sequence_length, d_model, head, dim_feedforward)
+
+            return sum(map(lambda m: G.kqi(m), G.nodes()))
+
+    kqi = TestTransformerEncoderLayer().KQI(torch.randn(sequence_length, d_model))
+    true = TestTransformerEncoderLayer().true_kqi()
+    print("true_kqi: ", true)
+    print("kqi: ", kqi)
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def test_TransformerDecoderLayer():
+    # Currently, we only support the case of sequence_length = 1
+    sequence_length = 1
+
+    d_model = 32
+    head = 8
+    dim_feedforward = 48
+
+    class TestTransformerDecoderLayer(torch.nn.Module, kqinn.KQI):
+        def __init__(self) -> None:
+            super().__init__()
+            self.linear = kqinn.Linear(in_features=d_model * sequence_length, out_features=d_model * sequence_length * 2, bias=False)
+            self.layer = kqinn.TransformerDecoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward, norm_first=True)
+
+        def forward(self, x):
+            x = x.flatten()
+            x = self.linear(x).reshape(sequence_length, d_model * 2)
+            tgt = x[:, :d_model].reshape(sequence_length, d_model)
+            mem = x[:, d_model:].reshape(sequence_length, d_model)
+            return self.layer(tgt, mem)
+
+        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
+            x = x.flatten()
+            x = self.linear.KQIforward(x).reshape(sequence_length, d_model * 2)
+            tgt = x[:, :d_model].reshape(sequence_length, d_model)
+            mem = x[:, d_model:].reshape(sequence_length, d_model)
+            return self.layer.KQIforward(tgt, mem)
+
+        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
+            volume_backward_tgt, volume_backward_mem = self.layer.KQIbackward(volume)
+            volume_backward_tgt_mem = torch.cat([volume_backward_tgt, volume_backward_mem], dim=1)
+            volume = self.linear.KQIbackward(volume_backward_tgt_mem, volume_backward)
+            return volume.reshape(sequence_length, d_model)
+
+        def true_kqi(self):
+            G = kqitool.DiGraph()
+
+            # Construct mem and tgt nodes
+            for i, j in itertools.product(range(sequence_length), range(d_model)):
+                G.add_node(f'start_{i}-{j}', [])
+            preds = [f'start_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
+            for i, j in itertools.product(range(sequence_length), range(d_model)):
+                G.add_node(f'mem_{i}-{j}', preds)
+                G.add_node(f'tgt_{i}-{j}', preds)
+
+            G = TransformerDecoderLayer_add_nodes(G, "tgt", "mem", sequence_length, d_model, head, dim_feedforward)
+
+            return sum(map(lambda m: G.kqi(m), G.nodes()))
+
+    kqi = TestTransformerDecoderLayer().KQI(torch.randn(sequence_length, d_model))
+    true = TestTransformerDecoderLayer().true_kqi()
+    print("true_kqi: ", true)
+    print("kqi: ", kqi)
+    logging.debug(f'KQI = {kqi} (True KQI = {true})')
+    assert abs(kqi - true) / true < 0.0001
+
+
+def TransformerEncoderLayer_add_nodes(G, predecessors, sequence_length, d_model, head, dim_feedforward, name_in="TEL_in", name_out="TEL_out"):
     """
     :param G: The graph to add nodes to
     :param predecessors: The prefix name of predecessors of the first layer, which is a two-dimensional tensor, and the size is (sequence_length, d_model)
@@ -141,9 +300,8 @@ def TransformerEncoderLayer_add_nodes(G, predecessors, sequence_length, d_model,
             G.add_node(f'{name_in}_L1_{i}-{j}', preds)
 
     # MultiheadAttention
-    G = MultiheadAttention_add_nodes(G, name_in + "_L1", name_in + "_L1", name_in + "_L1", head, d_model // head,
-                                     sequence_length, d_model, name_in=name_in + "_MHA_in",
-                                     name_out=name_in + "_MHA_out")
+    G = MultiheadAttention_add_nodes(G, name_in + "_L1", name_in + "_L1", name_in + "_L1", head, d_model // head, sequence_length,
+                                     d_model, name_in=name_in + "_MHA_in", name_out=name_in + "_MHA_out")
 
     # Add
     for i in range(sequence_length):
@@ -178,52 +336,7 @@ def TransformerEncoderLayer_add_nodes(G, predecessors, sequence_length, d_model,
     return G
 
 
-def test_TransformerEncoderLayer():
-    # Currently, we only support the case of sequence_length = 1
-    sequence_length = 1
-
-    d_model = 32
-    head = 8
-    dim_feedforward = 48
-
-    class TestTransformerEncoderLayer(torch.nn.Module, kqinn.KQI):
-        def __init__(self) -> None:
-            super().__init__()
-
-            self.layer = kqinn.TransformerEncoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward,
-                                                       norm_first=True)
-
-        def forward(self, x):
-            return self.layer(x)
-
-        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-            return self.layer.KQIforward(x)
-
-        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-            return self.layer.KQIbackward(volume, volume_backward)
-
-        def true_kqi(self):
-            G = kqitool.DiGraph()
-            for i in range(sequence_length):
-                for j in range(d_model):
-                    G.add_node(f'L0_{i}-{j}', [])
-
-            G = TransformerEncoderLayer_add_nodes(G, "L0", sequence_length, d_model,
-                                                  head, dim_feedforward)
-
-            return sum(map(lambda m: G.kqi(m), G.nodes()))
-
-    kqi = TestTransformerEncoderLayer().KQI(torch.randn(sequence_length, d_model))
-    true = TestTransformerEncoderLayer().true_kqi()
-    print("true_kqi: ", true)
-    print("kqi: ", kqi)
-    logging.debug(f'KQI = {kqi} (True KQI = {true})')
-    assert abs(kqi - true) / true < 0.0001
-
-
-def TransformerDecoderLayer_add_nodes(G, tgt, mem, sequence_length, d_model, head, dim_feedforward,
-                                      name_in="TDL_in",
-                                      name_out="TDL_out"):
+def TransformerDecoderLayer_add_nodes(G, tgt, mem, sequence_length, d_model, head, dim_feedforward, name_in="TDL_in", name_out="TDL_out"):
     # Norm1
     preds = [f'{tgt}_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
     for i in range(sequence_length):
@@ -231,8 +344,8 @@ def TransformerDecoderLayer_add_nodes(G, tgt, mem, sequence_length, d_model, hea
             G.add_node(f'{name_in}_TDL_norm1_{i}-{j}', preds)
 
     # Self-Attention
-    G = MultiheadAttention_add_nodes(G, name_in + "_TDL_norm1", name_in + "_TDL_norm1", name_in + "_TDL_norm1", head, d_model // head,
-                                     sequence_length, d_model, name_in=name_in + "_SA_in", name_out=name_in + "_SA_out")
+    G = MultiheadAttention_add_nodes(G, name_in + "_TDL_norm1", name_in + "_TDL_norm1", name_in + "_TDL_norm1", head, d_model // head, sequence_length, d_model,
+                                     name_in=name_in + "_SA_in", name_out=name_in + "_SA_out")
 
     # Add1
     for i in range(sequence_length):
@@ -283,71 +396,9 @@ def TransformerDecoderLayer_add_nodes(G, tgt, mem, sequence_length, d_model, hea
     return G
 
 
-def test_TransformerDecoderLayer():
-    # Currently, we only support the case of sequence_length = 1
-    sequence_length = 1
-
-    d_model = 32
-    head = 8
-    dim_feedforward = 48
-
-    class TestTransformerDecoderLayer(torch.nn.Module, kqinn.KQI):
-        def __init__(self) -> None:
-            super().__init__()
-            self.linear = kqinn.Linear(in_features=d_model * sequence_length,
-                                       out_features=d_model * sequence_length * 2, bias=False)
-            self.layer = kqinn.TransformerDecoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward,
-                                                       norm_first=True)
-
-        def forward(self, x):
-            x = x.flatten()
-            x = self.linear(x).reshape(sequence_length, d_model * 2)
-            tgt = x[:, :d_model].reshape(sequence_length, d_model)
-            mem = x[:, d_model:].reshape(sequence_length, d_model)
-            return self.layer(tgt, mem)
-
-        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-            x = x.flatten()
-            x = self.linear.KQIforward(x).reshape(sequence_length, d_model * 2)
-            tgt = x[:, :d_model].reshape(sequence_length, d_model)
-            mem = x[:, d_model:].reshape(sequence_length, d_model)
-            return self.layer.KQIforward(tgt, mem)
-
-        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-            volume_backward_tgt, volume_backward_mem = self.layer.KQIbackward(volume)
-            volume_backward_tgt_mem = torch.cat([volume_backward_tgt, volume_backward_mem], dim=1)
-            volume = self.linear.KQIbackward(volume_backward_tgt_mem, volume_backward)
-            return volume.reshape(sequence_length, d_model)
-
-        def true_kqi(self):
-            G = kqitool.DiGraph()
-
-            # Construct mem and tgt nodes
-            for i, j in itertools.product(range(sequence_length), range(d_model)):
-                G.add_node(f'start_{i}-{j}', [])
-            preds = [f'start_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(d_model))]
-            for i, j in itertools.product(range(sequence_length), range(d_model)):
-                G.add_node(f'mem_{i}-{j}', preds)
-                G.add_node(f'tgt_{i}-{j}', preds)
-
-            G = TransformerDecoderLayer_add_nodes(G, "tgt", "mem", sequence_length, d_model, head, dim_feedforward)
-
-            names = ["TDL_out", "TDL_in_TDL_linear2", "TDL_in_TDL_linear1", "TDL_in_TDL_norm3", "TDL_in_TDL_add2",
-                     "TDL_in_MHA_out", "TDL_in_MHA_in", "TDL_in_TDL_norm2", "TDL_in_TDL_add1", "TDL_in_SA_out",
-                     "TDL_in_SA_in", "TDL_in_TDL_norm1", "mem", "tgt", "start"]
-            G.print_kqi(names)
-
-            return sum(map(lambda m: G.kqi(m), G.nodes()))
-
-    kqi = TestTransformerDecoderLayer().KQI(torch.randn(sequence_length, d_model))
-    true = TestTransformerDecoderLayer().true_kqi()
-    print("true_kqi: ", true)
-    print("kqi: ", kqi)
-    logging.debug(f'KQI = {kqi} (True KQI = {true})')
-    assert abs(kqi - true) / true < 0.0001
-
-
 if __name__ == '__main__':
+    test_Transformer()
     test_TransformerEncoder()
+    test_TransformerDecoder()
     test_TransformerEncoderLayer()
     test_TransformerDecoderLayer()

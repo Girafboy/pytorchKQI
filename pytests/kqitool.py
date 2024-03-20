@@ -102,6 +102,7 @@ class DiGraph():
                 bar.update()
 
         if indegree_map.keys():
+            print(indegree_map.keys())
             raise Exception("Graph contains a cycle or graph changed during iteration")
 
         return self.sorted_list
