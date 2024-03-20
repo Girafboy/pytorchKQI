@@ -164,13 +164,6 @@ def test_TransformerDecoder():
             G = TransformerDecoderLayer_add_nodes(G, "tgt", "mem", sequence_length, d_model, head, dim_feedforward, name_in="TDL1", name_out="TDL1_out")
             G = TransformerDecoderLayer_add_nodes(G, "TDL1_out", "mem", sequence_length, d_model, head, dim_feedforward, name_in="TDL2", name_out="TDL2_out")
 
-            names = ["TDL2_out", "TDL2_TDL_linear2", "TDL2_TDL_linear1", "TDL2_TDL_norm3", "TDL2_TDL_add2", "TDL2_MHA_out",
-                     "TDL2_MHA_in", "TDL2_TDL_norm2", "TDL2_TDL_add1", "TDL2_SA_out", "TDL2_SA_in", "TDL2_TDL_norm1",
-                     "TDL1_out", "TDL1_TDL_linear2", "TDL1_TDL_linear1", "TDL1_TDL_norm3", "TDL1_TDL_add2", "TDL1_MHA_out",
-                     "TDL1_MHA_in", "TDL1_TDL_norm2", "TDL1_TDL_add1", "TDL1_SA_out", "TDL1_SA_in", "TDL1_TDL_norm1",
-                     "mem", "tgt", "start"]
-            G.print_kqi(names)
-
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
     kqi = TestTransformerDecoder().KQI(torch.randn(sequence_length, d_model))
