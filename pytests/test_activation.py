@@ -1347,6 +1347,77 @@ def test_Softshrink():
     assert abs(kqi - true) / true < 0.0001
 
 
+def MultiheadAttention_add_nodes(G, preds_q, preds_k, preds_v, head, head_dim, sequence_length, embedding_dim, name_in="MHA_in", name_out="MHA_out"):
+    """
+    :param G: The graph to add nodes to
+    :param preds_q: The prefix name of the input tensor for Q
+    :param preds_k: The prefix name of the input tensor for K
+    :param preds_v: The prefix name of the input tensor for V
+    :param head: The number of heads
+    :param head_dim: The dimension of each head
+    :param sequence_length: The length of the sequence
+    :param embedding_dim: The dimension of the embedding, which is the same as head * head_dim
+    :param name_in: Prefix names of nodes in the graph
+    :param name_out: Prefix name of output nodes
+    :return: The graph with nodes added
+    """
+
+    # linear
+    for i in range(head):
+        predsQ = [f'{preds_q}_{j}-{k}' for j, k in
+                  itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
+        predsK = [f'{preds_k}_{j}-{k}' for j, k in
+                  itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
+        predsV = [f'{preds_v}_{j}-{k}' for j, k in
+                  itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
+        for j, k in itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim)):
+            G.add_node(f'{name_in}_L1_Q_{j}-{k}', predsQ)
+            G.add_node(f'{name_in}_L1_K_{j}-{k}', predsK)
+            G.add_node(f'{name_in}_L1_V_{j}-{k}', predsV)
+
+    # MatMul
+    for i in range(head):
+        for j in range(sequence_length):
+            for k in range(sequence_length):
+                preds = ([f'{name_in}_L1_Q_{j}-{i * head_dim + m}' for m in range(head_dim)] + [f'{name_in}_L1_K_{k}-{i * head_dim + m}' for m in range(head_dim)])
+                G.add_node(f'{name_in}_L2_{j}-{i * sequence_length + k}', preds)
+
+    # Scale
+    for i in range(head):
+        for j in range(sequence_length):
+            for k in range(sequence_length):
+                preds = [f'{name_in}_L2_{j}-{i * sequence_length + k}']
+                G.add_node(f'{name_in}_L3_{j}-{i * sequence_length + k}', preds)
+
+    # Mask
+    # for i in range(head):
+    #     for j in range(sequence_length):
+    #         for k in range(sequence_length):
+    #             preds = [f'MultiheadAttention_L3_{j}-{i * sequence_length + k}']
+    #             G.add_node(f'MultiheadAttention_L4_{j}-{i * sequence_length + k}', preds)
+
+    # SoftMax
+    for i in range(head):
+        preds = [f'{name_in}_L3_{j}-{i * sequence_length + k}' for j, k in
+                 itertools.product(range(sequence_length), range(sequence_length))]
+        for j, k in itertools.product(range(sequence_length), range(sequence_length)):
+            G.add_node(f'{name_in}_L5_{j}-{i * sequence_length + k}', preds)
+
+    # MatMul
+    for i in range(head):
+        for j in range(sequence_length):
+            for k in range(head_dim):
+                preds = ([f'{name_in}_L5_{j}-{i * sequence_length + m}' for m in range(sequence_length)] + [f'{name_in}_L1_V_{m}-{i * head_dim + k}' for m in range(sequence_length)])
+                G.add_node(f'{name_in}_L6_{j}-{i * head_dim + k}', preds)
+
+    # Linear
+    preds = [f'{name_in}_L6_{j}-{k}' for j, k in itertools.product(range(sequence_length), range(embedding_dim))]
+    for j, k in itertools.product(range(sequence_length), range(embedding_dim)):
+        G.add_node(f'{name_out}_{j}-{k}', preds)
+
+    return G
+
+
 def test_MultiheadAttention():
     head = 8
     embedding_dim = 64
@@ -1389,66 +1460,15 @@ def test_MultiheadAttention():
             G = kqitool.DiGraph()
             # Construct Q, K, V
             for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
-                G.add_node(f'L0_{i}-{j}', [])
+                G.add_node(f'L_{i}-{j}', [])
 
-            preds = [f'L0_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(embedding_dim))]
+            preds = [f'L_{i}-{j}' for i, j in itertools.product(range(sequence_length), range(embedding_dim))]
             for i, j in itertools.product(range(sequence_length), range(embedding_dim)):
-                G.add_node(f'L1_Q_{i}-{j}', preds)
-                G.add_node(f'L1_K_{i}-{j}', preds)
-                G.add_node(f'L1_V_{i}-{j}', preds)
+                G.add_node(f'L0_Q_{i}-{j}', preds)
+                G.add_node(f'L0_K_{i}-{j}', preds)
+                G.add_node(f'L0_V_{i}-{j}', preds)
 
-            # linear
-            for i in range(head):
-                predsQ = [f'L1_Q_{j}-{k}' for j, k in
-                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
-                predsK = [f'L1_K_{j}-{k}' for j, k in
-                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
-                predsV = [f'L1_V_{j}-{k}' for j, k in
-                          itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim))]
-                for j, k in itertools.product(range(sequence_length), range(i * head_dim, (i + 1) * head_dim)):
-                    G.add_node(f'L2_Q_{j}-{k}', predsQ)
-                    G.add_node(f'L2_K_{j}-{k}', predsK)
-                    G.add_node(f'L2_V_{j}-{k}', predsV)
-
-            # MatMul
-            for i in range(head):
-                for j in range(sequence_length):
-                    for k in range(sequence_length):
-                        preds = ([f'L2_Q_{j}-{i * head_dim + m}' for m in range(head_dim)] + [f'L2_K_{k}-{i * head_dim + m}' for m in range(head_dim)])
-                        G.add_node(f'L3_{j}-{i * sequence_length + k}', preds)
-
-            # Scale
-            for i in range(head):
-                for j in range(sequence_length):
-                    for k in range(sequence_length):
-                        preds = [f'L3_{j}-{i * sequence_length + k}']
-                        G.add_node(f'L4_{j}-{i * sequence_length + k}', preds)
-
-            # Mask
-            # for i in range(head):
-            #     for j in range(sequence_length):
-            #         for k in range(sequence_length):
-            #             preds = [f'L4_{j}-{i * sequence_length + k}']
-            #             G.add_node(f'L5_{j}-{i * sequence_length + k}', preds)
-
-            # SoftMax
-            for i in range(head):
-                preds = [f'L4_{j}-{i * sequence_length + k}' for j, k in
-                         itertools.product(range(sequence_length), range(sequence_length))]
-                for j, k in itertools.product(range(sequence_length), range(sequence_length)):
-                    G.add_node(f'L6_{j}-{i * sequence_length + k}', preds)
-
-            # MatMul
-            for i in range(head):
-                for j in range(sequence_length):
-                    for k in range(head_dim):
-                        preds = ([f'L6_{j}-{i * sequence_length + m}' for m in range(sequence_length)] + [f'L2_V_{m}-{i * head_dim + k}' for m in range(sequence_length)])
-                        G.add_node(f'L7_{j}-{i * head_dim + k}', preds)
-
-            # Linear
-            preds = [f'L7_{j}-{k}' for j, k in itertools.product(range(sequence_length), range(embedding_dim))]
-            for j, k in itertools.product(range(sequence_length), range(embedding_dim)):
-                G.add_node(f'L8_{j}-{k}', preds)
+            G = MultiheadAttention_add_nodes(G, 'L0_Q', 'L0_K', 'L0_V', head, head_dim, sequence_length, embedding_dim)
 
             return sum(map(lambda m: G.kqi(m), G.nodes()))
 
