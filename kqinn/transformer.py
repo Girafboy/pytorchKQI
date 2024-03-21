@@ -40,8 +40,8 @@ class TransformerEncoder(torch.nn.TransformerEncoder, KQI):
     We only consider the case of norm_first=True.
     """
 
-    def __init__(self, encoder_layer, num_layers, norm=None, enable_nested_tensor=True, mask_check=True):
-        super().__init__(encoder_layer, num_layers, norm, enable_nested_tensor, mask_check)
+    def __init__(self, encoder_layer, num_layers, norm=None, enable_nested_tensor=True):
+        super().__init__(encoder_layer, num_layers, norm, enable_nested_tensor)
         if self.norm is not None:
             raise NotImplementedError('norm is not None is not supported now')
         self.encoder_layer = encoder_layer
