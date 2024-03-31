@@ -6,6 +6,8 @@ from . import functions
 from typing import Tuple, Iterator, Union, Dict
 from itertools import zip_longest
 
+logging.basicConfig(level=logging.DEBUG)
+
 
 def __construct_compute_graph(grad_fn):
     G = nx.DiGraph()
@@ -30,12 +32,14 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
     G = __construct_compute_graph(grad_fn)
     waiting = {}  # Dict[torch.autograd.graph.Node, int]
     volumes = {grad_fn: (torch.zeros_like(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
+    garbage_counter = {}  # Dict[torch.autograd.graph.Node, int]
     if return_graph:
         increID = 1
         nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype=torch.float32).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
         increID += model_output.numel()
 
-    for _, cur in [(None, grad_fn)] + list(nx.bfs_edges(G, grad_fn, reverse=True)):
+    for cur in reversed(list(nx.topological_sort(G))):
+        garbage_counter[cur] = G.out_degree(cur) + G.in_degree(cur)
         inputs = functions.backward_mapper(cur).cell_Volume(cur, volumes[cur])
         for (next_fn, i), vI in zip(cur.next_functions, inputs):
             if next_fn is not None:
@@ -50,11 +54,22 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
             if waiting[succ] == 0:
                 if return_graph:
                     yield succ, functions.backward_mapper(succ).cell_KQI(succ, tuple(volumes[next_fn][i] if next_fn is not None else None for next_fn, i in succ.next_functions), volumes[succ]), volumes[succ], nodeIDs[succ], functions.backward_mapper(succ).cell_Graph(succ, tuple(nodeIDs[next_fn][i] if next_fn is not None else None for next_fn, i in succ.next_functions), nodeIDs[succ])
-                    del nodeIDs[succ]
                 else:
                     yield succ, functions.backward_mapper(succ).cell_KQI(succ, tuple(volumes[next_fn][i] if next_fn is not None else None for next_fn, i in succ.next_functions), volumes[succ]), volumes[succ]
                 del waiting[succ]
-                del volumes[succ]
+                for pred in G.predecessors(succ):
+                    garbage_counter[succ] -= 1
+                    garbage_counter[pred] -= 1
+                    if garbage_counter[pred] == 0 and G.in_degree(pred) != 0:
+                        del volumes[pred]
+                        del garbage_counter[pred]
+                        if return_graph:
+                            del nodeIDs[pred]
+                if garbage_counter[succ] == 0:
+                    del volumes[succ]
+                    del garbage_counter[succ]
+                    if return_graph:
+                        del nodeIDs[succ]
 
     W = sum((1 + V).sum() for Vs in volumes.values() for V in Vs)
     for grad_fn, Vs in volumes.items():
