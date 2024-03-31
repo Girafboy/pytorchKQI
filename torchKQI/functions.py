@@ -367,7 +367,7 @@ class UnbindBackward0:
         return adj
 
 
-class UnsafeViewBackward0:
+class ViewBackward0:
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -388,6 +388,10 @@ class UnsafeViewBackward0:
         (input, ), (out, ) = inputs, outputs
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.view_as(out)), torch.flatten(out))}
         return adj
+
+
+class UnsafeViewBackward0(ViewBackward0):
+    pass
 
 
 class ReshapeAliasBackward0:
