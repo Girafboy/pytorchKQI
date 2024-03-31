@@ -14,6 +14,8 @@ class Conv1d(torch.nn.Conv1d, KQI):
 
         degree = self._degree(x.shape, x_new.shape)
         KQI.W += degree.sum() * self.out_channels * self.in_channels
+        degree = self._degree(x.shape, x_new.shape)
+        KQI.W += degree.sum() * self.out_channels * self.in_channels
 
         return x_new
 
@@ -24,16 +26,16 @@ class Conv1d(torch.nn.Conv1d, KQI):
         start = self.padding[0]
         end = None if self.padding[0] == 0 else -self.padding[0]
 
-        volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1]+2*self.padding[0]))
+        volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0]))
         degree = self._degree(self.input_size, volume.shape)
         if volume_backward is None:
-            for c, i in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0])):
+            for c, i in itertools.product(range(self.in_channels), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0])):
                 volume_back_padding[c, indexing(i)[1]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
             volume_backward = volume_back_padding[:, start:end].clone()
 
         volume_back_padding[:, start:end] = volume_backward
         tmp = volume_back_padding.clone()
-        for cout, i in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0])):
+        for cout, i in itertools.product(range(self.out_channels), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0])):
             i_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0])
             tmp[indexing(i)] = volume[cout] / degree / self.in_channels
             tmp[:, i_:end:self.stride[0]] = volume_back_padding[:, i_:end:self.stride[0]]
@@ -47,9 +49,9 @@ class Conv1d(torch.nn.Conv1d, KQI):
         _, HO = output_size
 
         degree = torch.zeros(HO)
-        for i in range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]):
-            Hleft = max(0, math.ceil((self.padding[0]-i) / self.stride[0]))
-            Hright = min(HO, math.ceil((HI-i+self.padding[0]) / self.stride[0]))
+        for i in range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]):
+            Hleft = max(0, math.ceil((self.padding[0] - i) / self.stride[0]))
+            Hright = min(HO, math.ceil((HI - i + self.padding[0]) / self.stride[0]))
 
             degree[Hleft:Hright] += 1
 
@@ -73,16 +75,16 @@ class Conv2d(torch.nn.Conv2d, KQI):
         start = self.padding
         end = [None if pad == 0 else -pad for pad in self.padding]
 
-        volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1]+2*self.padding[0],  self.input_size[2]+2*self.padding[1]))
+        volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1]))
         degree = self._degree(self.input_size, volume.shape)
         if volume_backward is None:
-            for c, i, j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+            for c, i, j in itertools.product(range(self.in_channels), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
                 volume_back_padding[c, indexing(i, j)[1], indexing(i, j)[2]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
             volume_backward = volume_back_padding[:, start[0]:end[0], start[1]:end[1]].clone()
 
         volume_back_padding[:, start[0]:end[0], start[1]:end[1]] = volume_backward
         tmp = volume_back_padding.clone()
-        for cout, i, j in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
+        for cout, i, j in itertools.product(range(self.out_channels), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
             i_, j_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1])
             tmp[indexing(i, j)] = volume[cout] / degree / self.in_channels
             tmp[:, i_:end[0]:self.stride[0], j_:end[1]:self.stride[1]] = volume_back_padding[:, i_:end[0]:self.stride[0], j_:end[1]:self.stride[1]]
@@ -96,11 +98,11 @@ class Conv2d(torch.nn.Conv2d, KQI):
         _, HO, WO = output_size
 
         degree = torch.zeros(HO, WO)
-        for i, j in itertools.product(range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1])):
-            Hleft = max(0, math.ceil((self.padding[0]-i) / self.stride[0]))
-            Hright = min(HO, math.ceil((HI-i+self.padding[0]) / self.stride[0]))
-            Wleft = max(0, math.ceil((self.padding[1]-j) / self.stride[1]))
-            Wright = min(WO, math.ceil((WI-j+self.padding[1]) / self.stride[1]))
+        for i, j in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1])):
+            Hleft = max(0, math.ceil((self.padding[0] - i) / self.stride[0]))
+            Hright = min(HO, math.ceil((HI - i + self.padding[0]) / self.stride[0]))
+            Wleft = max(0, math.ceil((self.padding[1] - j) / self.stride[1]))
+            Wright = min(WO, math.ceil((WI - j + self.padding[1]) / self.stride[1]))
             degree[Hleft:Hright, Wleft:Wright] += 1
 
         return degree
@@ -123,16 +125,16 @@ class Conv3d(torch.nn.Conv3d, KQI):
         start = self.padding
         end = [None if pad == 0 else -pad for pad in self.padding]
 
-        volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1]+2*self.padding[0],  self.input_size[2]+2*self.padding[1], self.input_size[3]+2*self.padding[2]))
+        volume_back_padding = torch.zeros((self.input_size[0], self.input_size[1] + 2 * self.padding[0], self.input_size[2] + 2 * self.padding[1], self.input_size[3] + 2 * self.padding[2]))
         degree = self._degree(self.input_size, volume.shape)
         if volume_backward is None:
-            for c, i, j, k in itertools.product(range(self.in_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
+            for c, i, j, k in itertools.product(range(self.in_channels), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
                 volume_back_padding[c, indexing(i, j, k)[1], indexing(i, j, k)[2], indexing(i, j, k)[3]] += self.out_channels + (volume / degree / self.in_channels).sum(dim=0)
             volume_backward = volume_back_padding[:, start[0]:end[0], start[1]:end[1], start[2]:end[2]].clone()
 
         volume_back_padding[:, start[0]:end[0], start[1]:end[1], start[2]:end[2]] = volume_backward
         tmp = volume_back_padding.clone()
-        for cout, i, j, k in itertools.product(range(self.out_channels), range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
+        for cout, i, j, k in itertools.product(range(self.out_channels), range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
             i_, j_, k_ = next(m for m in range(i, volume_back_padding.shape[1], self.stride[0]) if m >= self.padding[0]), next(m for m in range(j, volume_back_padding.shape[2], self.stride[1]) if m >= self.padding[1]), next(m for m in range(k, volume_back_padding.shape[3], self.stride[2]) if m >= self.padding[2])
             tmp[indexing(i, j, k)] = volume[cout] / degree / self.in_channels
             tmp[:, i_:end[0]:self.stride[0], j_:end[1]:self.stride[1], k_:end[2]:self.stride[2]] = volume_back_padding[:, i_:end[0]:self.stride[0], j_:end[1]:self.stride[1], k_:end[2]:self.stride[2]]
@@ -146,13 +148,13 @@ class Conv3d(torch.nn.Conv3d, KQI):
         _, HO, WO, LO = output_size
 
         degree = torch.zeros(HO, WO, LO)
-        for i, j, k in itertools.product(range(0, self.kernel_size[0]*self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1]*self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2]*self.dilation[2], self.dilation[2])):
-            Hleft = max(0, math.ceil((self.padding[0]-i) / self.stride[0]))
-            Hright = min(HO, math.ceil((HI-i+self.padding[0]) / self.stride[0]))
-            Wleft = max(0, math.ceil((self.padding[1]-j) / self.stride[1]))
-            Wright = min(WO, math.ceil((WI-j+self.padding[1]) / self.stride[1]))
-            Lleft = max(0, math.ceil((self.padding[2]-k) / self.stride[2]))
-            Lright = min(LO, math.ceil((LI-k+self.padding[2]) / self.stride[2]))
+        for i, j, k in itertools.product(range(0, self.kernel_size[0] * self.dilation[0], self.dilation[0]), range(0, self.kernel_size[1] * self.dilation[1], self.dilation[1]), range(0, self.kernel_size[2] * self.dilation[2], self.dilation[2])):
+            Hleft = max(0, math.ceil((self.padding[0] - i) / self.stride[0]))
+            Hright = min(HO, math.ceil((HI - i + self.padding[0]) / self.stride[0]))
+            Wleft = max(0, math.ceil((self.padding[1] - j) / self.stride[1]))
+            Wright = min(WO, math.ceil((WI - j + self.padding[1]) / self.stride[1]))
+            Lleft = max(0, math.ceil((self.padding[2] - k) / self.stride[2]))
+            Lright = min(LO, math.ceil((LI - k + self.padding[2]) / self.stride[2]))
 
             degree[Hleft:Hright, Wleft:Wright, Lleft:Lright] += 1
 
