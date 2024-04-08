@@ -14,6 +14,8 @@ class Conv1d(torch.nn.Conv1d, KQI):
 
         degree = self._degree(x.shape, x_new.shape)
         KQI.W += degree.sum() * self.out_channels * self.in_channels
+        degree = self._degree(x.shape, x_new.shape)
+        KQI.W += degree.sum() * self.out_channels * self.in_channels
 
         return x_new
 
