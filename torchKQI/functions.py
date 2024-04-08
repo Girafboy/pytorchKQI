@@ -3,11 +3,13 @@ import ctypes
 from .function_base import FuncBase as FB
 from typing import Tuple, Dict
 
+
 def unsign_to_sign(val):
     if torch.rand(1).element_size() == 4:
         return ctypes.c_int32(val).value
     else:
         return ctypes.c_int64(val).value
+
 
 class AccumulateGrad(FB):
     @classmethod
@@ -424,7 +426,7 @@ class ReshapeAliasBackward0:
 
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
-    'struct torch::autograd::AccumulateGrad' : AccumulateGrad,
+    'struct torch::autograd::AccumulateGrad': AccumulateGrad,
     'TBackward0': TBackward0,
     'MvBackward0': MvBackward0,
     'MmBackward0': MmBackward0,
