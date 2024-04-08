@@ -86,14 +86,14 @@ def KQI(model: torch.nn.Module, x: torch.Tensor, return_generator: bool = False)
     model_output = model(x)
 
     if return_generator:
-        W = sum((1 + V).sum() for grad_fn, _, Vs in __intermediate_result_generator(model_output) if grad_fn.name() == 'torch::autograd::AccumulateGrad' for V in Vs)
+        W = sum((1 + V).sum() for grad_fn, _, Vs in __intermediate_result_generator(model_output) if 'torch::autograd::AccumulateGrad' in grad_fn.name() for V in Vs)
         return (tuple(k / W for k in ks) for _, ks, _ in __intermediate_result_generator(model_output))
 
     kqi = torch.tensor(0, dtype=float)
     W = torch.tensor(0, dtype=float)
     for grad_fn, ks, Vs in __intermediate_result_generator(model_output):
         kqi += sum(map(lambda k: k.sum(), ks))
-        if grad_fn.name() == 'torch::autograd::AccumulateGrad':
+        if 'torch::autograd::AccumulateGrad' in grad_fn.name():
             W += sum((1 + V).sum() for V in Vs)
     kqi /= W
     logging.debug(f'W = {W}, KQI = {kqi}')

@@ -1,8 +1,13 @@
 import torch
-
+import ctypes
 from .function_base import FuncBase as FB
 from typing import Tuple, Dict
 
+def unsign_to_sign(val):
+    if torch.rand(1).element_size() == 4:
+        return ctypes.c_int32(val).value
+    else:
+        return ctypes.c_int64(val).value
 
 class AccumulateGrad(FB):
     @classmethod
@@ -239,7 +244,7 @@ class SelectBackward0:
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim, index = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_index') if grad_fn.__getattribute__('_saved_index') < 2**63 else grad_fn.__getattribute__('_saved_index') - 2**64
+        dim, index = grad_fn.__getattribute__('_saved_dim'), unsign_to_sign(grad_fn.__getattribute__('_saved_index'))
         input = torch.zeros_like(input)
         input[tuple(index if i == dim else slice(None) for i in range(input.dim()))] = 1 + out
         return (input,)
@@ -248,7 +253,7 @@ class SelectBackward0:
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim, index = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_index') if grad_fn.__getattribute__('_saved_index') < 2**63 else grad_fn.__getattribute__('_saved_index') - 2**64
+        dim, index = grad_fn.__getattribute__('_saved_dim'), unsign_to_sign(grad_fn.__getattribute__('_saved_index'))
         kqi_out = FB.temporary_KQI(out, input.select(dim, index))
         return (kqi_out, )
 
@@ -256,7 +261,7 @@ class SelectBackward0:
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim, index = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_index') if grad_fn.__getattribute__('_saved_index') < 2**63 else grad_fn.__getattribute__('_saved_index') - 2**64
+        dim, index = grad_fn.__getattribute__('_saved_dim'), unsign_to_sign(grad_fn.__getattribute__('_saved_index'))
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.select(dim, index)), torch.flatten(out))}
         return adj
 
@@ -419,6 +424,7 @@ class ReshapeAliasBackward0:
 
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
+    'struct torch::autograd::AccumulateGrad' : AccumulateGrad,
     'TBackward0': TBackward0,
     'MvBackward0': MvBackward0,
     'MmBackward0': MmBackward0,
