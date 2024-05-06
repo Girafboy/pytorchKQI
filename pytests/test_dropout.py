@@ -1,4 +1,5 @@
 import torch
+import testtool
 import kqinn
 import kqitool
 import logging
@@ -6,14 +7,14 @@ import itertools
 
 
 def test_Dropout():
-    class TestDropout(torch.nn.Module, kqinn.KQI):
+    class TestDropout(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.linear1 = kqinn.Linear(in_features=784, out_features=512, bias=False)
-            self.dropout1 = kqinn.Dropout(p=0.4)
-            self.linear2 = kqinn.Linear(in_features=512, out_features=512, bias=False)
-            self.dropout2 = kqinn.Dropout(p=0.3)
-            self.linear3 = kqinn.Linear(in_features=512, out_features=10, bias=False)
+            self.linear1 = torch.nn.Linear(in_features=64, out_features=32, bias=False)
+            self.dropout1 = torch.nn.Dropout(p=0.4)
+            self.linear2 = torch.nn.Linear(in_features=32, out_features=32, bias=False)
+            self.dropout2 = torch.nn.Dropout(p=0.3)
+            self.linear3 = torch.nn.Linear(in_features=32, out_features=10, bias=False)
 
         def forward(self, x):
             x = self.linear1(x)
@@ -24,41 +25,7 @@ def test_Dropout():
 
             return x
 
-        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-            x = self.linear1.KQIforward(x)
-            x = self.dropout1.KQIforward(x)
-            x = self.linear2.KQIforward(x)
-            x = self.dropout2.KQIforward(x)
-            x = self.linear3.KQIforward(x)
-
-            return x
-
-        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-            volume = self.linear3.KQIbackward(volume)
-            volume = self.dropout2.KQIbackward(volume)
-            volume = self.linear2.KQIbackward(volume)
-            volume = self.dropout1.KQIbackward(volume)
-            volume = self.linear1.KQIbackward(volume, volume_backward)
-
-            return volume
-
-        def true_kqi(self):
-            G = kqitool.DiGraph()
-            for i in range(0, 784):
-                G.add_node(i, [])
-            for i in range(784, 784 + 512):
-                G.add_node(i, list(range(0, 784)))
-            for i in range(784 + 512, 784 + 512 + 512):
-                G.add_node(i, list(range(784, 784 + 512)))
-            for i in range(784 + 512 + 512, 784 + 512 + 512 + 10):
-                G.add_node(i, list(range(784 + 512, 784 + 512 + 512)))
-
-            return sum(map(lambda k: G.kqi(k), G.nodes()))
-
-    kqi = TestDropout().KQI(torch.randn(1 * 28 * 28))
-    true = TestDropout().true_kqi()
-    logging.debug(f'KQI = {kqi} (True KQI = {true})')
-    assert abs(kqi - true) / true < 0.0001
+    testtool.testKQI(TestDropout(), torch.randn(1 * 8 * 8))
 
 
 def test_Dropout1d():

@@ -166,7 +166,15 @@ class OnetoOneMapping(FB):
         return adj
 
 
+class CopySlices(OnetoOneMapping):
+    pass
+
+
 class TanhBackward0(OnetoOneMapping):
+    pass
+
+
+class SigmoidBackward0(OnetoOneMapping):
     pass
 
 
@@ -217,7 +225,11 @@ class SubBackward0(TwotoOneMapping):
     pass
 
 
-class SliceBackward0:
+class MulBackward0(TwotoOneMapping):
+    pass
+
+
+class SliceBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -244,7 +256,7 @@ class SliceBackward0:
         return adj
 
 
-class SelectBackward0:
+class SelectBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -271,7 +283,7 @@ class SelectBackward0:
         return adj
 
 
-class SqueezeBackward1:
+class SqueezeBackward1(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -298,7 +310,7 @@ class SqueezeBackward1:
         return adj
 
 
-class UnsqueezeBackward0:
+class UnsqueezeBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -325,7 +337,7 @@ class UnsqueezeBackward0:
         return adj
 
 
-class StackBackward0:
+class StackBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=None, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -351,7 +363,7 @@ class StackBackward0:
         return adj
 
 
-class UnbindBackward0:
+class UnbindBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=None)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -377,7 +389,33 @@ class UnbindBackward0:
         return adj
 
 
-class ViewBackward0:
+class UnsafeSplitBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=None)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, outputs = grad_fn(*volume_outputs), volume_outputs
+        dim = grad_fn.__getattribute__('_saved_dim')
+        input = torch.zeros_like(input) + 1 + torch.cat(outputs, dim)
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=None)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), outputs = volume_inputs, volume_outputs
+        dim, split_size = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_split_size')
+        kqi_outs = tuple(FB.temporary_KQI(o, i) for i, o in zip(torch.split(input, split_size, dim), outputs))
+        return kqi_outs
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=None)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), outputs = inputs, outputs
+        dim = grad_fn.__getattribute__('_saved_dim')
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input), torch.flatten(torch.cat(outputs, dim)))}
+        return adj
+
+
+class ViewBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -404,7 +442,7 @@ class UnsafeViewBackward0(ViewBackward0):
     pass
 
 
-class ReshapeAliasBackward0:
+class ReshapeAliasBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -623,7 +661,9 @@ __functions_mapping = {
     'TBackward0': TBackward0,
     'MvBackward0': MvBackward0,
     'MmBackward0': MmBackward0,
+    'MulBackward0': MulBackward0,
     'TanhBackward0': TanhBackward0,
+    'SigmoidBackward0': SigmoidBackward0,
     'AddBackward0': AddBackward0,
     'SubBackward0': SubBackward0,
     'SliceBackward0': SliceBackward0,
@@ -632,11 +672,13 @@ __functions_mapping = {
     'UnsqueezeBackward0': UnsqueezeBackward0,
     'StackBackward0': StackBackward0,
     'UnbindBackward0': UnbindBackward0,
+    'UnsafeSplitBackward0': UnsafeSplitBackward0,
     'ViewBackward0': ViewBackward0,
     'UnsafeViewBackward0': UnsafeViewBackward0,
     'ReshapeAliasBackward0': ReshapeAliasBackward0,
     'ConvolutionBackward0': ConvolutionBackward0,
-    #'SqueezeBackward4': SqueezeBackward1,
+    'SqueezeBackward4': SqueezeBackward1,
+    'AsStridedBackward0': AsStridedBackward0,
 }
 
 
