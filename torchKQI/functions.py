@@ -465,7 +465,7 @@ class ReshapeAliasBackward0(FB):
         return adj
 
 
-class ConvolutionBackward0:
+class ConvolutionBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=3, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -485,22 +485,26 @@ class ConvolutionBackward0:
         ndim = output.dim() - 2
         indexing = lambda *args : [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
 
+        channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]   #division of the channel
+        channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]   
+        
         if transposed == True:
-            pass
+            degree = cls.degree(input[0], weight, bias, output.shape[2:], kernel_size, dilation, stride, padding, True)
+            if input is not None:
+                input = torch.zeros_like(input)
+                for cin, cout in zip(channel_input_slice, channel_output_slice):
+                    pass
         else:
             degree = cls.degree(input[0], weight, bias, output.shape[2:], kernel_size, dilation, stride, padding, False)
 
-            channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]   #division of the channel
-            channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]   
-
             if input is not None:
-                volume_padding = torch.zeros((input[0].shape[0], *[input[0].shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+                volume_padding = torch.zeros((input.shape[0], input.shape[1], *[input[0].shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
 
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
-                        volume_padding[cin, *indexing(*offset)] += (n_output + (output[0][cout] / degree / n_input).sum(dim=0))
+                        volume_padding[:, cin, *indexing(*offset)] += n_output + (output[0][cout] / degree / n_input).sum(dim=0)
                 
-                input = volume_padding[:, *[slice(padding[i], tuple(None if pad == 0 else -pad for pad in padding)[i]) for i in range(ndim)]].clone()
+                input = volume_padding[:, :, *[slice(padding[i], tuple(None if pad == 0 else -pad for pad in padding)[i]) for i in range(ndim)]].clone()
 
             if weight is not None:
                 weight = torch.zeros_like(weight)
@@ -532,7 +536,7 @@ class ConvolutionBackward0:
         output_padding = grad_fn.__getattribute__('_saved_output_padding')
         transposed = grad_fn.__getattribute__('_saved_transposed')
 
-        in_channels, out_channels = input.shape[0], output.shape[1]
+        in_channels, out_channels = input.shape[1], output.shape[1]
         n_input, n_output = int(in_channels / groups), int(out_channels / groups)
 
         ndim = output.dim() - 2
@@ -543,24 +547,26 @@ class ConvolutionBackward0:
             pass
         else:
 
-            degree = cls.degree(input, weight, bias, output.shape[2:], kernel_size, dilation, stride, padding, False)
+            degree = cls.degree(input[0], weight, bias, output.shape[2:], kernel_size, dilation, stride, padding, False)
 
             channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]   #division of the channel
             channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]   
 
             if input is not None:
 
-                volume_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
-                tmp = volume_padding.clone()
+                volume_padding = torch.zeros((input.shape[1], *[input[0].shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+                tmp = torch.zeros_like(volume_padding)
                 end = [None if pad == 0 else -pad for pad in padding]
+                volume_padding[:, *[slice(padding[k],end[k]) for k in range(ndim)]] = input[0]
 
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
-                    for ci, co in itertools.product(range(cin.start, cin.stop), range(cout.start, cout.stop)):
+                    for co in range(cout.start, cout.stop):
                         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
-                            args = [next(m for m in range(j, volume_padding.shape[k+1], stride[k]) if m >= padding[k]) for k, j in enumerate(offset)]
-                            tmp[ci, *indexing(*offset)] = output[0][co] / degree / n_input
-                            tmp[ci, *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]] = input[ci, *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]]
-                            kqi_out += FB.temporary_KQI(output[0][co] / degree / n_input, tmp[ci, *indexing(*offset)])
+                            args = [next(m for m in range(j, volume_padding.shape[k+1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
+                            tmp[range(cin.start, cin.stop), *indexing(*offset)] = output[0][co] / degree / n_input
+                            tmp[range(cin.start, cin.stop), *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]] = volume_padding[range(cin.start, cin.stop), *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]]
+                            for i in range(cin.start, cin.stop):
+                                kqi_out[co] += FB.temporary_KQI((output[0][co] / degree / n_input), tmp[i, *indexing(*offset)])
 
             if weight is not None:
                 for b in range(out_channels):
@@ -588,52 +594,67 @@ class ConvolutionBackward0:
         groups = grad_fn.__getattribute__('_saved_groups')
         output_padding = grad_fn.__getattribute__('_saved_output_padding')
         transposed = grad_fn.__getattribute__('_saved_transposed')
-        indexing = lambda *args : [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
 
-        in_channels, out_channels = input.shape[0], output.shape[1]
+        in_channels, out_channels = input.shape[1], output.shape[1]
         n_input, n_output = int(in_channels / groups), int(out_channels / groups)
         ndim = output.dim() - 2
         channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]   #division of the channel
         channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]   
-        
+        indexing = lambda *args : [slice(max(0, i - pad), H * s + i - pad, s) for i, pad, H, s in zip(args, padding, output.shape[2:], stride)]
 
+        adj = {}
         if transposed == True:
             pass
         else:
             if input is not None:
-                adj_input = {}
-                end = [None if pad == 0 else -pad for pad in padding]
-                volume_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for ci, co in itertools.product(range(cin.start, cin.stop), range(cout.start, cout.stop)):
                         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
-                            args = [next(m for m in range(j, volume_padding.shape[k+1], stride[k]) if m >= padding[k]) for k, j in enumerate(offset)]
-                            adj_input += {int(o): (int(i), ) for i, o in itertools.product(torch.flatten(output[co]), torch.flatten(input[ci, *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]]))}
+                            left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
+                            right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                            for i, o in zip(torch.flatten(input[:, ci, *indexing(*offset)]), torch.flatten(output[0][co][[slice(left[d], right[d]) for d in range(ndim)]])):
+                                if int(o) not in adj: 
+                                    adj.setdefault(int(o), ())
+                                adj[int(o)] += (int(i),)
+
             if weight is not None:
-                adj_weight = {}
                 for b in range(out_channels):
                     for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
                         right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-                
-                        slices = [slice(left[d], right[d]) for d in range(ndim)]
-                        adj_weight += {int(o): (int(i), ) for i, o in itertools.product(torch.flatten(output[0][b][slices]), weight[b, :, *offset])}
+
+                        for i, o in zip(weight[b, :, *offset], torch.flatten(output[0][b][[slice(left[d], right[d]) for d in range(ndim)]])):
+                            if int(o) not in adj: 
+                                adj.setdefault(int(o), ())
+                            adj[int(o)] += (int(i),)
             
             if bias is not None:
-                adj_bias = {}
                 for c in range(out_channels):
-                    adj_bias += {int(o): (int(i), ) for i, o in itertools.product(torch.flatten(output[c]), bias[c])}
-            adj = adj_input + adj_weight + adj_bias
+                    for i, o in zip(bias[c], torch.flatten(output[c])):
+                        if int(o) not in adj: 
+                            adj.setdefault(int(o), ())
+                        adj[int(o)] += (int(i),)
         return adj
 
 
     @classmethod
     def degree(cls, input, weight, bias, degree_size, kernel_size, dilation, stride, padding, transposed):
+        degree = torch.zeros(degree_size)
+        ndim = len(degree_size)
+
         if transposed == True:
-            pass
+            degree = torch.nn.functional.pad(degree, padding)
+            if input is not None:
+                for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
+                    degree[*[slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride)]] += 1
+            if weight is not None:
+                for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
+                    degree[*[slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride)]] += 1
+            if bias is not None:
+                degree += 1
+
+            degree = degree[*[slice(padding[i], tuple(None if pad == 0 else -pad for pad in padding)[i]) for i in range(ndim)]]
         else:
-            degree = torch.zeros(degree_size)
-            ndim = len(degree_size)
             if input is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
                     left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
@@ -678,7 +699,7 @@ __functions_mapping = {
     'ReshapeAliasBackward0': ReshapeAliasBackward0,
     'ConvolutionBackward0': ConvolutionBackward0,
     'SqueezeBackward4': SqueezeBackward1,
-    'AsStridedBackward0': AsStridedBackward0,
+    #'AsStridedBackward0': AsStridedBackward0,
 }
 
 

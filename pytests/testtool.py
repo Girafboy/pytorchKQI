@@ -142,14 +142,26 @@ class DiGraph():
 
 
 def testKQI(model, x):
+    logging.debug(f'============================ KQI (final) ============================')
     kqi_final = torchKQI.KQI(model, x)
+    logging.debug(f'============================ KQI (generator) ============================')
     kqi_generator = sum(k.sum() for ks in torchKQI.KQI(model, x, return_generator=True) for k in ks)
 
+    logging.debug(f'============================ KQI (graph) ============================')
     G = DiGraph()
     for adj in torchKQI.Graph(model, x):
         for v, pred in adj.items():
             G.add_node(v, pred)
     kqi_graph = sum([G.kqi(k) for k in G.nodes()])
+
+    with open('debug.log', 'w') as f:
+        for grad_fn, KQIs, Volumes, node_ids, adj in torchKQI.debug(model, x):
+            for KQI, Vol, nodeID in zip(KQIs, Volumes, node_ids):
+                for k, v, i in zip(KQI.flatten(), Vol.flatten(), nodeID.flatten()):
+                    if abs(G.volume(int(i))-v)/v>0.0001 or abs(G.kqi(int(i))-k)/k>0.0001:
+                        f.write(f'>>>{grad_fn.name()} [{i}]: V={v}({G.volume(int(i))}), KQI={k}({G.kqi(int(i))})\n')
+                    else:
+                        f.write(f'{grad_fn.name()} [{i}]: V={v}({G.volume(int(i))}), KQI={k}({G.kqi(int(i))})\n')
 
     logging.debug(f'KQI (final) = {kqi_final}, KQI (generator) = {kqi_generator}, KQI (graph) = {kqi_graph}')
     assert abs(kqi_final - kqi_generator) / kqi_final < 0.0001

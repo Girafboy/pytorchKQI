@@ -107,3 +107,14 @@ def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Dict[int, Tuple[i
     model_output = model(x)
 
     return (adj for _, _, _, _, adj in __intermediate_result_generator(model_output, return_graph=True))
+
+
+def debug(model: torch.nn.Module, x: torch.Tensor):
+    for param in model.parameters():
+        param.requires_grad_(False)
+    x.requires_grad_()
+    model_output = model(x)
+
+    W = sum((1 + V).sum() for grad_fn, _, Vs in __intermediate_result_generator(model_output) if 'torch::autograd::AccumulateGrad' in grad_fn.name() for V in Vs)
+    # 
+    return ((grad_fn, tuple(k / W for k in KQI), Volume, node_id, adj) for grad_fn, KQI, Volume, node_id, adj in __intermediate_result_generator(model_output, return_graph=True))

@@ -1,6 +1,6 @@
-from .kqi import KQI, Graph
+from .kqi import KQI, Graph, debug
 
 
 __all__ = [
-    'KQI', 'Graph'
+    'KQI', 'Graph', 'debug'
 ]

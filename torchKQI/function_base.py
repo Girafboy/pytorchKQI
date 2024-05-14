@@ -80,6 +80,7 @@ class FuncBase:
         Remember to divide by W before returning the final KQI value.
         The volume parameter and the volume_backward parameter should be the same shape, unless the volume_backward is a scalar.
         '''
+        volume = volume.clone()
         if volume_backward.dim() == 0:
             volume[torch.where(volume == 0)] = volume_backward
         elif volume.shape == volume_backward.shape:
