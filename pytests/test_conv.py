@@ -85,6 +85,5 @@ def test_Conv3d():
 
 
 if __name__ == '__main__':
-    test_Conv1d()
     test_Conv2d()
     test_Conv3d()

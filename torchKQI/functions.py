@@ -484,7 +484,6 @@ class ConvolutionBackward0(FB):
 
         ndim = output.dim() - 2
         indexing = lambda *args : [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
-
         channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]   #division of the channel
         channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]   
         
@@ -502,9 +501,9 @@ class ConvolutionBackward0(FB):
 
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
-                        volume_padding[:, cin, *indexing(*offset)] += n_output + (output[0][cout] / degree / n_input).sum(dim=0)
-                
-                input = volume_padding[:, :, *[slice(padding[i], tuple(None if pad == 0 else -pad for pad in padding)[i]) for i in range(ndim)]].clone()
+                        volume_padding[(slice(None), cin) + tuple(indexing(*offset))] += n_output + (output[0][cout] / degree / n_input).sum(dim=0)
+
+                input = volume_padding[(slice(None), slice(None)) +tuple(slice(padding[i], None if padding[i] == 0 else -padding[i]) for i in range(ndim))].clone()
 
             if weight is not None:
                 weight = torch.zeros_like(weight)
@@ -515,7 +514,7 @@ class ConvolutionBackward0(FB):
                 
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
                         size = np.prod([[left[d], right[d]] for d in range(ndim)])
-                        weight[b, :, *offset] += (size + (output[0][b][slices] / degree / n_input).sum(dim=0))
+                        weight[(b + slice(None)) + tuple(offset)] += (size + (output[0][b][slices] / degree / n_input).sum(dim=0))
 
             if bias is not None:
                 bias = torch.zeros_like(bias)
@@ -557,23 +556,23 @@ class ConvolutionBackward0(FB):
                 volume_padding = torch.zeros((input.shape[1], *[input[0].shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
                 tmp = torch.zeros_like(volume_padding)
                 end = [None if pad == 0 else -pad for pad in padding]
-                volume_padding[:, *[slice(padding[k],end[k]) for k in range(ndim)]] = input[0]
+                volume_padding[(slice(None),) + tuple(slice(padding[k],end[k]) for k in range(ndim))] = input[0]
 
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for co in range(cout.start, cout.stop):
                         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
                             args = [next(m for m in range(j, volume_padding.shape[k+1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
-                            tmp[range(cin.start, cin.stop), *indexing(*offset)] = output[0][co] / degree / n_input
-                            tmp[range(cin.start, cin.stop), *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]] = volume_padding[range(cin.start, cin.stop), *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]]
+                            tmp[(range(cin.start, cin.stop),) + tuple(indexing(*offset))] = output[0][co] / degree / n_input
+                            tmp[(range(cin.start, cin.stop),) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] = volume_padding[range(cin.start, cin.stop), *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]]
                             for i in range(cin.start, cin.stop):
-                                kqi_out[co] += FB.temporary_KQI((output[0][co] / degree / n_input), tmp[i, *indexing(*offset)])
+                                kqi_out[co] += FB.temporary_KQI((output[0][co] / degree / n_input), tmp[(i,) + tuple(indexing(*offset))])
 
             if weight is not None:
                 for b in range(out_channels):
                     for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
                         right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-                
+
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
                         kqi_out += FB.temporary_KQI(output[0][b][slices], weight[b, :, *offset])
             
@@ -612,7 +611,7 @@ class ConvolutionBackward0(FB):
                         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
                             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
                             right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-                            for i, o in zip(torch.flatten(input[:, ci, *indexing(*offset)]), torch.flatten(output[0][co][[slice(left[d], right[d]) for d in range(ndim)]])):
+                            for i, o in zip(torch.flatten(input[(slice(None), ci) + tuple(indexing(*offset))]), torch.flatten(output[0][co][[slice(left[d], right[d]) for d in range(ndim)]])):
                                 if int(o) not in adj: 
                                     adj.setdefault(int(o), ())
                                 adj[int(o)] += (int(i),)
@@ -623,7 +622,7 @@ class ConvolutionBackward0(FB):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
                         right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
-                        for i, o in zip(weight[b, :, *offset], torch.flatten(output[0][b][[slice(left[d], right[d]) for d in range(ndim)]])):
+                        for i, o in zip(weight[(b, slice(None)) + tuple(offset)], torch.flatten(output[0][b][[slice(left[d], right[d]) for d in range(ndim)]])):
                             if int(o) not in adj: 
                                 adj.setdefault(int(o), ())
                             adj[int(o)] += (int(i),)
