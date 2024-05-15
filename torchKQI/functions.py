@@ -645,14 +645,14 @@ class ConvolutionBackward0(FB):
             degree = torch.nn.functional.pad(degree, padding)
             if input is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
-                    degree[*[slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride)]] += 1
+                    degree[tuple(slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
             if weight is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
-                    degree[*[slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride)]] += 1
+                    degree[tuple(slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
             if bias is not None:
                 degree += 1
 
-            degree = degree[*[slice(padding[i], tuple(None if pad == 0 else -pad for pad in padding)[i]) for i in range(ndim)]]
+            degree = degree[tuple(slice(padding[i], tuple(None if pad == 0 else -pad for pad in padding)[i]) for i in range(ndim))]
         else:
             if input is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
