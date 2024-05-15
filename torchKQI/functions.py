@@ -574,7 +574,7 @@ class ConvolutionBackward0(FB):
                         right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
-                        kqi_out += FB.temporary_KQI(output[0][b][slices], weight[b, :, *offset])
+                        kqi_out += FB.temporary_KQI(output[0][b][slices], weight[(b, slice(None)) + tuple(offset)])
             
             if bias is not None:
                 for c in range(out_channels):
