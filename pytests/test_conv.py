@@ -1,8 +1,4 @@
 import torch
-import kqinn
-import kqitool
-import itertools
-import logging
 import testtool
 
 
@@ -55,7 +51,6 @@ def test_Conv2d():
             return x
 
     testtool.testKQI(TestConv2d(), torch.randn(3, 28, 28))
-        
 
 
 def test_Conv3d():
