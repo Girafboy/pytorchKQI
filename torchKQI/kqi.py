@@ -116,5 +116,4 @@ def debug(model: torch.nn.Module, x: torch.Tensor):
     model_output = model(x)
 
     W = sum((1 + V).sum() for grad_fn, _, Vs in __intermediate_result_generator(model_output) if 'torch::autograd::AccumulateGrad' in grad_fn.name() for V in Vs)
-    # 
     return ((grad_fn, tuple(k / W for k in KQI), Volume, node_id, adj) for grad_fn, KQI, Volume, node_id, adj in __intermediate_result_generator(model_output, return_graph=True))

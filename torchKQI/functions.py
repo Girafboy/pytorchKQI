@@ -509,7 +509,7 @@ class ConvolutionBackward0(FB):
                 for b in range(out_channels):
                     for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
                         size = np.prod([[left[d], right[d]] for d in range(ndim)])
@@ -559,9 +559,9 @@ class ConvolutionBackward0(FB):
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for co in range(cout.start, cout.stop):
                         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
-                            args = [next(m for m in range(j, volume_padding.shape[k+1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
+                            args = [next(m for m in range(j, volume_padding.shape[k + 1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
                             tmp[(range(cin.start, cin.stop), ) + tuple(indexing(*offset))] = output[0][co] / degree / n_input
-                            tmp[(range(cin.start, cin.stop), ) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] = volume_padding[(range(cin.start, cin.stop),) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] 
+                            tmp[(range(cin.start, cin.stop), ) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] = volume_padding[(range(cin.start, cin.stop),) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))]
                             for i in range(cin.start, cin.stop):
                                 kqi_out[co] += FB.temporary_KQI((output[0][co] / degree / n_input), tmp[(i, ) + tuple(indexing(*offset))])
 
@@ -569,11 +569,11 @@ class ConvolutionBackward0(FB):
                 for b in range(out_channels):
                     for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
                         kqi_out += FB.temporary_KQI(output[0][b][slices], weight[(b, slice(None)) + tuple(offset)])
-            
+
             if bias is not None:
                 for c in range(out_channels):
                     kqi_out += FB.temporary_KQI(output[0][c], bias[c])
@@ -583,13 +583,12 @@ class ConvolutionBackward0(FB):
     @classmethod
     @FB.cell_Graph_Checking(args_in=3, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
-        (input, weight, bias ), (output, ) = inputs, outputs
+        (input, weight, bias, ), (output, ) = inputs, outputs
         dilation = grad_fn.__getattribute__('_saved_dilation')
         stride = grad_fn.__getattribute__('_saved_stride')
         padding = grad_fn.__getattribute__('_saved_padding')
         kernel_size = grad_fn.__getattribute__('_saved_weight').shape[2:]
         groups = grad_fn.__getattribute__('_saved_groups')
-        output_padding = grad_fn.__getattribute__('_saved_output_padding')
         transposed = grad_fn.__getattribute__('_saved_transposed')
 
         in_channels, out_channels = input.shape[1], output.shape[1]
@@ -600,7 +599,7 @@ class ConvolutionBackward0(FB):
         indexing = lambda *args: [slice(max(0, i - pad), H * s + i - pad, s) for i, pad, H, s in zip(args, padding, output.shape[2:], stride)]
 
         adj = {}
-        if transposed == True:
+        if transposed:
             pass
         else:
             if input is not None:
@@ -608,7 +607,7 @@ class ConvolutionBackward0(FB):
                     for ci, co in itertools.product(range(cin.start, cin.stop), range(cout.start, cout.stop)):
                         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
                             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                            right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                            right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
                             for i, o in zip(torch.flatten(input[(slice(None), ci) + tuple(indexing(*offset))]), torch.flatten(output[0][co][[slice(left[d], right[d]) for d in range(ndim)]])):
                                 if int(o) not in adj:
                                     adj.setdefault(int(o), ())
@@ -618,35 +617,34 @@ class ConvolutionBackward0(FB):
                 for b in range(out_channels):
                     for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
                         for i, o in zip(weight[(b, slice(None)) + tuple(offset)], torch.flatten(output[0][b][[slice(left[d], right[d]) for d in range(ndim)]])):
-                            if int(o) not in adj: 
+                            if int(o) not in adj:
                                 adj.setdefault(int(o), ())
                             adj[int(o)] += (int(i),)
-            
+
             if bias is not None:
                 for c in range(out_channels):
                     for i, o in zip(bias[c], torch.flatten(output[c])):
-                        if int(o) not in adj: 
+                        if int(o) not in adj:
                             adj.setdefault(int(o), ())
                         adj[int(o)] += (int(i),)
         return adj
-
 
     @classmethod
     def degree(cls, input, weight, bias, degree_size, kernel_size, dilation, stride, padding, transposed):
         degree = torch.zeros(degree_size)
         ndim = len(degree_size)
 
-        if transposed == True:
+        if transposed:
             degree = torch.nn.functional.pad(degree, padding)
             if input is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
-                    degree[tuple(slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
+                    degree[tuple(slice(offset, input.shape[i + 1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
             if weight is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
-                    degree[tuple(slice(offset, input.shape[i+1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
+                    degree[tuple(slice(offset, input.shape[i + 1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
             if bias is not None:
                 degree += 1
 
@@ -655,22 +653,17 @@ class ConvolutionBackward0(FB):
             if input is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
                     left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                    right = [min(degree_size[d], math.ceil((input.shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-                    degree[[slice(left[d], right[d]) for d in range(ndim)]] +=  1
+                    right = [min(degree_size[d], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                    degree[[slice(left[d], right[d]) for d in range(ndim)]] += 1
             if weight is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
                     left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                    right = [min(degree_size[d], math.ceil((input.shape[d+1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-                    degree[[slice(left[d], right[d]) for d in range(ndim)]] +=  1
+                    right = [min(degree_size[d], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                    degree[[slice(left[d], right[d]) for d in range(ndim)]] += 1
             if bias is not None:
                 degree += 1
 
             return degree
-
-
-
-
-
 
 
 __functions_mapping = {
@@ -696,7 +689,6 @@ __functions_mapping = {
     'ReshapeAliasBackward0': ReshapeAliasBackward0,
     'ConvolutionBackward0': ConvolutionBackward0,
     'SqueezeBackward4': SqueezeBackward1,
-    #'AsStridedBackward0': AsStridedBackward0,
 }
 
 
