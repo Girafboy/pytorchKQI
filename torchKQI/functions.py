@@ -563,7 +563,7 @@ class ConvolutionBackward0(FB):
                         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
                             args = [next(m for m in range(j, volume_padding.shape[k+1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
                             tmp[(range(cin.start, cin.stop),) + tuple(indexing(*offset))] = output[0][co] / degree / n_input
-                            tmp[(range(cin.start, cin.stop),) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] = volume_padding[range(cin.start, cin.stop), *[slice(arg, end, stride) for arg, end, stride in zip(args, end, stride)]]
+                            tmp[(range(cin.start, cin.stop),) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] = volume_padding[(range(cin.start, cin.stop),) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] 
                             for i in range(cin.start, cin.stop):
                                 kqi_out[co] += FB.temporary_KQI((output[0][co] / degree / n_input), tmp[(i,) + tuple(indexing(*offset))])
 
