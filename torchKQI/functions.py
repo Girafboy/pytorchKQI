@@ -465,6 +465,33 @@ class ReshapeAliasBackward0(FB):
         return adj
 
 
+class AsStridedBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        size, stride, storage_offset = grad_fn.__getattribute__('_saved_size'), grad_fn.__getattribute__('_saved_stride'), grad_fn.__getattribute__('_saved_storage_offset')
+        torch.zero_(input)
+        torch.as_strided(input, size, stride, storage_offset).add_(1 + out)
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        size, stride, storage_offset = grad_fn.__getattribute__('_saved_size'), grad_fn.__getattribute__('_saved_stride'), grad_fn.__getattribute__('_saved_storage_offset')
+        kqi_out = FB.temporary_KQI(out, torch.as_strided(input, size, stride, storage_offset))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        size, stride, storage_offset = grad_fn.__getattribute__('_saved_size'), grad_fn.__getattribute__('_saved_stride'), grad_fn.__getattribute__('_saved_storage_offset')
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(torch.as_strided(input, size, stride, storage_offset)), torch.flatten(out))}
+        return adj
+
+
 class ConvolutionBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=3, args_out=1)
@@ -669,6 +696,7 @@ class ConvolutionBackward0(FB):
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
+    'torch::autograd::CopySlices': CopySlices,
     'TBackward0': TBackward0,
     'MvBackward0': MvBackward0,
     'MmBackward0': MmBackward0,
@@ -687,6 +715,7 @@ __functions_mapping = {
     'ViewBackward0': ViewBackward0,
     'UnsafeViewBackward0': UnsafeViewBackward0,
     'ReshapeAliasBackward0': ReshapeAliasBackward0,
+    'AsStridedBackward0': AsStridedBackward0,
     'ConvolutionBackward0': ConvolutionBackward0,
     'SqueezeBackward4': SqueezeBackward1,
 }
