@@ -147,7 +147,7 @@ class OnetoOneMapping(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
-        (input, ), (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         input = 1 + out
         return (input, )
 
@@ -175,6 +175,38 @@ class TanhBackward0(OnetoOneMapping):
 
 
 class SigmoidBackward0(OnetoOneMapping):
+    pass
+
+
+class GeluBackward0(OnetoOneMapping):
+    pass
+
+
+class HardshrinkBackward0(OnetoOneMapping):
+    pass
+
+
+class LogSigmoidBackward0(OnetoOneMapping):
+    pass
+
+
+class SoftplusBackward0(OnetoOneMapping):
+    pass
+
+
+class SoftshrinkBackward0(OnetoOneMapping):
+    pass
+
+
+class NegBackward0(OnetoOneMapping):
+    pass
+
+
+class HardsigmoidBackward0(OnetoOneMapping):
+    pass
+
+
+class AbsBackward0(OnetoOneMapping):
     pass
 
 
@@ -226,6 +258,10 @@ class SubBackward0(TwotoOneMapping):
 
 
 class MulBackward0(TwotoOneMapping):
+    pass
+
+
+class DivBackward0(TwotoOneMapping):
     pass
 
 
@@ -693,6 +729,37 @@ class ConvolutionBackward0(FB):
             return degree
 
 
+class SoftmaxBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        input = torch.zeros_like(input)
+        input = torch.mean(out, dim, True).expand_as(out) + out.size(dim)
+        return (input,)
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        kqi_out = sum(FB.temporary_KQI(out.select(dim, id).unsqueeze(dim).expand_as(out) / out.size(dim), input) for id in range(out.size(dim)))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        adj = {int(o): tuple(int(i) for i in ii) for id in range(out.size(dim)) for ii, o in zip(torch.flatten(torch.stack(input.unbind(dim), -1), 0, -2), torch.flatten(out.select(dim, id)))}
+        return adj
+
+
+class LogSoftmaxBackward0(SoftmaxBackward0):
+    pass
+
+
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -718,6 +785,17 @@ __functions_mapping = {
     'AsStridedBackward0': AsStridedBackward0,
     'ConvolutionBackward0': ConvolutionBackward0,
     'SqueezeBackward4': SqueezeBackward1,
+    'SoftmaxBackward0': SoftmaxBackward0,
+    'LogSoftmaxBackward0': LogSoftmaxBackward0,
+    'GeluBackward0': GeluBackward0,
+    'HardshrinkBackward0': HardshrinkBackward0,
+    'LogSigmoidBackward0': LogSigmoidBackward0,
+    'SoftplusBackward0': SoftplusBackward0,
+    'SoftshrinkBackward0': SoftshrinkBackward0,
+    'DivBackward0': DivBackward0,
+    'NegBackward0': NegBackward0,
+    'HardsigmoidBackward0': HardsigmoidBackward0,
+    'AbsBackward0': AbsBackward0,
 }
 
 

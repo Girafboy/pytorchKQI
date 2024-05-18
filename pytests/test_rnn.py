@@ -1,5 +1,4 @@
 import torch
-import kqinn
 import testtool
 
 
@@ -23,8 +22,8 @@ def test_LSTM():
     class TestLSTM(torch.nn.Module):
         def __init__(self):
             super().__init__()
-            self.rnn = kqinn.LSTM(input_size=28, hidden_size=32, num_layers=2, bias=False)
-            self.fc = kqinn.Linear(32, 10)
+            self.rnn = torch.nn.LSTM(input_size=28, hidden_size=32, num_layers=2, bias=False)
+            self.fc = torch.nn.Linear(32, 10)
 
         def forward(self, x):
             out, _ = self.rnn(x)
@@ -36,11 +35,11 @@ def test_LSTM():
 
 
 def test_GRU():
-    class TestGRU(torch.nn.Module, kqinn.KQI):
+    class TestGRU(torch.nn.Module):
         def __init__(self):
             super().__init__()
-            self.rnn = kqinn.GRU(input_size=28, hidden_size=32, num_layers=2, bias=False)
-            self.fc = kqinn.Linear(32, 10)
+            self.rnn = torch.nn.GRU(input_size=28, hidden_size=32, num_layers=2, bias=False)
+            self.fc = torch.nn.Linear(32, 10)
 
         def forward(self, x):
             out, _ = self.rnn(x)
