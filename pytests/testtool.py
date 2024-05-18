@@ -142,28 +142,18 @@ class DiGraph():
 
 
 def testKQI(model, x):
-    logging.debug('============================ KQI (final) ============================')
-    kqi_final = torchKQI.KQI(model, x)
-    logging.debug('============================ KQI (generator) ============================')
-    kqi_generator = sum(k.sum() for ks in torchKQI.KQI(model, x, return_generator=True) for k in ks)
+    logging.debug('============================ KQI (torch) ============================')
+    kqi_torch = torchKQI.KQI(model, x)
 
     logging.debug('============================ KQI (graph) ============================')
     G = DiGraph()
-    for adj in torchKQI.Graph(model, x):
-        for v, pred in adj.items():
-            G.add_node(v, pred)
+    for v, pred, _, _, _ in torchKQI.Graph(model, x):
+        G.add_node(v, pred)
     kqi_graph = sum([G.kqi(k) for k in G.nodes()])
 
-    with open('debug.log', 'w') as f:
-        for grad_fn, KQIs, Volumes, node_ids, adj in torchKQI.debug(model, x):
-            for KQI, Vol, nodeID in zip(KQIs, Volumes, node_ids):
-                for k, v, i in zip(KQI.flatten(), Vol.flatten(), nodeID.flatten()):
-                    if abs(G.volume(int(i)) - v) / v > 0.0001 or abs(G.kqi(int(i)) - k) / k > 0.0001:
-                        f.write(f'>>>{grad_fn.name()} [{i}]: V={v}({G.volume(int(i))}), KQI={k}({G.kqi(int(i))})\n')
-                    else:
-                        f.write(f'{grad_fn.name()} [{i}]: V={v}({G.volume(int(i))}), KQI={k}({G.kqi(int(i))})\n')
+    logging.debug('============================ KQI (check) ============================')
+    for v, _, funcname, kqi, vol in torchKQI.Graph(model, x):
+        assert math.isclose(G.volume(v), vol, rel_tol=1e-4), f'[{funcname}({v})]: Volume (graph) = {G.volume(v)}, Volume (torch) = {vol}'
+        assert math.isclose(G.kqi(v), kqi, rel_tol=1e-4), f'[{funcname}({v})]: KQI (graph) = {G.kqi(v)}, KQI (torch) = {kqi}'
 
-    logging.debug(f'KQI (final) = {kqi_final}, KQI (generator) = {kqi_generator}, KQI (graph) = {kqi_graph}')
-    assert abs(kqi_final - kqi_generator) / kqi_final < 0.0001
-    assert abs(kqi_generator - kqi_graph) / kqi_generator < 0.0001
-    assert abs(kqi_graph - kqi_final) / kqi_graph < 0.0001
+    assert math.isclose(kqi_graph, kqi_torch, rel_tol=1e-4), f'KQI (torch) = {kqi_torch}, KQI (graph) = {kqi_graph}'

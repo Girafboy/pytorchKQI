@@ -387,7 +387,7 @@ class StackBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         inputs, (out, ) = volume_inputs, volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        kqi_out = sum(FB.temporary_KQI(out.select(dim, index), input) for index, input in enumerate(inputs))
+        kqi_out = FB.temporary_KQI(out, torch.stack(inputs, dim))
         return (kqi_out, )
 
     @classmethod
@@ -395,7 +395,7 @@ class StackBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         inputs, (out, ) = inputs, outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        adj = {int(o): (int(i), ) for index, input in enumerate(inputs) for i, o in zip(torch.flatten(input), torch.flatten(out.select(dim, index)))}
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(torch.stack(inputs, dim)), torch.flatten(out))}
         return adj
 
 

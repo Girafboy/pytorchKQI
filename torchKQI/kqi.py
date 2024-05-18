@@ -79,15 +79,11 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
             yield grad_fn, functions.backward_mapper(grad_fn).cell_KQI(grad_fn, (W,), Vs), Vs
 
 
-def KQI(model: torch.nn.Module, x: torch.Tensor, return_generator: bool = False) -> Union[torch.Tensor, Iterator[Tuple[torch.Tensor]]]:
+def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
     for param in model.parameters():
         param.requires_grad_(False)
     x.requires_grad_()
     model_output = model(x)
-
-    if return_generator:
-        W = sum((1 + V).sum() for grad_fn, _, Vs in __intermediate_result_generator(model_output) if 'torch::autograd::AccumulateGrad' in grad_fn.name() for V in Vs)
-        return (tuple(k / W for k in ks) for _, ks, _ in __intermediate_result_generator(model_output))
 
     kqi = torch.tensor(0, dtype=float)
     W = torch.tensor(0, dtype=float)
@@ -100,20 +96,15 @@ def KQI(model: torch.nn.Module, x: torch.Tensor, return_generator: bool = False)
     return kqi
 
 
-def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Dict[int, Tuple[int]]]:
-    for param in model.parameters():
-        param.requires_grad_(False)
-    x.requires_grad_()
-    model_output = model(x)
-
-    return (adj for _, _, _, _, adj in __intermediate_result_generator(model_output, return_graph=True))
-
-
-def debug(model: torch.nn.Module, x: torch.Tensor):
+def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
     for param in model.parameters():
         param.requires_grad_(False)
     x.requires_grad_()
     model_output = model(x)
 
     W = sum((1 + V).sum() for grad_fn, _, Vs in __intermediate_result_generator(model_output) if 'torch::autograd::AccumulateGrad' in grad_fn.name() for V in Vs)
-    return ((grad_fn, tuple(k / W for k in KQI), Volume, node_id, adj) for grad_fn, KQI, Volume, node_id, adj in __intermediate_result_generator(model_output, return_graph=True))
+
+    for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
+        for kqi, volume, node_id in zip(kqis, volumes, node_ids):
+            for k, v, i in zip(kqi.flatten(), volume.flatten(), node_id.flatten()):
+                yield int(i), adj[int(i)], grad_fn.name(), float(k / W), float(v)
