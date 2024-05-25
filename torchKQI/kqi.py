@@ -81,8 +81,8 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
 
 def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
     for param in model.parameters():
-        param.requires_grad_(False)
-    x.requires_grad_()
+        param.requires_grad_(True)
+    x.requires_grad_(False)
     model_output = model(x)
 
     kqi = torch.tensor(0, dtype=float)
@@ -98,8 +98,8 @@ def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
 
 def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
     for param in model.parameters():
-        param.requires_grad_(False)
-    x.requires_grad_()
+        param.requires_grad_(True)
+    x.requires_grad_(False)
     model_output = model(x)
 
     W = sum((1 + V).sum() for grad_fn, _, Vs in __intermediate_result_generator(model_output) if 'torch::autograd::AccumulateGrad' in grad_fn.name() for V in Vs)
