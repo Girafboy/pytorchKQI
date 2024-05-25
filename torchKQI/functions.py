@@ -574,7 +574,7 @@ class ConvolutionBackward0(FB):
                         right = [min(output.shape[2:][d], math.ceil((saved_input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
-                        size = np.prod([[right[d]-left[d]] for d in range(ndim)])
+                        size = np.prod([[right[d] - left[d]] for d in range(ndim)])
                         weight[(b, slice(None)) + tuple(offset)] += (size + (output[0][b][slices] / degree[slices] / n_input).sum())
 
             if bias is not None:
