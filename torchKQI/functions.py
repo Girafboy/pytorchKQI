@@ -210,6 +210,7 @@ class HardsigmoidBackward0(OnetoOneMapping):
 class AbsBackward0(OnetoOneMapping):
     pass
 
+
 class CloneBackward0(OnetoOneMapping):
     pass
 
@@ -554,7 +555,7 @@ class ConvolutionBackward0(FB):
         indexing = lambda *args: [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
 
         if transposed:
-            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
+            raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
 
@@ -605,7 +606,7 @@ class ConvolutionBackward0(FB):
 
         kqi_out = torch.zeros_like(output[0])
         if transposed:
-            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
+            raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
             if input is not None:
@@ -660,7 +661,7 @@ class ConvolutionBackward0(FB):
 
         adj = defaultdict(tuple)
         if transposed:
-            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
+            raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             if input is not None:
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
@@ -777,7 +778,7 @@ class PreluKernelBackward0(FB):
             kqi_out += FB.temporary_KQI(out / 2, input)
         if weight is not None:
             kqi_out += FB.temporary_KQI(out / 2, weight.detach().expand_as(out))
-        return (kqi_out,)
+        return (kqi_out, )
     
     @classmethod
     @FB.cell_Graph_Checking(args_in=2, args_out=1)
@@ -793,9 +794,10 @@ class PreluKernelBackward0(FB):
                     adj[int(o)] += (int(i),)
             else:
                 for i in torch.flatten(weight):
-                    for o in torch.flatten(out[:,:,i]):
+                    for o in torch.flatten(out[:, :, i]):
                         adj[int(o)] += (int(i),)
         return adj
+
 
 class GluBackward0(FB):
     @classmethod
@@ -806,13 +808,13 @@ class GluBackward0(FB):
         input_half = 1 + out / 2
         input = torch.cat((input_half, input_half), dim=dim)
         return (input, )
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
         dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
-        input_left, input_right = torch.chunk(input, 2, dim = dim)
+        input_left, input_right = torch.chunk(input, 2, dim=dim)
         kqi_out = FB.temporary_KQI(out / 2, input_left) + FB.temporary_KQI(out / 2, input_right)
         return (kqi_out,)
 
@@ -821,11 +823,12 @@ class GluBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
         dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
-        input_left, input_right = torch.chunk(input, 2, dim = dim)
+        input_left, input_right = torch.chunk(input, 2, dim=dim)
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input_left.reshape_as(out)), torch.flatten(out))}
         for i, o in zip(torch.flatten(input_right.reshape_as(out)), torch.flatten(out)):
             adj[int(o)] += (int(i),)
         return adj
+
 
 class AddmmBackward0(FB):
     @classmethod
@@ -843,7 +846,7 @@ class AddmmBackward0(FB):
         else:
             mat2 = (1 + out.unsqueeze(1).expand(size) / (size[1] + 1)).sum(0)
         return (input, mat1, mat2)
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=3, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -860,7 +863,7 @@ class AddmmBackward0(FB):
         else:
             kqi_out += FB.temporary_KQI(out.unsqueeze(1).expand(size) / (size[1] + 1), mat2.unsqueeze(0).expand(size)).sum(1)
         return (kqi_out, )
-    
+
     @classmethod
     @FB.cell_Graph_Checking(args_in=3, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
@@ -880,6 +883,7 @@ class AddmmBackward0(FB):
             for r, c in itertools.product(range(m), range(n)):
                 adj[int(out[r, c])] += tuple(int(k) for k in mat2[:, c])
         return adj
+
 
 class TransposeBackward0(FB):
     @classmethod
@@ -905,6 +909,7 @@ class TransposeBackward0(FB):
         dim0, dim1 = unsign_to_sign(grad_fn.__getattribute__('_saved_dim0')), unsign_to_sign(grad_fn.__getattribute__('_saved_dim1'))
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(vI), torch.flatten(vO.transpose(dim0, dim1)))}
         return adj
+
 
 class BmmBackward0(FB):
     @classmethod
@@ -947,7 +952,8 @@ class BmmBackward0(FB):
         else:
             adj = {int(out[b, r, c]): tuple(int(k) for k in mat2[b, :, c]) for r in range(m) for c in range(n) for b in range(batch)}
         return adj
-    
+
+
 class SplitBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=None)
@@ -961,7 +967,7 @@ class SplitBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=None)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), outputs = volume_inputs, volume_outputs
-        dim, size = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_split_size')
+        dim = grad_fn.__getattribute__('_saved_dim')
         kqi_outs = tuple(FB.temporary_KQI(o, i) for i, o in zip(torch.split(input, input.shape[dim] // len(outputs), dim), outputs))
         return kqi_outs
 
@@ -1014,7 +1020,7 @@ __functions_mapping = {
     'PreluKernelBackward0': PreluKernelBackward0,
     'GluBackward0': GluBackward0,
     'AddmmBackward0': AddmmBackward0,
-    'TransposeBackward0' : TransposeBackward0,
+    'TransposeBackward0': TransposeBackward0,
     'CloneBackward0': CloneBackward0,
     'BmmBackward0': BmmBackward0,
     'SplitBackward0': SplitBackward0,
