@@ -550,7 +550,7 @@ class ConvolutionBackward0(FB):
         indexing = lambda *args: [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
 
         if transposed:
-            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
+            raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
 
@@ -601,7 +601,7 @@ class ConvolutionBackward0(FB):
 
         kqi_out = torch.zeros_like(output[0])
         if transposed:
-            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
+            raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
             if input is not None:
@@ -656,7 +656,7 @@ class ConvolutionBackward0(FB):
 
         adj = {}
         if transposed:
-            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
+            raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             if input is not None:
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
