@@ -752,7 +752,7 @@ class LogSoftmaxBackward0(SoftmaxBackward0):
     pass
 
 
-class PreluKernelBackward0(FB):
+class PreluBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=2, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -1017,7 +1017,8 @@ __functions_mapping = {
     'NegBackward0': NegBackward0,
     'HardsigmoidBackward0': HardsigmoidBackward0,
     'AbsBackward0': AbsBackward0,
-    'PreluKernelBackward0': PreluKernelBackward0,
+    'PreluKernelBackward0': PreluBackward0,
+    'PreluBackward0': PreluBackward0,
     'GluBackward0': GluBackward0,
     'AddmmBackward0': AddmmBackward0,
     'TransposeBackward0': TransposeBackward0,
