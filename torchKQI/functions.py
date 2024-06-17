@@ -779,7 +779,7 @@ class PreluKernelBackward0(FB):
         if weight is not None:
             kqi_out += FB.temporary_KQI(out / 2, weight.detach().expand_as(out))
         return (kqi_out, )
-    
+
     @classmethod
     @FB.cell_Graph_Checking(args_in=2, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
