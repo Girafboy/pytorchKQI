@@ -540,27 +540,22 @@ class ConvolutionBackward0(FB):
         kernel_size = grad_fn.__getattribute__('_saved_weight').shape[2:]
         groups = grad_fn.__getattribute__('_saved_groups')
         transposed = grad_fn.__getattribute__('_saved_transposed')
-
-        in_channels, out_channels = input.shape[1], output.shape[1]
-        n_input, n_output = int(in_channels / groups), int(out_channels / groups)
+        saved_input = grad_fn.__getattribute__('_saved_input')
 
         ndim = output.dim() - 2
-        indexing = lambda *args: [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
+        in_channels, out_channels = saved_input.shape[1], output.shape[1]
+        n_input, n_output = int(in_channels / groups), int(out_channels / groups)
         channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]
         channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]
+        indexing = lambda *args: [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
 
         if transposed:
-            degree = cls.degree(input[0], weight, bias, output.shape[2:], kernel_size, dilation, stride, padding, True)
-            if input is not None:
-                input = torch.zeros_like(input)
-                for cin, cout in zip(channel_input_slice, channel_output_slice):
-                    pass
+            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
-            degree = cls.degree(input[0], weight, bias, output.shape[2:], kernel_size, dilation, stride, padding, False)
+            degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
 
             if input is not None:
                 volume_padding = torch.zeros((input.shape[0], input.shape[1], *[input[0].shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
-
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
                         volume_padding[(slice(None), cin) + tuple(indexing(*offset))] += n_output + (output[0][cout] / degree / n_input).sum(dim=0)
@@ -570,13 +565,13 @@ class ConvolutionBackward0(FB):
             if weight is not None:
                 weight = torch.zeros_like(weight)
                 for b in range(out_channels):
-                    for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
+                    for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                        right = [min(output.shape[2:][d], math.ceil((saved_input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
-                        size = np.prod([[left[d], right[d]] for d in range(ndim)])
-                        weight[(b + slice(None)) + tuple(offset)] += (size + (output[0][b][slices] / degree / n_input).sum(dim=0))
+                        size = np.prod([[right[d] - left[d]] for d in range(ndim)])
+                        weight[(b, slice(None)) + tuple(offset)] += (size + (output[0][b][slices] / degree[slices] / n_input).sum())
 
             if bias is not None:
                 bias = torch.zeros_like(bias)
@@ -595,23 +590,20 @@ class ConvolutionBackward0(FB):
         kernel_size = grad_fn.__getattribute__('_saved_weight').shape[2:]
         groups = grad_fn.__getattribute__('_saved_groups')
         transposed = grad_fn.__getattribute__('_saved_transposed')
-
-        in_channels, out_channels = input.shape[1], output.shape[1]
-        n_input, n_output = int(in_channels / groups), int(out_channels / groups)
+        saved_input = grad_fn.__getattribute__('_saved_input')
 
         ndim = output.dim() - 2
+        in_channels, out_channels = saved_input.shape[1], output.shape[1]
+        n_input, n_output = int(in_channels / groups), int(out_channels / groups)
+        channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]
+        channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]
         indexing = lambda *args: [slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride)]
 
         kqi_out = torch.zeros_like(output[0])
         if transposed:
-            pass
+            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
-
-            degree = cls.degree(input[0], weight, bias, output.shape[2:], kernel_size, dilation, stride, padding, False)
-
-            channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]
-            channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]
-
+            degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
             if input is not None:
 
                 volume_padding = torch.zeros((input.shape[1], *[input[0].shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
@@ -630,16 +622,16 @@ class ConvolutionBackward0(FB):
 
             if weight is not None:
                 for b in range(out_channels):
-                    for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
+                    for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-
+                        right = [min(output.shape[2:][d], math.ceil((saved_input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
                         slices = [slice(left[d], right[d]) for d in range(ndim)]
-                        kqi_out += FB.temporary_KQI(output[0][b][slices], weight[(b, slice(None)) + tuple(offset)])
+                        for i in range(weight.shape[1]):
+                            kqi_out[b][slices] += FB.temporary_KQI(output[0][b][slices] / degree[slices] / n_input, torch.ones(output[0][b][slices].shape) * weight[(b, i) + tuple(offset)])
 
             if bias is not None:
                 for c in range(out_channels):
-                    kqi_out += FB.temporary_KQI(output[0][c], bias[c])
+                    kqi_out += FB.temporary_KQI(output[0][c] / degree / n_input, torch.ones(output[0][c].shape) * bias[c])
 
             return (kqi_out, )
 
@@ -653,8 +645,9 @@ class ConvolutionBackward0(FB):
         kernel_size = grad_fn.__getattribute__('_saved_weight').shape[2:]
         groups = grad_fn.__getattribute__('_saved_groups')
         transposed = grad_fn.__getattribute__('_saved_transposed')
+        saved_input = grad_fn.__getattribute__('_saved_input')
 
-        in_channels, out_channels = input.shape[1], output.shape[1]
+        in_channels, out_channels = saved_input.shape[1], output.shape[1]
         n_input, n_output = int(in_channels / groups), int(out_channels / groups)
         ndim = output.dim() - 2
         channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]
@@ -663,7 +656,7 @@ class ConvolutionBackward0(FB):
 
         adj = {}
         if transposed:
-            pass
+            raise NotImplementedError(f'ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             if input is not None:
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
@@ -678,11 +671,11 @@ class ConvolutionBackward0(FB):
 
             if weight is not None:
                 for b in range(out_channels):
-                    for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim - 1)]):
+                    for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                        right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                        right = [min(output.shape[2:][d], math.ceil((saved_input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
-                        for i, o in zip(weight[(b, slice(None)) + tuple(offset)], torch.flatten(output[0][b][[slice(left[d], right[d]) for d in range(ndim)]])):
+                        for i, o in itertools.product(torch.flatten(weight[(b, slice(None)) + tuple(offset)]), torch.flatten(output[0][b][[slice(left[d], right[d]) for d in range(ndim)]])):
                             if int(o) not in adj:
                                 adj.setdefault(int(o), ())
                             adj[int(o)] += (int(i),)
@@ -696,7 +689,7 @@ class ConvolutionBackward0(FB):
         return adj
 
     @classmethod
-    def degree(cls, input, weight, bias, degree_size, kernel_size, dilation, stride, padding, transposed):
+    def degree(cls, input, weight, bias, saved_input, degree_size, kernel_size, dilation, stride, padding, transposed):
         degree = torch.zeros(degree_size)
         ndim = len(degree_size)
 
@@ -704,10 +697,10 @@ class ConvolutionBackward0(FB):
             degree = torch.nn.functional.pad(degree, padding)
             if input is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
-                    degree[tuple(slice(offset, input.shape[i + 1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
+                    degree[tuple(slice(offset, input[0].shape[i + 1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
             if weight is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
-                    degree[tuple(slice(offset, input.shape[i + 1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
+                    degree[tuple(slice(offset, input[0].shape[i + 1] * stride + offset, stride) for i, stride in enumerate(stride))] += 1
             if bias is not None:
                 degree += 1
 
@@ -716,12 +709,12 @@ class ConvolutionBackward0(FB):
             if input is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
                     left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                    right = [min(degree_size[d], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                    right = [min(degree_size[d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
                     degree[[slice(left[d], right[d]) for d in range(ndim)]] += 1
             if weight is not None:
                 for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
                     left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-                    right = [min(degree_size[d], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+                    right = [min(degree_size[d], math.ceil((saved_input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
                     degree[[slice(left[d], right[d]) for d in range(ndim)]] += 1
             if bias is not None:
                 degree += 1
@@ -764,6 +757,7 @@ __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
     'torch::autograd::CopySlices': CopySlices,
+    'struct torch::autograd::CopySlices': CopySlices,
     'TBackward0': TBackward0,
     'MvBackward0': MvBackward0,
     'MmBackward0': MmBackward0,
