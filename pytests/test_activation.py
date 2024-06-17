@@ -501,56 +501,56 @@ def test_Softshrink():
     testtool.testKQI(TestSoftshrink(), torch.randn(1, 28, 28))
 
 
-# def test_MultiheadAttention():
-#     head = 8
-#     embedding_dim = 64
-#     sequence_length = 10
+def test_MultiheadAttention():
+    head = 8
+    embedding_dim = 16
+    sequence_length = 10
 
-#     class TestMultiheadAttention(torch.nn.Module):
-#         def __init__(self) -> None:
-#             super().__init__()
+    class TestMultiheadAttention(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
 
-#             self.layerQKV = torch.nn.Linear(in_features=embedding_dim * sequence_length, out_features=embedding_dim * sequence_length * 3, bias=False)
-#             self.layer = torch.nn.MultiheadAttention(embed_dim=embedding_dim, num_heads=head)
+            self.layerQKV = torch.nn.Linear(in_features=embedding_dim * sequence_length, out_features=embedding_dim * sequence_length * 3, bias=False)
+            self.layer = torch.nn.MultiheadAttention(embed_dim=embedding_dim, num_heads=head)
 
-#         def forward(self, x):
-#             x = x.flatten()
-#             qkv = self.layerQKV(x).reshape(sequence_length, embedding_dim * 3)
-#             q = qkv[:, :embedding_dim].reshape(sequence_length, embedding_dim)
-#             k = qkv[:, embedding_dim:embedding_dim * 2].reshape(sequence_length, embedding_dim)
-#             v = qkv[:, embedding_dim * 2:].reshape(sequence_length, embedding_dim)
-#             attn_output, attn_output_weights = self.layer(k, q, v)
-#             return attn_output
+        def forward(self, x):
+            x = x.flatten()
+            qkv = self.layerQKV(x).reshape(sequence_length, embedding_dim * 3)
+            q = qkv[:, :embedding_dim].reshape(sequence_length, embedding_dim)
+            k = qkv[:, embedding_dim:embedding_dim * 2].reshape(sequence_length, embedding_dim)
+            v = qkv[:, embedding_dim * 2:].reshape(sequence_length, embedding_dim)
+            attn_output, attn_output_weights = self.layer(k, q, v)
+            return attn_output
 
-#     testtool.testKQI(TestMultiheadAttention(), torch.randn(sequence_length, embedding_dim))
+    testtool.testKQI(TestMultiheadAttention(), torch.randn(sequence_length, embedding_dim))
 
 
-# def test_PReLU():
-#     class TestPReLU(torch.nn.Module):
-#         def __init__(self) -> None:
-#             super().__init__()
-#             self.layers1 = torch.nn.Sequential(
-#                 # 1x28x28
-#                 torch.nn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
-#                 torch.nn.PReLU(num_parameters=1, init=0.25),
-#                 # 2x26x26
-#                 torch.nn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
-#                 torch.nn.PReLU(num_parameters=1, init=0.25),
-#             )
-#             self.layers2 = torch.nn.Sequential(
-#                 # 3x8x8
-#                 torch.nn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
-#                 torch.nn.Linear(in_features=100, out_features=10, bias=False),
-#             )
+def test_PReLU():
+    class TestPReLU(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.Sequential(
+                # 1x28x28
+                torch.nn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                torch.nn.PReLU(num_parameters=1, init=0.25),
+                # 2x26x26
+                torch.nn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                torch.nn.PReLU(num_parameters=1, init=0.25),
+            )
+            self.layers2 = torch.nn.Sequential(
+                # 3x8x8
+                torch.nn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
+                torch.nn.Linear(in_features=100, out_features=10, bias=False),
+            )
 
-#         def forward(self, x):
-#             x = self.layers1(x)
-#             x = x.flatten()
-#             x = self.layers2(x)
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
 
-#             return x
+            return x
 
-#     testtool.testKQI(TestPReLU(), torch.randn(1, 28, 28))
+    testtool.testKQI(TestPReLU(), torch.randn(1, 28, 28))
 
 
 def test_Softsign():
@@ -662,33 +662,33 @@ def test_RReLU():
     testtool.testKQI(TestRReLU(), torch.randn(1, 28, 28))
 
 
-# def test_GLU():
-#     class TestGLU(torch.nn.Module):
-#         def __init__(self) -> None:
-#             super().__init__()
-#             self.layers1 = torch.nn.Sequential(
-#                 # 1x28x28
-#                 torch.nn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
-#                 # 2x26x26
-#                 torch.nn.GLU(dim=-1),
-#                 # 2x26x13
-#                 torch.nn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
-#                 # 3x8x3
-#                 torch.nn.GLU(dim=-2),
-#             )
-#             self.layers2 = torch.nn.Sequential(
-#                 # 3x4x3
-#                 torch.nn.Linear(in_features=3 * 4 * 3, out_features=10, bias=False),
-#             )
+def test_GLU():
+    class TestGLU(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.Sequential(
+                # 1x28x28
+                torch.nn.Conv2d(in_channels=1, out_channels=2, kernel_size=3, stride=1, padding=0, dilation=1, bias=False),
+                # 2x26x26
+                torch.nn.GLU(dim=-1),
+                # 2x26x13
+                torch.nn.Conv2d(in_channels=2, out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+                # 3x8x3
+                torch.nn.GLU(dim=-2),
+            )
+            self.layers2 = torch.nn.Sequential(
+                # 3x4x3
+                torch.nn.Linear(in_features=3 * 4 * 3, out_features=10, bias=False),
+            )
 
-#         def forward(self, x):
-#             x = self.layers1(x)
-#             x = x.flatten()
-#             x = self.layers2(x)
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
 
-#             return x
+            return x
 
-#     testtool.testKQI(TestGLU(), torch.randn(1, 28, 28))
+    testtool.testKQI(TestGLU(), torch.randn(1, 28, 28))
 
 
 def test_Hardsigmoid():
@@ -824,15 +824,15 @@ if __name__ == '__main__':
 
     test_Softplus()
     test_Softshrink()
-    # test_PReLU()
+    test_PReLU()
     test_Softsign()
     test_Softmin()
     test_Tanhshrink()
     test_RReLU()
-    # test_GLU()
+    test_GLU()
 
     test_Hardsigmoid()
-    # test_MultiheadAttention()
+    test_MultiheadAttention()
     test_Hardswish()
     test_SiLU()
     test_Mish()
