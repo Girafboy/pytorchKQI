@@ -809,7 +809,6 @@ class PreluBackward0(FB):
             input = 1 + out / 2
         if weight is not None:
             weight = grad_fn.__getattribute__('_saved_weight')
-            assert len(weight.shape) >= 3, "actual weight.shape " + str(weight.shape)
             weight = torch.zeros_like(weight)
             if weight.shape[0] == 1:
                 weight = np.prod(input.shape) + (out / 2).sum()
