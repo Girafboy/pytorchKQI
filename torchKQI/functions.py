@@ -752,7 +752,7 @@ class LogSoftmaxBackward0(SoftmaxBackward0):
     pass
 
 
-class PreluBackward0(FB):
+class PreluKernelBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=2, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -762,11 +762,10 @@ class PreluBackward0(FB):
         if weight is not None:
             weight = grad_fn.__getattribute__('_saved_weight')
             assert len(weight.shape) >= 3, "actual weight.shape " + str(weight.shape)
+            weight = torch.zeros_like(weight)
             if weight.shape[2] == 1:
-                weight = torch.zeros_like(weight)
                 weight[0][0] = np.prod(input.shape) + (out / 2).sum()
             else:
-                weight = torch.zeros_like(weight)
                 weight[0][0] = np.prod(input.shape[:2]) + (out / 2).sum(dim=(0, 1))
 
         return (input, weight)
@@ -792,6 +791,54 @@ class PreluBackward0(FB):
                 adj[int(o)] += (int(i),)
         if weight is not None:
             if weight.shape[2] == 1:
+                for i, o in itertools.product(torch.flatten(weight), torch.flatten(out)):
+                    adj[int(o)] += (int(i),)
+            else:
+                for i in torch.flatten(weight):
+                    for o in torch.flatten(out[:, :, i]):
+                        adj[int(o)] += (int(i),)
+        return adj
+
+
+class PreluBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=2, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight), (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        if input is not None:
+            input = 1 + out / 2
+        if weight is not None:
+            weight = grad_fn.__getattribute__('_saved_weight')
+            assert len(weight.shape) >= 3, "actual weight.shape " + str(weight.shape)
+            weight = torch.zeros_like(weight)
+            if weight.shape[0] == 1:
+                weight = np.prod(input.shape) + (out / 2).sum()
+            else:
+                weight = np.prod(input.shape[:2]) + (out / 2).sum(dim=(0, 1))
+
+        return (input, weight)
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=2, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight), (out, ) = volume_inputs, volume_outputs
+        kqi_out = torch.zeros_like(out)
+        if input is not None:
+            kqi_out += FB.temporary_KQI(out / 2, input)
+        if weight is not None:
+            kqi_out += FB.temporary_KQI(out / 2, weight.detach().expand_as(out))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=2, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, weight), (out, ) = inputs, outputs
+        adj = defaultdict(tuple)
+        if input is not None:
+            for i, o in zip(torch.flatten(input), torch.flatten(out)):
+                adj[int(o)] += (int(i),)
+        if weight is not None:
+            if weight.shape[0] == 1:
                 for i, o in itertools.product(torch.flatten(weight), torch.flatten(out)):
                     adj[int(o)] += (int(i),)
             else:
@@ -1019,7 +1066,7 @@ __functions_mapping = {
     'NegBackward0': NegBackward0,
     'HardsigmoidBackward0': HardsigmoidBackward0,
     'AbsBackward0': AbsBackward0,
-    'PreluKernelBackward0': PreluBackward0,
+    'PreluKernelBackward0': PreluKernelBackward0,
     'PreluBackward0': PreluBackward0,
     'GluBackward0': GluBackward0,
     'AddmmBackward0': AddmmBackward0,
