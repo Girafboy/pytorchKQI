@@ -659,7 +659,7 @@ class ConvolutionBackward0(FB):
         channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]
         indexing = lambda *args: [slice(max(0, i - pad), H * s + i - pad, s) for i, pad, H, s in zip(args, padding, output.shape[2:], stride)]
 
-        adj = defaultdict(tuple)
+        adj = defaultdict(list)
         if transposed:
             raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
@@ -670,7 +670,7 @@ class ConvolutionBackward0(FB):
                             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
                             right = [min(output.shape[2:][d], math.ceil((input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
                             for i, o in zip(torch.flatten(input[(slice(None), ci) + tuple(indexing(*offset))]), torch.flatten(output[0][co][[slice(left[d], right[d]) for d in range(ndim)]])):
-                                adj[int(o)] += (int(i),)
+                                adj[int(o)].append(int(i))
 
             if weight is not None:
                 for b in range(out_channels):
@@ -679,13 +679,13 @@ class ConvolutionBackward0(FB):
                         right = [min(output.shape[2:][d], math.ceil((saved_input[0].shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
 
                         for i, o in itertools.product(torch.flatten(weight[(b, slice(None)) + tuple(offset)]), torch.flatten(output[0][b][[slice(left[d], right[d]) for d in range(ndim)]])):
-                            adj[int(o)] += (int(i),)
+                            adj[int(o)].append(int(i))
 
             if bias is not None:
                 for c in range(out_channels):
                     for i, o in zip(bias[c], torch.flatten(output[c])):
-                        adj[int(o)] += (int(i),)
-        return adj
+                        adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
 
     @classmethod
     def degree(cls, input, weight, bias, saved_input, degree_size, kernel_size, dilation, stride, padding, transposed):
@@ -785,19 +785,19 @@ class PreluKernelBackward0(FB):
     @FB.cell_Graph_Checking(args_in=2, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, weight), (out, ) = inputs, outputs
-        adj = defaultdict(tuple)
+        adj = defaultdict(list)
         if input is not None:
             for i, o in zip(torch.flatten(input), torch.flatten(out)):
-                adj[int(o)] += (int(i),)
+                adj[int(o)].append(int(i))
         if weight is not None:
             if weight.shape[2] == 1:
                 for i, o in itertools.product(torch.flatten(weight), torch.flatten(out)):
-                    adj[int(o)] += (int(i),)
+                    adj[int(o)].append(int(i))
             else:
                 for i in torch.flatten(weight):
                     for o in torch.flatten(out[:, :, i]):
-                        adj[int(o)] += (int(i),)
-        return adj
+                        adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
 
 
 class PreluBackward0(FB):
@@ -832,19 +832,19 @@ class PreluBackward0(FB):
     @FB.cell_Graph_Checking(args_in=2, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, weight), (out, ) = inputs, outputs
-        adj = defaultdict(tuple)
+        adj = defaultdict(list)
         if input is not None:
             for i, o in zip(torch.flatten(input), torch.flatten(out)):
-                adj[int(o)] += (int(i),)
+                adj[int(o)].append(int(i))
         if weight is not None:
             if weight.shape[0] == 1:
                 for i, o in itertools.product(torch.flatten(weight), torch.flatten(out)):
-                    adj[int(o)] += (int(i),)
+                    adj[int(o)].append(int(i))
             else:
                 for i in torch.flatten(weight):
                     for o in torch.flatten(out[:, :, i]):
-                        adj[int(o)] += (int(i),)
-        return adj
+                        adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
 
 
 class GluBackward0(FB):
@@ -917,20 +917,21 @@ class AddmmBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, mat1, mat2), (out,) = inputs, outputs
         m, n = out.shape
-        adj = defaultdict(tuple)
+        adj = defaultdict(list)
         if input is not None:
             for i, o in zip(torch.flatten(input), torch.flatten(out)):
-                adj[int(o)] += (int(i),)
+                adj[int(o)].append(int(i))
         if mat1 is not None and mat2 is not None:
             for r, c in itertools.product(range(m), range(n)):
-                adj[int(out[r, c])] += tuple(int(k) for k in mat1[r, :]) + tuple(int(k) for k in mat2[:, c])
+                adj[int(out[r, c])].extend(int(k) for k in mat1[r, :])
+                adj[int(out[r, c])].extend(int(k) for k in mat2[:, c])
         elif mat1 is not None:
             for r, c in itertools.product(range(m), range(n)):
-                adj[int(out[r, c])] += tuple(int(k) for k in mat1[r, :])
+                adj[int(out[r, c])].extend(int(k) for k in mat1[r, :])
         else:
             for r, c in itertools.product(range(m), range(n)):
-                adj[int(out[r, c])] += tuple(int(k) for k in mat2[:, c])
-        return adj
+                adj[int(out[r, c])].extend(int(k) for k in mat2[:, c])
+        return {k: tuple(v) for k, v in adj.items()}
 
 
 class TransposeBackward0(FB):
