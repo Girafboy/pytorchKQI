@@ -1074,6 +1074,7 @@ __functions_mapping = {
     'CloneBackward0': CloneBackward0,
     'BmmBackward0': BmmBackward0,
     'SplitBackward0': SplitBackward0,
+    'NCloneBackward0': NCloneBackward0,
 }
 
 
