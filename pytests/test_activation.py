@@ -503,8 +503,8 @@ def test_Softshrink():
 
 def test_MultiheadAttention():
     head = 8
-    embedding_dim = 16
-    sequence_length = 10
+    embedding_dim = 8
+    sequence_length = 5
 
     class TestMultiheadAttention(torch.nn.Module):
         def __init__(self) -> None:

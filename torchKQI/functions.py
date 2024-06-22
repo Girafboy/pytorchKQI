@@ -757,9 +757,8 @@ class PreluKernelBackward0(FB):
     @FB.cell_Volume_Checking(args_in=2, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight), (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        if input is not None:
+        if input is not None and weight is not None:
             input = 1 + out / 2
-        if weight is not None:
             weight = grad_fn.__getattribute__('_saved_weight')
             assert len(weight.shape) >= 3, "actual weight.shape " + str(weight.shape)
             weight = torch.zeros_like(weight)
@@ -767,6 +766,16 @@ class PreluKernelBackward0(FB):
                 weight[0][0] = np.prod(input.shape) + (out / 2).sum()
             else:
                 weight[0][0] = np.prod(input.shape[:2]) + (out / 2).sum(dim=(0, 1))
+        elif input is not None:
+            input = 1 + out
+        elif weight is not None:
+            weight = grad_fn.__getattribute__('_saved_weight')
+            assert len(weight.shape) >= 3, "actual weight.shape " + str(weight.shape)
+            weight = torch.zeros_like(weight)
+            if weight.shape[2] == 1:
+                weight[0][0] = np.prod(input.shape) + out.sum()
+            else:
+                weight[0][0] = np.prod(input.shape[:2]) + out.sum(dim=(0, 1))
 
         return (input, weight)
 
@@ -775,10 +784,13 @@ class PreluKernelBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight), (out, ) = volume_inputs, volume_outputs
         kqi_out = torch.zeros_like(out)
-        if input is not None:
+        if input is not None and weight is not None:
             kqi_out += FB.temporary_KQI(out / 2, input)
-        if weight is not None:
             kqi_out += FB.temporary_KQI(out / 2, weight.detach().expand_as(out))
+        elif input is not None:
+            kqi_out += FB.temporary_KQI(out, input)
+        elif weight is not None:
+            kqi_out += FB.temporary_KQI(out, weight.detach().expand_as(out))
         return (kqi_out, )
 
     @classmethod
@@ -805,15 +817,23 @@ class PreluBackward0(FB):
     @FB.cell_Volume_Checking(args_in=2, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight), (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        if input is not None:
+        if input is not None and weight is not None:
             input = 1 + out / 2
-        if weight is not None:
             weight = grad_fn.__getattribute__('_saved_weight')
             weight = torch.zeros_like(weight)
             if weight.shape[0] == 1:
                 weight[0] = np.prod(input.shape) + (out / 2).sum()
             else:
                 weight[0] = np.prod(input.shape[:2]) + (out / 2).sum(dim=(0, 1))
+        elif input is not None:
+            input = 1 + out
+        elif weight is not None:
+            weight = grad_fn.__getattribute__('_saved_weight')
+            weight = torch.zeros_like(weight)
+            if weight.shape[0] == 1:
+                weight[0] = np.prod(input.shape) + out.sum()
+            else:
+                weight[0] = np.prod(input.shape[:2]) + out.sum(dim=(0, 1))
 
         return (input, weight)
 
@@ -822,10 +842,12 @@ class PreluBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight), (out, ) = volume_inputs, volume_outputs
         kqi_out = torch.zeros_like(out)
-        if input is not None:
+        if input is not None and weight is not None:
             kqi_out += FB.temporary_KQI(out / 2, input)
-        if weight is not None:
-            kqi_out += FB.temporary_KQI(out / 2, weight.detach().expand_as(out))
+        elif input is not None:
+            kqi_out += FB.temporary_KQI(out, input)
+        elif weight is not None:
+            kqi_out += FB.temporary_KQI(out, weight.detach().expand_as(out))
         return (kqi_out, )
 
     @classmethod
@@ -1029,6 +1051,45 @@ class SplitBackward0(FB):
         return adj
 
 
+class NativeLayerNormBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=3, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight, bias), (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        size = grad_fn.__getattribute__('_saved_normalized_shape')
+        if input is not None:
+            index = input.dim() - len(size)
+            if index == 0:
+                input = torch.ones_like(input) * (np.prod(input.size()) + (out / np.prod(input.size())).sum())
+            else:
+                input = torch.ones_like(input) * (np.prod(size) + (out / np.prod(input.size())).sum())
+
+        input = grad_fn.__getattribute__('_saved_input')
+        index = input.dim() - len(size)
+        if weight is not None:
+            weight = torch.zeros_like(size)
+            if index == 0:
+                weight
+            else:
+                pass
+        
+        if bias is not None:
+            bias = torch.zeros_like(size)
+            if index == 0:
+                pass
+            else:
+                pass
+        
+        return (input, weight, bias)
+            
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=3, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight, bias), (out,) = grad_fn(volume_outputs[0]), volume_outputs
+    
+
+
+
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -1074,7 +1135,7 @@ __functions_mapping = {
     'CloneBackward0': CloneBackward0,
     'BmmBackward0': BmmBackward0,
     'SplitBackward0': SplitBackward0,
-    'NCloneBackward0': NCloneBackward0,
+    'NativeLayerNormBackward0': NativeLayerNormBackward0,
 }
 
 
