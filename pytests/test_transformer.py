@@ -157,8 +157,7 @@ def test_TransformerEncoderLayer():
         def __init__(self) -> None:
             super().__init__()
 
-            self.layer = torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward,
-                                                       norm_first=True)
+            self.layer = torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward, norm_first=True)
 
         def forward(self, x):
             return self.layer(x)
