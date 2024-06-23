@@ -1,10 +1,7 @@
 import itertools
-import logging
-
 import torch
 import testtool
-import kqinn
-import kqitool
+
 
 def MultiheadAttention_add_nodes(G, preds_q, preds_k, preds_v, head, head_dim, sequence_length, embedding_dim, name_in="MHA_in", name_out="MHA_out"):
     """
@@ -114,10 +111,7 @@ def test_TransformerEncoder():
     class TestTransformerEncoder(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
-
-            self.encoder_layer = torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=head,
-                                                               dim_feedforward=dim_feedforward,
-                                                               norm_first=True)
+            self.encoder_layer = torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=head, dim_feedforward=dim_feedforward, norm_first=True)
             self.layer = torch.nn.TransformerEncoder(self.encoder_layer, num_layers=2)
 
         def forward(self, x):

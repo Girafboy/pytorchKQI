@@ -967,6 +967,7 @@ class AddmmBackward0(FB):
             degree += size[1]
         return degree
 
+
 class TransposeBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
@@ -1069,9 +1070,9 @@ class NativeLayerNormBackward0(FB):
         (input, weight, bias), (out,) = grad_fn(volume_outputs[0]), volume_outputs
         size = grad_fn.__getattribute__('_saved_normalized_shape')
         degree = cls.degree(input, weight, bias, size)
-        out_slice = out.reshape(-1,*size)
+        out_slice = out.reshape(-1, *size)
         if input is not None:
-            input_slice = torch.zeros_like(out).reshape(-1,*size)
+            input_slice = torch.zeros_like(out).reshape(-1, *size)
             input_slice += np.prod(size) + (out_slice / degree).sum()
             input = input_slice.reshape_as(out)
 
@@ -1085,7 +1086,7 @@ class NativeLayerNormBackward0(FB):
             for i in range(out_slice.shape[0]):
                 bias += 1 + out_slice[i] / degree
         return (input, weight, bias)
-            
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=3, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -1094,18 +1095,18 @@ class NativeLayerNormBackward0(FB):
         degree = cls.degree(input, weight, bias, size)
         kqi_out = torch.zeros_like(out)
         if input is not None:
-            input_slice, out_slice = input.reshape(-1,*size), out.reshape(-1,*size)
-            kqi_slice = torch.zeros_like(kqi_out).reshape(-1,*size)
+            input_slice, out_slice = input.reshape(-1, *size), out.reshape(-1, *size)
+            kqi_slice = torch.zeros_like(kqi_out).reshape(-1, *size)
             for i in range(input_slice.shape[0]):
                 kqi_slice[i] += FB.temporary_KQI(out_slice[i] / degree, input.detach()[i]).sum()
             kqi_out += kqi_slice.reshape_as(kqi_out)
 
         if weight is not None:
             kqi_out += FB.temporary_KQI(out / degree, weight.detach().expand_as(out))
-        
+
         if bias is not None:
             kqi_out += FB.temporary_KQI(out / degree, bias.detach().expand_as(out))
-        
+
         return (kqi_out, )
 
     @classmethod
@@ -1114,9 +1115,9 @@ class NativeLayerNormBackward0(FB):
         (input, weight, bias), (out,) = inputs, outputs
         adj = defaultdict(list)
         size = grad_fn.__getattribute__('_saved_normalized_shape')
-        out_slice = out.reshape(-1,*size)
+        out_slice = out.reshape(-1, *size)
         if input is not None:
-            input_slice = input.reshape(-1,*size)
+            input_slice = input.reshape(-1, *size)
             for c in range(out_slice.shape[0]):
                 for i, o in itertools.product(torch.flatten(input_slice[c]), torch.flatten(out_slice[c])):
                     adj[int(o)].append(int(i))
@@ -1140,6 +1141,7 @@ class NativeLayerNormBackward0(FB):
         if bias is not None:
             degree += 1
         return degree
+
 
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
