@@ -1114,17 +1114,18 @@ class NativeLayerNormBackward0(FB):
         (input, weight, bias), (out,) = inputs, outputs
         adj = defaultdict(list)
         size = grad_fn.__getattribute__('_saved_normalized_shape')
-        input_slice, out_slice = input.reshape(-1,*size), out.reshape(-1,*size)
+        out_slice = out.reshape(-1,*size)
         if input is not None:
-            for c in range(input_slice.shape[0]):
+            input_slice = input.reshape(-1,*size)
+            for c in range(out_slice.shape[0]):
                 for i, o in itertools.product(torch.flatten(input_slice[c]), torch.flatten(out_slice[c])):
                     adj[int(o)].append(int(i))
         if weight is not None:
-            for c in range(input_slice.shape[0]):
+            for c in range(out_slice.shape[0]):
                 for i, o in zip(torch.flatten(weight), torch.flatten(out_slice[c])):
                     adj[int(o)].append(int(i))
         if bias is not None:
-            for c in range(input_slice.shape[0]):
+            for c in range(out_slice.shape[0]):
                 for i, o in zip(torch.flatten(bias), torch.flatten(out_slice[c])):
                     adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
