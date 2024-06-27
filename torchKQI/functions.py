@@ -219,6 +219,10 @@ class ReluBackward0(OnetoOneMapping):
     pass
 
 
+class PowBackward0(OnetoOneMapping):
+    pass
+
+
 class TwotoOneMapping(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=2, args_out=1)
@@ -1070,21 +1074,32 @@ class NativeLayerNormBackward0(FB):
         (input, weight, bias), (out,) = grad_fn(volume_outputs[0]), volume_outputs
         size = grad_fn.__getattribute__('_saved_normalized_shape')
         degree = cls.degree(input, weight, bias, size)
+        index = len(out.shape) - len(size)
         out_slice = out.reshape(-1, *size)
         if input is not None:
-            input_slice = torch.zeros_like(out).reshape(-1, *size)
-            input_slice += np.prod(size) + (out_slice / degree).sum()
-            input = input_slice.reshape_as(out)
+            if index != 0:
+                input_slice = torch.zeros_like(out_slice)
+                for i in range(input_slice.shape[0]):
+                    input_slice[i] += np.prod(size) + (out_slice[i] / degree).sum()
+                input = input_slice.reshape_as(out)
+            else:
+                input = torch.ones_like(out) * (np.prod(size) + (out / degree).sum())
 
         if weight is not None:
             weight = torch.zeros(size)
-            for i in range(out_slice.shape[0]):
-                weight += 1 + out_slice[i] / degree
+            if index != 0:
+                for i in range(out_slice.shape[0]):
+                    weight += 1 + out_slice[i] / degree
+            else:
+                weight += 1 + out / degree
 
         if bias is not None:
             bias = torch.zeros(size)
-            for i in range(out_slice.shape[0]):
-                bias += 1 + out_slice[i] / degree
+            if index != 0:
+                for i in range(out_slice.shape[0]):
+                    bias += 1 + out_slice[i] / degree
+            else:
+                bias += 1 + out / degree
         return (input, weight, bias)
 
     @classmethod
@@ -1094,12 +1109,16 @@ class NativeLayerNormBackward0(FB):
         size = grad_fn.__getattribute__('_saved_normalized_shape')
         degree = cls.degree(input, weight, bias, size)
         kqi_out = torch.zeros_like(out)
+        index = len(out.shape) - len(size)
         if input is not None:
-            input_slice, out_slice = input.reshape(-1, *size), out.reshape(-1, *size)
-            kqi_slice = torch.zeros_like(kqi_out).reshape(-1, *size)
-            for i in range(input_slice.shape[0]):
-                kqi_slice[i] += FB.temporary_KQI(out_slice[i] / degree, input.detach()[i]).sum()
-            kqi_out += kqi_slice.reshape_as(kqi_out)
+            if index != 0:
+                input_slice, out_slice = input.reshape(-1, *size), out.reshape(-1, *size)
+                kqi_slice = torch.zeros_like(kqi_out).reshape(-1, *size)
+                for i in range(input_slice.shape[0]):
+                    kqi_slice[i] += FB.temporary_KQI(out_slice[i] / degree, input.detach()[i]).sum()
+                kqi_out += kqi_slice.reshape_as(out)
+            else:
+                kqi_out += FB.temporary_KQI(out / degree, input.detach()).sum()
 
         if weight is not None:
             kqi_out += FB.temporary_KQI(out / degree, weight.detach().expand_as(out))
@@ -1115,20 +1134,33 @@ class NativeLayerNormBackward0(FB):
         (input, weight, bias), (out,) = inputs, outputs
         adj = defaultdict(list)
         size = grad_fn.__getattribute__('_saved_normalized_shape')
+        index = len(out.shape) - len(size)
         out_slice = out.reshape(-1, *size)
         if input is not None:
-            input_slice = input.reshape(-1, *size)
-            for c in range(out_slice.shape[0]):
-                for i, o in itertools.product(torch.flatten(input_slice[c]), torch.flatten(out_slice[c])):
-                    adj[int(o)].append(int(i))
+            if index != 0:
+                input_slice = input.reshape(-1, *size)
+                for c in range(out_slice.shape[0]):
+                    for i, o in itertools.product(torch.flatten(input_slice[c]), torch.flatten(out_slice[c])):
+                        adj[int(o)].append(int(i))
+            else:
+                for i, o in itertools.product(torch.flatten(input), torch.flatten(out)):
+                        adj[int(o)].append(int(i))
         if weight is not None:
-            for c in range(out_slice.shape[0]):
-                for i, o in zip(torch.flatten(weight), torch.flatten(out_slice[c])):
-                    adj[int(o)].append(int(i))
+            if index != 0:
+                for c in range(out_slice.shape[0]):
+                    for i, o in zip(torch.flatten(weight), torch.flatten(out_slice[c])):
+                        adj[int(o)].append(int(i))
+            else:
+                for i, o in zip(torch.flatten(weight), torch.flatten(out)):
+                        adj[int(o)].append(int(i))
         if bias is not None:
-            for c in range(out_slice.shape[0]):
-                for i, o in zip(torch.flatten(bias), torch.flatten(out_slice[c])):
-                    adj[int(o)].append(int(i))
+            if index != 0:
+                for c in range(out_slice.shape[0]):
+                    for i, o in zip(torch.flatten(bias), torch.flatten(out_slice[c])):
+                        adj[int(o)].append(int(i))
+            else:
+                for i, o in zip(torch.flatten(bias), torch.flatten(out)):
+                        adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
     @classmethod
@@ -1142,6 +1174,86 @@ class NativeLayerNormBackward0(FB):
             degree += 1
         return degree
 
+
+class NativeGroupNormBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=3, args_out=3)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight, bias), (out,) = grad_fn(*volume_outputs), volume_outputs
+        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group'), 
+        stride = int(channel / group)
+        saved_input = grad_fn.__getattribute__('_saved_input')
+        num = np.prod(saved_input.shape[-3:]) / group
+        degree = cls.degree(input, weight, bias, num)
+        if input is not None:
+            for i in range(0, channel, stride):
+                input[:, i:i + stride, :, :] += num + (out[:, i:i + stride, :, :] / degree).sum()
+        if weight is not None:
+            for i in range(group):
+                weight[:, i, :, :] = num + (out[:, i * stride:i * stride + stride, :, :] / degree).sum()
+        if bias is not None:
+            for i in range(group):
+                weight[:, i, :, :] = num + (out[:, i * stride:i * stride + stride, :, :] / degree).sum()
+        return tuple(input, weight, bias)
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=3, args_out=3)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight, bias), (out,) = volume_inputs, volume_outputs
+        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group'), 
+        stride = int(channel / group)
+        saved_input = grad_fn.__getattribute__('_saved_input')
+        num = np.prod(saved_input.shape[-3:]) / group
+        degree = cls.degree(input, weight, bias, num)
+        kqi_input, kqi_weight, kqi_bias = input, weight, bias
+        if input is not None:
+            kqi_input = torch.zeros_like(input)
+            for i in range(0, channel, stride):
+                kqi_input[:, i:i + stride, :, :] += FB.temporary_KQI(out[:, i:i + stride, :, :] / degree, input[:, i:i + stride, :, :]).sum()
+        if weight is not None:
+            kqi_weight = torch.zeros_like(weight)
+            for i in range(group):
+                kqi_weight[:, i, :, :] = num + FB.temporary_KQI(out[:, i * stride:i * stride + stride, :, :] / degree, weight[:, i, :, :].expand_as(out)[:, i * stride:i * stride + stride, :, :]).sum()
+        if bias is not None:
+            kqi_bias = torch.zeros_like(bias)
+            for i in range(group):
+                kqi_bias[:, i, :, :] = num + FB.temporary_KQI(out[:, i * stride:i * stride + stride, :, :] / degree, bias[:, i, :, :].expand_as(out)[:, i * stride:i * stride + stride, :, :]).sum()
+        return kqi_input, kqi_weight, kqi_bias
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=3, args_out=3)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, weight, bias), (out,) = inputs, outputs
+        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group'), 
+        stride = int(channel / group)
+        saved_input = grad_fn.__getattribute__('_saved_input')
+        adj = defaultdict(list)
+        if input is not None:
+            for c in range(0, channel, stride):
+                for i, o in itertools.product(torch.flatten(input[:, c:c + stride, :, :]), torch.flatten(out[:, c:c + stride, :, :])):
+                        adj[int(o)].append(int(i))
+        if weight is not None:
+            for c in range(group):
+                for i, o in itertools.product(torch.flatten(weight[:, c, :, :]), torch.flatten(out[:, c * stride:c * stride + stride, :, :])):
+                        adj[int(o)].append(int(i))
+        if bias is not None:
+            for c in range(group):
+                for i, o in itertools.product(torch.flatten(bias[:, c, :, :]), torch.flatten(out[:, c * stride:c * stride + stride, :, :])):
+                        adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+    @classmethod
+    def degree(cls, input, weight, bias, num):
+        degree = 0
+        if input is not None:
+            degree += num
+        if weight is not None:
+            degree += 1
+        if bias is not None:
+            degree += 1
+        return degree
+        
+        
 
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -1189,7 +1301,9 @@ __functions_mapping = {
     'BmmBackward0': BmmBackward0,
     'SplitBackward0': SplitBackward0,
     'NativeLayerNormBackward0': NativeLayerNormBackward0,
+    'NativeGroupNormBackward0': NativeGroupNormBackward0,
     'ReluBackward0': ReluBackward0,
+    'PowBackward0': PowBackward0,
 }
 
 
