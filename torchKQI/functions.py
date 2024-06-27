@@ -1144,7 +1144,7 @@ class NativeLayerNormBackward0(FB):
                         adj[int(o)].append(int(i))
             else:
                 for i, o in itertools.product(torch.flatten(input), torch.flatten(out)):
-                        adj[int(o)].append(int(i))
+                    adj[int(o)].append(int(i))
         if weight is not None:
             if index != 0:
                 for c in range(out_slice.shape[0]):
@@ -1152,7 +1152,7 @@ class NativeLayerNormBackward0(FB):
                         adj[int(o)].append(int(i))
             else:
                 for i, o in zip(torch.flatten(weight), torch.flatten(out)):
-                        adj[int(o)].append(int(i))
+                    adj[int(o)].append(int(i))
         if bias is not None:
             if index != 0:
                 for c in range(out_slice.shape[0]):
@@ -1160,7 +1160,7 @@ class NativeLayerNormBackward0(FB):
                         adj[int(o)].append(int(i))
             else:
                 for i, o in zip(torch.flatten(bias), torch.flatten(out)):
-                        adj[int(o)].append(int(i))
+                    adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
     @classmethod
@@ -1180,7 +1180,7 @@ class NativeGroupNormBackward0(FB):
     @FB.cell_Volume_Checking(args_in=3, args_out=3)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight, bias), (out,) = grad_fn(*volume_outputs), volume_outputs
-        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group'), 
+        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group')
         stride = int(channel / group)
         saved_input = grad_fn.__getattribute__('_saved_input')
         num = np.prod(saved_input.shape[-3:]) / group
@@ -1200,7 +1200,7 @@ class NativeGroupNormBackward0(FB):
     @FB.cell_KQI_Checking(args_in=3, args_out=3)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight, bias), (out,) = volume_inputs, volume_outputs
-        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group'), 
+        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group')
         stride = int(channel / group)
         saved_input = grad_fn.__getattribute__('_saved_input')
         num = np.prod(saved_input.shape[-3:]) / group
@@ -1224,22 +1224,21 @@ class NativeGroupNormBackward0(FB):
     @FB.cell_Graph_Checking(args_in=3, args_out=3)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, weight, bias), (out,) = inputs, outputs
-        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group'), 
+        channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group')
         stride = int(channel / group)
-        saved_input = grad_fn.__getattribute__('_saved_input')
         adj = defaultdict(list)
         if input is not None:
             for c in range(0, channel, stride):
                 for i, o in itertools.product(torch.flatten(input[:, c:c + stride, :, :]), torch.flatten(out[:, c:c + stride, :, :])):
-                        adj[int(o)].append(int(i))
+                    adj[int(o)].append(int(i))
         if weight is not None:
             for c in range(group):
                 for i, o in itertools.product(torch.flatten(weight[:, c, :, :]), torch.flatten(out[:, c * stride:c * stride + stride, :, :])):
-                        adj[int(o)].append(int(i))
+                    adj[int(o)].append(int(i))
         if bias is not None:
             for c in range(group):
                 for i, o in itertools.product(torch.flatten(bias[:, c, :, :]), torch.flatten(out[:, c * stride:c * stride + stride, :, :])):
-                        adj[int(o)].append(int(i))
+                    adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
     @classmethod
@@ -1252,8 +1251,7 @@ class NativeGroupNormBackward0(FB):
         if bias is not None:
             degree += 1
         return degree
-        
-        
+
 
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,

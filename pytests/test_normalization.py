@@ -31,9 +31,8 @@ def test_LayerNorm():
             x = self.layer4(x.flatten())
             x = self.layer5(x.reshape(dim_1, dim_2, dim_3))
             return x
-        
-    testtool.testKQI(TestLayerNorm(), torch.randn(dim_1, dim_2, dim_3))
 
+    testtool.testKQI(TestLayerNorm(), torch.randn(dim_1, dim_2, dim_3))
 
 
 def test_GroupNorm():
@@ -43,10 +42,10 @@ def test_GroupNorm():
 
             self.layer1 = torch.nn.GroupNorm(num_groups=3, num_channels=6, affine=False)
             self.layer2 = torch.nn.Linear(in_features=1 * 6 * 5 * 5, out_features=1 * 6 * 5 * 5,
-                                       bias=False)
+                                          bias=False)
             self.layer3 = torch.nn.GroupNorm(num_groups=2, num_channels=6, affine=False)
             self.layer4 = torch.nn.Linear(in_features=1 * 6 * 5 * 5, out_features=1 * 6 * 5 * 5,
-                                       bias=False)
+                                          bias=False)
 
         def forward(self, x):
             x = self.layer1(x)
@@ -132,7 +131,6 @@ def test_LocalResponseNorm():
     true = TestLocalResponseNorm().true_kqi()
     logging.debug(f'KQI = {kqi} (True KQI = {true})')
     assert abs(kqi - true) / true < 0.0001
-        
 
 
 if __name__ == '__main__':
