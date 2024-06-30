@@ -337,7 +337,7 @@ class SqueezeBackward1(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim = grad_fn.__getattribute__('_saved_dim')
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
         input = torch.zeros_like(input)
         input = 1 + torch.unsqueeze(out, dim)
         return (input,)
@@ -346,7 +346,7 @@ class SqueezeBackward1(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim = grad_fn.__getattribute__('_saved_dim')
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
         kqi_out = FB.temporary_KQI(out, torch.squeeze(input, dim))
         return (kqi_out, )
 
@@ -354,7 +354,7 @@ class SqueezeBackward1(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim = grad_fn.__getattribute__('_saved_dim')
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(torch.squeeze(input, dim)), torch.flatten(out))}
         return adj
 
@@ -364,7 +364,7 @@ class UnsqueezeBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim = grad_fn.__getattribute__('_saved_dim')
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
         input = torch.zeros_like(input)
         input = 1 + torch.squeeze(out, dim)
         return (input,)
@@ -373,7 +373,7 @@ class UnsqueezeBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim = grad_fn.__getattribute__('_saved_dim')
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
         kqi_out = FB.temporary_KQI(out, torch.unsqueeze(input, dim))
         return (kqi_out, )
 
@@ -381,7 +381,7 @@ class UnsqueezeBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim = grad_fn.__getattribute__('_saved_dim')
+        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(torch.unsqueeze(input, dim)), torch.flatten(out))}
         return adj
 
@@ -665,7 +665,7 @@ class ConvolutionBackward0(FB):
         ndim = output.dim() - 2
         channel_input_slice = [slice(n_input * i, n_input * i + n_input) for i in range(groups)]
         channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]
-        indexing = lambda *args: [slice(max(0, i - pad), H * s + i - pad, s) for i, pad, H, s in zip(args, padding, output.shape[2:], stride)]
+        indexing = lambda *args: [slice(next(k - padding[j] for k in range(i, saved_input.shape[j + 2] + 2 * padding[j], stride[j]) if k >= padding[j]), output.shape[j + 2] * stride[j] + i - padding[j], stride[j]) for i, j in zip(args, range(ndim))]
 
         adj = defaultdict(list)
         if transposed:
@@ -1253,6 +1253,170 @@ class NativeGroupNormBackward0(FB):
         return degree
 
 
+class NativeBatchNormBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=3, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight, bias), (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        num = np.prod(out.shape) / out.shape[1]
+        degree = cls.degree(input, weight, bias, num)
+        if input is not None:
+            input = torch.zeros_like(input)
+            for i in range(input.shape[1]):
+                input[:, i, ...] = num + (out[:, i, ...] / degree).sum()
+        if weight is not None:
+            weight = torch.zeros_like(weight)
+            for i in range(out.shape[1]):
+                weight[i] = num + (out[:, i, ...] / degree).sum()
+        if bias is not None:
+            bias = torch.zeros_like(bias)
+            for i in range(out.shape[1]):
+                bias[i] = num + (out[:, i, ...] / degree).sum()
+        return (input, weight, bias)
+    
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=3, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, weight, bias), (out,) = volume_inputs, volume_outputs
+        num = np.prod(out.shape) / out.shape[1]
+        degree = cls.degree(input, weight, bias, num)
+        kqi_out = torch.zeros_like(out)
+        if input is not None:
+            for i in range(input.shape[1]):
+                kqi_out[:, i, ...] += FB.temporary_KQI(out[:, i, ...] / degree, input.detach()[:, i, ...]).sum()
+        if weight is not None:
+            for i in range(out.shape[1]):
+                kqi_out[:, i, ...] += FB.temporary_KQI(out[:, i, ...] / degree, weight.detach()[i].expand_as(out[:, i, ...]))
+        if bias is not None:
+            for i in range(out.shape[1]):
+                kqi_out[:, i, ...] += FB.temporary_KQI(out[:, i, ...] / degree, bias.detach()[i].expand_as(out[:, i, ...]))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=3, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, weight, bias), (out,) = inputs, outputs
+        adj = defaultdict(list)
+        if input is not None:
+            for c in range(out.shape[1]):
+                for i, o in itertools.product(torch.flatten(input[:, c, ...]), torch.flatten(out[:, c, ...])):
+                    adj[int(o)].append(int(i))
+        if weight is not None:
+            for c in range(out.shape[1]):
+                for i, o in itertools.product(torch.flatten(weight[c]), torch.flatten(out[:, c, ...])):
+                    adj[int(o)].append(int(i))
+        if bias is not None:
+            for c in range(out.shape[1]):
+                for i, o in itertools.product(torch.flatten(bias[c]), torch.flatten(out[:, c, ...])):
+                    adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+    @classmethod
+    def degree(cls, input, weight, bias, num):
+        degree = 0
+        if input is not None:
+            degree += num
+        if weight is not None:
+            degree += 1
+        if bias is not None:
+            degree += 1
+        return degree
+
+
+class AvgPoolBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        kernel_size = grad_fn.__getattribute__('_saved_kernel_size')
+        padding = grad_fn.__getattribute__('_saved_padding')
+        stride = grad_fn.__getattribute__('_saved_stride')
+        degree = cls.degree(input, out, kernel_size, stride, padding)
+        ndim = input.dim() - 1
+
+        indexing = lambda *args: [slice(None)] + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
+
+        add = [max(0, (s - 1) * stride[k] + kernel_size[k] - input.shape[k + 1] - 2 * padding[k]) for s, k in zip(out.shape[1:], range(ndim))]
+
+        end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
+
+        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+
+        for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
+            input_padding[indexing(*offset)] += 1 + out / degree
+        input = input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
+        return (input, )
+    
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        kernel_size = grad_fn.__getattribute__('_saved_kernel_size')
+        padding = grad_fn.__getattribute__('_saved_padding')
+        stride = grad_fn.__getattribute__('_saved_stride')
+        degree = cls.degree(input, out, kernel_size, stride, padding)
+        ndim = input.dim() - 1
+
+        indexing = lambda *args: [slice(None)] + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
+        add = [max(0, (s - 1) * stride[k] + kernel_size[k] - input.shape[k + 1] - 2 * padding[k]) for s, k in zip(out.shape[1:], range(ndim))]
+
+        end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
+
+        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+        input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]] = input
+        kqi_out = torch.zeros_like(out)
+        for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
+            tmp = input_padding.clone()
+            args = [next(m for m in range(j, input_padding.shape[k + 1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
+            tmp[indexing(*offset)] = out / degree
+            tmp[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))] = input_padding[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))]
+            kqi_out += FB.temporary_KQI(out / degree, tmp[indexing(*offset)])
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        kernel_size = grad_fn.__getattribute__('_saved_kernel_size')
+        padding = grad_fn.__getattribute__('_saved_padding')
+        stride = grad_fn.__getattribute__('_saved_stride')
+        ndim = input.dim() - 1
+        indexing = lambda *args: [slice(next(k - padding[j] for k in range(i, input.shape[j + 1] + 2 * padding[j], stride[j]) if k >= padding[j]), out.shape[j + 1] * stride[j] + i - padding[j], stride[j]) for i, j in zip(args, range(ndim))]
+        adj = defaultdict(list)
+        for offset in itertools.product(*[range(0, kernel_size[d]) for d in range(ndim)]):
+            left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
+            right = [min(out.shape[d + 1], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+            for i, o in zip(torch.flatten(input[(slice(None),) + tuple(indexing(*offset))]), torch.flatten(out[(slice(None),) + tuple(slice(left[d], right[d]) for d in range(ndim))])):
+                adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+    @classmethod
+    def degree(cls, input, out, kernel_size, stride, padding):
+        degree = torch.zeros_like(out)
+        ndim = input.dim() - 1
+        for offset in itertools.product(*[range(0, kernel_size[d]) for d in range(ndim)]):
+            left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
+            right = [min(out.shape[d + 1], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+            degree[(slice(None), ) + tuple(slice(left[d], right[d]) for d in range(ndim))] += 1
+        return degree
+
+
+class AvgPool2DBackward0(AvgPoolBackward0):
+    pass
+
+
+class AvgPool3DBackward0(AvgPoolBackward0):
+    pass
+
+
+class AdaptiveAvgPool2DBackward0(AvgPoolBackward0):
+    pass
+
+
+class AdaptiveAvgPool3DBackward0(AvgPoolBackward0):
+    pass
+
+
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -1302,6 +1466,11 @@ __functions_mapping = {
     'NativeGroupNormBackward0': NativeGroupNormBackward0,
     'ReluBackward0': ReluBackward0,
     'PowBackward0': PowBackward0,
+    'NativeBatchNormBackward0': NativeBatchNormBackward0,
+    'AvgPool2DBackward0': AvgPool2DBackward0,
+    'AvgPool3DBackward0': AvgPool3DBackward0,
+    'AdaptiveAvgPool2DBackward0': AdaptiveAvgPool2DBackward0,
+    'AdaptiveAvgPool3DBackward0': AdaptiveAvgPool3DBackward0,
 }
 
 
