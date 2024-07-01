@@ -1277,7 +1277,7 @@ class NativeBatchNormBackward0(FB):
             for i in range(out.shape[1]):
                 bias[i] = num + (out[:, i, ...] / degree).sum()
         return (input, weight, bias)
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=3, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -1350,7 +1350,7 @@ class AvgPoolBackward0(FB):
             input_padding[indexing(*offset)] += 1 + out / degree
         input = input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
         return (input, )
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -1439,7 +1439,7 @@ class AdaptivePoolBackward0(FB):
             input_padding[indexing(*offset)] += 1 + out / degree
         input = input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
         return (input, )
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -1532,7 +1532,7 @@ class MaxPoolBackward0(FB):
             input_padding[indexing(*offset)] += 1 + out / degree
         input = input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
         return (input, )
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -1559,7 +1559,7 @@ class MaxPoolBackward0(FB):
             tmp[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))] = input_padding[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))]
             kqi_out += FB.temporary_KQI(out / degree, tmp[indexing(*offset)])
         return (kqi_out, )
-    
+
     @classmethod
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
@@ -1587,6 +1587,7 @@ class MaxPoolBackward0(FB):
             right = [min(out.shape[d + 1], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
             degree[(slice(None), ) + tuple(slice(left[d], right[d]) for d in range(ndim))] += 1
         return degree
+
 
 class MaxPool2DWithIndicesBackward0(MaxPoolBackward0):
     pass

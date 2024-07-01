@@ -250,7 +250,6 @@ def test_AdaptiveMaxPool1d():
             return x
 
     testtool.testKQI(TestAdaptiveMaxPool1d(), torch.randn(1, 28))
-        
 
 
 def test_AdaptiveMaxPool2d():

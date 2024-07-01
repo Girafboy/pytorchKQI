@@ -1,6 +1,4 @@
 import torch
-import logging
-import itertools
 import testtool
 
 
@@ -11,10 +9,10 @@ def test_BatchNorm1d():
 
             self.layer1 = torch.nn.BatchNorm1d(6)
             self.layer2 = torch.nn.Linear(in_features=1 * 6 * 10, out_features=1 * 6 * 10,
-                                       bias=False)
+                                          bias=False)
             self.layer3 = torch.nn.BatchNorm1d(6)
             self.layer4 = torch.nn.Linear(in_features=1 * 6 * 10, out_features=1 * 6 * 10,
-                                       bias=False)
+                                          bias=False)
             self.layer5 = torch.nn.BatchNorm1d(6)
 
         def forward(self, x):
@@ -35,10 +33,10 @@ def test_BatchNorm2d():
 
             self.layer1 = torch.nn.BatchNorm2d(6)
             self.layer2 = torch.nn.Linear(in_features=1 * 6 * 5 * 5, out_features=1 * 6 * 5 * 5,
-                                       bias=False)
+                                          bias=False)
             self.layer3 = torch.nn.BatchNorm2d(6)
             self.layer4 = torch.nn.Linear(in_features=1 * 6 * 5 * 5, out_features=1 * 6 * 5 * 5,
-                                       bias=False)
+                                          bias=False)
             self.layer5 = torch.nn.BatchNorm2d(6)
 
         def forward(self, x):
