@@ -1631,6 +1631,7 @@ __functions_mapping = {
     'AsStridedBackward0': AsStridedBackward0,
     'ConvolutionBackward0': ConvolutionBackward0,
     'SqueezeBackward4': SqueezeBackward1,
+    'SqueezeBackward3': SqueezeBackward1,
     'SoftmaxBackward0': SoftmaxBackward0,
     'LogSoftmaxBackward0': LogSoftmaxBackward0,
     'GeluBackward0': GeluBackward0,
