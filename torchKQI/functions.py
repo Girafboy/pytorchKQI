@@ -1605,6 +1605,34 @@ class AdaptiveMaxPool3DBackward0(AdaptivePoolBackward0):
     pass
 
 
+class EmbeddingBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        saved_input = grad_fn.__getattribute__('_saved_indices')
+        dim = out.shape[2]
+        C, H = saved_input.shape[:2]
+        input = torch.zeros(saved_input.shape)
+        for i, j in itertools.product(range(C), range(H)):
+            input[i, j] += dim + out[i, j, :].sum()
+        return (input, )
+    
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        kqi_out = FB.temporary_KQI(out, input.unsqueeze(-1).expand_as(out))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.unsqueeze(-1).expand_as(out)), torch.flatten(out))}
+        return adj
+
+
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -1665,6 +1693,7 @@ __functions_mapping = {
     'MaxPool3DWithIndicesBackward0': MaxPool3DWithIndicesBackward0,
     'AdaptiveMaxPool2DBackward0': AdaptiveMaxPool2DBackward0,
     'AdaptiveMaxPool3DBackward0': AdaptiveMaxPool3DBackward0,
+    'EmbeddingBackward0': EmbeddingBackward0
 }
 
 

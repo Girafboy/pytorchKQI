@@ -15,6 +15,7 @@ def test_Embedding():
             x = self.layers1(x)
             x = self.layers2(x.flatten())
             x = x.reshape(2, 4, 3)
+            return x
 
     testtool.testKQI(TestEmbedding(), torch.LongTensor([[1, 2, 4, 5], [4, 3, 2, 9]]))
 
