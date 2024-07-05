@@ -1336,19 +1336,20 @@ class AvgPoolBackward0(FB):
         padding = grad_fn.__getattribute__('_saved_padding')
         stride = grad_fn.__getattribute__('_saved_stride')
         degree = cls.degree(input, out, kernel_size, stride, padding)
-        ndim = input.dim() - 1
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
 
-        indexing = lambda *args: [slice(None)] + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
+        indexing = lambda *args: [slice(None)] * index + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[index:], stride)]
 
-        add = [max(0, (s - 1) * stride[k] + kernel_size[k] - input.shape[k + 1] - 2 * padding[k]) for s, k in zip(out.shape[1:], range(ndim))]
+        add = [max(0, (s - 1) * stride[k] + kernel_size[k] - input.shape[k + index] - 2 * padding[k]) for s, k in zip(out.shape[index:], range(ndim))]
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
 
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
-        input = input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
+        input = input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
         return (input, )
 
     @classmethod
@@ -1359,21 +1360,22 @@ class AvgPoolBackward0(FB):
         padding = grad_fn.__getattribute__('_saved_padding')
         stride = grad_fn.__getattribute__('_saved_stride')
         degree = cls.degree(input, out, kernel_size, stride, padding)
-        ndim = input.dim() - 1
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
 
-        indexing = lambda *args: [slice(None)] + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
-        add = [max(0, (s - 1) * stride[k] + kernel_size[k] - input.shape[k + 1] - 2 * padding[k]) for s, k in zip(out.shape[1:], range(ndim))]
+        indexing = lambda *args: [slice(None)] * index + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
+        add = [max(0, (s - 1) * stride[k] + kernel_size[k] - input.shape[k + index] - 2 * padding[k]) for s, k in zip(out.shape[index:], range(ndim))]
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
-        input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]] = input
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
+        input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]] = input
         kqi_out = torch.zeros_like(out)
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             tmp = input_padding.clone()
-            args = [next(m for m in range(j, input_padding.shape[k + 1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
+            args = [next(m for m in range(j, input_padding.shape[k + index], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
             tmp[indexing(*offset)] = out / degree
-            tmp[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))] = input_padding[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))]
+            tmp[(slice(None),) * index + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))] = input_padding[(slice(None),) * index + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))]
             kqi_out += FB.temporary_KQI(out / degree, tmp[indexing(*offset)])
         return (kqi_out, )
 
@@ -1384,24 +1386,27 @@ class AvgPoolBackward0(FB):
         kernel_size = grad_fn.__getattribute__('_saved_kernel_size')
         padding = grad_fn.__getattribute__('_saved_padding')
         stride = grad_fn.__getattribute__('_saved_stride')
-        ndim = input.dim() - 1
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
+
         indexing = lambda *args: [slice(next(k - padding[j] for k in range(i, input.shape[j + 1] + 2 * padding[j], stride[j]) if k >= padding[j]), out.shape[j + 1] * stride[j] + i - padding[j], stride[j]) for i, j in zip(args, range(ndim))]
         adj = defaultdict(list)
         for offset in itertools.product(*[range(0, kernel_size[d]) for d in range(ndim)]):
             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-            right = [min(out.shape[d + 1], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-            for i, o in zip(torch.flatten(input[(slice(None),) + tuple(indexing(*offset))]), torch.flatten(out[(slice(None),) + tuple(slice(left[d], right[d]) for d in range(ndim))])):
+            right = [min(out.shape[d + index], math.ceil((input.shape[d + index] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+            for i, o in zip(torch.flatten(input[(slice(None),) * index + tuple(indexing(*offset))]), torch.flatten(out[(slice(None),) * index + tuple(slice(left[d], right[d]) for d in range(ndim))])):
                 adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
     @classmethod
     def degree(cls, input, out, kernel_size, stride, padding):
         degree = torch.zeros_like(out)
-        ndim = input.dim() - 1
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
         for offset in itertools.product(*[range(0, kernel_size[d]) for d in range(ndim)]):
             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-            right = [min(out.shape[d + 1], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-            degree[(slice(None), ) + tuple(slice(left[d], right[d]) for d in range(ndim))] += 1
+            right = [min(out.shape[d + index], math.ceil((input.shape[d + index] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+            degree[(slice(None), ) * index + tuple(slice(left[d], right[d]) for d in range(ndim))] += 1
         return degree
 
 
@@ -1518,19 +1523,20 @@ class MaxPoolBackward0(FB):
         stride = grad_fn.__getattribute__('_saved_stride')
         dilation = grad_fn.__getattribute__('_saved_dilation')
         degree = cls.degree(input, out, kernel_size, stride, padding, dilation)
-        ndim = input.dim() - 1
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
 
-        indexing = lambda *args: [slice(None)] + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
+        indexing = lambda *args: [slice(None)] * index + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[index:], stride)]
 
-        add = [max(0, (s - 1) * stride[k] + kernel_size[k] * dilation[k] - input.shape[k + 1] - 2 * padding[k]) for s, k in zip(out.shape[1:], range(ndim))]
+        add = [max(0, (s - 1) * stride[k] + kernel_size[k] * dilation[k] - input.shape[k + index] - 2 * padding[k]) for s, k in zip(out.shape[index:], range(ndim))]
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
 
         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
-        input = input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
+        input = input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]].clone()
         return (input, )
 
     @classmethod
@@ -1542,21 +1548,22 @@ class MaxPoolBackward0(FB):
         stride = grad_fn.__getattribute__('_saved_stride')
         dilation = grad_fn.__getattribute__('_saved_dilation')
         degree = cls.degree(input, out, kernel_size, stride, padding, dilation)
-        ndim = input.dim() - 1
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
 
-        indexing = lambda *args: [slice(None)] + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
-        add = [max(0, (s - 1) * stride[k] + kernel_size[k] * dilation[k] - input.shape[k + 1] - 2 * padding[k]) for s, k in zip(out.shape[1:], range(ndim))]
+        indexing = lambda *args: [slice(None)] * index + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[index:], stride)]
+        add = [max(0, (s - 1) * stride[k] + kernel_size[k] * dilation[k] - input.shape[k + index] - 2 * padding[k]) for s, k in zip(out.shape[index:], range(ndim))]
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
-        input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]] = input
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
+        input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]] = input
         kqi_out = torch.zeros_like(out)
         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
             tmp = input_padding.clone()
-            args = [next(m for m in range(j, input_padding.shape[k + 1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
+            args = [next(m for m in range(j, input_padding.shape[k + index], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
             tmp[indexing(*offset)] = out / degree
-            tmp[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))] = input_padding[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))]
+            tmp[(slice(None),) * index + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))] = input_padding[(slice(None),) + tuple(slice(arg, e, s) for arg, e, s in zip(args, end, stride))]
             kqi_out += FB.temporary_KQI(out / degree, tmp[indexing(*offset)])
         return (kqi_out, )
 
@@ -1568,24 +1575,26 @@ class MaxPoolBackward0(FB):
         padding = grad_fn.__getattribute__('_saved_padding')
         stride = grad_fn.__getattribute__('_saved_stride')
         dilation = grad_fn.__getattribute__('_saved_dilation')
-        ndim = input.dim() - 1
-        indexing = lambda *args: [slice(next(k - padding[j] for k in range(i, input.shape[j + 1] + 2 * padding[j], stride[j]) if k >= padding[j]), out.shape[j + 1] * stride[j] + i - padding[j], stride[j]) for i, j in zip(args, range(ndim))]
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
+        indexing = lambda *args: [slice(next(k - padding[j] for k in range(i, input.shape[j + index] + 2 * padding[j], stride[j]) if k >= padding[j]), out.shape[j + index] * stride[j] + i - padding[j], stride[j]) for i, j in zip(args, range(ndim))]
         adj = defaultdict(list)
         for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-            right = [min(out.shape[d + 1], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-            for i, o in zip(torch.flatten(input[(slice(None),) + tuple(indexing(*offset))]), torch.flatten(out[(slice(None),) + tuple(slice(left[d], right[d]) for d in range(ndim))])):
+            right = [min(out.shape[d + index], math.ceil((input.shape[d + index] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+            for i, o in zip(torch.flatten(input[(slice(None),) * index + tuple(indexing(*offset))]), torch.flatten(out[(slice(None),) * index + tuple(slice(left[d], right[d]) for d in range(ndim))])):
                 adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
     @classmethod
     def degree(cls, input, out, kernel_size, stride, padding, dilation):
         degree = torch.zeros_like(out)
-        ndim = input.dim() - 1
+        ndim = len(kernel_size)
+        index = input.dim() - ndim
         for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
-            right = [min(out.shape[d + 1], math.ceil((input.shape[d + 1] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
-            degree[(slice(None), ) + tuple(slice(left[d], right[d]) for d in range(ndim))] += 1
+            right = [min(out.shape[d + index], math.ceil((input.shape[d + index] - offset[d] + padding[d]) / stride[d])) for d in range(ndim)]
+            degree[(slice(None), ) * index + tuple(slice(left[d], right[d]) for d in range(ndim))] += 1
         return degree
 
 
