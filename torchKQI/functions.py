@@ -1642,6 +1642,112 @@ class EmbeddingBackward0(FB):
         return adj
 
 
+class PixelShuffleBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        factor = grad_fn.__getattribute__('_saved_upscale_factor')
+        input = 1 + cls.pixel_shuffle_inv(out, factor)
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        factor = grad_fn.__getattribute__('_saved_upscale_factor')
+        kqi_out = FB.temporary_KQI(out, cls.pixel_shuffle(input, factor))
+        return (kqi_out, )
+    
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        factor = grad_fn.__getattribute__('_saved_upscale_factor')
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input), torch.flatten(cls.pixel_shuffle_inv(out, factor)))}
+        return adj
+
+    @classmethod
+    def pixel_shuffle(cls, tensor, scale_factor):
+        num, ch, height, width = tensor.shape
+
+        new_ch = ch // (scale_factor * scale_factor)
+        new_height = height * scale_factor
+        new_width = width * scale_factor
+
+        tensor = tensor.view(num, new_ch, scale_factor, scale_factor, height, width)
+        tensor = tensor.permute(0, 1, 4, 2, 5, 3).contiguous()
+        tensor = tensor.view(num, new_ch, new_height, new_width)
+        return tensor
+    
+    @classmethod
+    def pixel_shuffle_inv(cls, tensor, scale_factor):
+
+        num, ch, height, width = tensor.shape
+        new_ch = ch * (scale_factor * scale_factor)
+        new_height = height // scale_factor
+        new_width = width // scale_factor
+
+        tensor = tensor.view(num, ch, new_height, scale_factor, new_width, scale_factor)
+        tensor = tensor.permute(0, 1, 3, 5, 2, 4).contiguous()
+        tensor = tensor.view(num, new_ch, new_height, new_width)
+        
+        return tensor
+
+
+class PixelUnshuffleBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        factor = grad_fn.__getattribute__('_saved_downscale_factor')
+        input = 1 + cls.pixel_shuffle(out, factor)
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        factor = grad_fn.__getattribute__('_saved_downscale_factor')
+        kqi_out = FB.temporary_KQI(out, cls.pixel_shuffle_inv(input, factor))
+        return (kqi_out, )
+    
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        factor = grad_fn.__getattribute__('_saved_downscale_factor')
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input), torch.flatten(cls.pixel_shuffle(out, factor)))}
+        return adj
+
+    @classmethod
+    def pixel_shuffle(cls, tensor, scale_factor):
+        num, ch, height, width = tensor.shape
+
+        new_ch = ch // (scale_factor * scale_factor)
+        new_height = height * scale_factor
+        new_width = width * scale_factor
+
+        tensor = tensor.view(num, new_ch, scale_factor, scale_factor, height, width)
+        tensor = tensor.permute(0, 1, 4, 2, 5, 3).contiguous()
+        tensor = tensor.view(num, new_ch, new_height, new_width)
+        return tensor
+    
+    @classmethod
+    def pixel_shuffle_inv(cls, tensor, scale_factor):
+
+        num, ch, height, width = tensor.shape
+        new_ch = ch * (scale_factor * scale_factor)
+        new_height = height // scale_factor
+        new_width = width // scale_factor
+
+        tensor = tensor.view(num, ch, new_height, scale_factor, new_width, scale_factor)
+        tensor = tensor.permute(0, 1, 3, 5, 2, 4).contiguous()
+        tensor = tensor.view(num, new_ch, new_height, new_width)
+        
+        return tensor
+
+
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -1703,6 +1809,8 @@ __functions_mapping = {
     'AdaptiveMaxPool2DBackward0': AdaptiveMaxPool2DBackward0,
     'AdaptiveMaxPool3DBackward0': AdaptiveMaxPool3DBackward0,
     'EmbeddingBackward0': EmbeddingBackward0,
+    'PixelShuffleBackward0': PixelShuffleBackward0,
+    'PixelUnshuffleBackward0': PixelUnshuffleBackward0,
 }
 
 
