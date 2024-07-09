@@ -22,11 +22,10 @@ class AccumulateGrad(FB):
         return tuple()
 
     @classmethod
-    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    @FB.cell_KQI_Checking(args_in=0, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
-        (W, ), (vO, ) = volume_inputs, volume_outputs
-        kqi_vO = FB.temporary_KQI(vO, W)
-        return (kqi_vO, )
+        (vO, ) = volume_outputs
+        return (vO * float('nan'), )
 
     @classmethod
     @FB.cell_Graph_Checking(args_in=0, args_out=1)
@@ -1363,7 +1362,7 @@ class AvgPoolBackward0(FB):
         ndim = len(kernel_size)
         index = input.dim() - ndim
 
-        indexing = lambda *args: [slice(None)] * index + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[1:], stride)]
+        indexing = lambda *args: [slice(None)] * index + [slice(i, H * s + i, s) for i, H, s in zip(args, out.shape[index:], stride)]
         add = [max(0, (s - 1) * stride[k] + kernel_size[k] - input.shape[k + index] - 2 * padding[k]) for s, k in zip(out.shape[index:], range(ndim))]
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
@@ -1389,7 +1388,7 @@ class AvgPoolBackward0(FB):
         ndim = len(kernel_size)
         index = input.dim() - ndim
 
-        indexing = lambda *args: [slice(next(k - padding[j] for k in range(i, input.shape[j + 1] + 2 * padding[j], stride[j]) if k >= padding[j]), out.shape[j + 1] * stride[j] + i - padding[j], stride[j]) for i, j in zip(args, range(ndim))]
+        indexing = lambda *args: [slice(next(k - padding[j] for k in range(i, input.shape[j + index] + 2 * padding[j], stride[j]) if k >= padding[j]), out.shape[j + index] * stride[j] + i - padding[j], stride[j]) for i, j in zip(args, range(ndim))]
         adj = defaultdict(list)
         for offset in itertools.product(*[range(0, kernel_size[d]) for d in range(ndim)]):
             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
@@ -1626,7 +1625,7 @@ class EmbeddingBackward0(FB):
         for i, j in itertools.product(range(C), range(H)):
             input[i, j] += dim + out[i, j, :].sum()
         return (input, )
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
@@ -1639,6 +1638,32 @@ class EmbeddingBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.unsqueeze(-1).expand_as(out)), torch.flatten(out))}
+        return adj
+
+
+class ConstantPadNdBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        pad = grad_fn.__getattribute__('_saved_pad')
+        input = torch.masked_select(out, torch.nn.functional.pad(torch.zeros_like(input), pad, value=-1) == 0).reshape_as(input) + 1
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        pad = grad_fn.__getattribute__('_saved_pad')
+        kqi_out = FB.temporary_KQI(out, torch.nn.functional.pad(input, pad, value=float('nan')))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        pad = grad_fn.__getattribute__('_saved_pad')
+        adj = {int(o): (int(i), ) if i == i else tuple() for i, o in zip(torch.flatten(torch.nn.functional.pad(input, pad, value=float('nan'))), torch.flatten(out))}
         return adj
 
 
@@ -1702,7 +1727,8 @@ __functions_mapping = {
     'MaxPool3DWithIndicesBackward0': MaxPool3DWithIndicesBackward0,
     'AdaptiveMaxPool2DBackward0': AdaptiveMaxPool2DBackward0,
     'AdaptiveMaxPool3DBackward0': AdaptiveMaxPool3DBackward0,
-    'EmbeddingBackward0': EmbeddingBackward0
+    'EmbeddingBackward0': EmbeddingBackward0,
+    'ConstantPadNdBackward0': ConstantPadNdBackward0,
 }
 
 

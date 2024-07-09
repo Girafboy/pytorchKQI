@@ -1,10 +1,5 @@
-import itertools
-import logging
-
 import torch
 import testtool
-import kqinn
-import kqitool
 
 
 # def test_LayerNorm():
@@ -63,22 +58,20 @@ def test_LocalResponseNorm():
             super().__init__()
 
             self.layer1 = torch.nn.LocalResponseNorm(3)
-            self.layer2 = torch.nn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
-                                       bias=False)
+            self.layer2 = torch.nn.Linear(in_features=1 * 2 * 3 * 3, out_features=1 * 2 * 3 * 3, bias=False)
             self.layer3 = torch.nn.LocalResponseNorm(2)
-            self.layer4 = torch.nn.Linear(in_features=1 * 6 * 10 * 10, out_features=1 * 6 * 10 * 10,
-                                       bias=False)
+            self.layer4 = torch.nn.Linear(in_features=1 * 2 * 3 * 3, out_features=1 * 2 * 3 * 3, bias=False)
             self.layer5 = torch.nn.LocalResponseNorm(4)
 
         def forward(self, x):
             x = self.layer1(x)
             x = self.layer2(x.flatten())
-            x = self.layer3(x.reshape(1, 6, 10, 10))
+            x = self.layer3(x.reshape(1, 2, 3, 3))
             x = self.layer4(x.flatten())
-            x = self.layer5(x.reshape(1, 6, 10, 10))
+            x = self.layer5(x.reshape(1, 2, 3, 3))
             return x
 
-    testtool.testKQI(TestLocalResponseNorm(), torch.randn(1, 6, 10, 10))
+    testtool.testKQI(TestLocalResponseNorm(), torch.randn(1, 2, 3, 3))
 
 
 if __name__ == '__main__':

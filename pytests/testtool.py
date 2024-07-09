@@ -23,7 +23,7 @@ class DiGraph():
         if self.__pred.__contains__(v):
             raise Exception('Add repeated node!')
 
-        self.__pred[v] = [u for u in set(pred)]
+        self.__pred[v] = [u for u in pred]
         for u in self.__pred[v]:
             if not self.__succ.__contains__(u):
                 self.__succ[u] = [v]
@@ -92,7 +92,6 @@ class DiGraph():
             self.sorted_list.append(node)
 
         if indegree_map.keys():
-            print(indegree_map.keys())
             raise Exception("Graph contains a cycle or graph changed during iteration")
 
         return self.sorted_list

@@ -48,7 +48,6 @@ def test_Dropout1d():
             return x
 
     testtool.testKQI(TestDropout1d(), torch.randn(3, 28))
-        
 
 
 def test_Dropout2d():
