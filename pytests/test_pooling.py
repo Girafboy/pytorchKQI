@@ -352,6 +352,92 @@ def test_LPPool2d():
     testtool.testKQI(TestLPPool2d(), torch.randn(1, 28, 28))
 
 
+def test_FractionalMaxPool2d():
+    class TestFractionalMaxPool2d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.FractionalMaxPool2d(2, 5)
+            self.layers2 = torch.nn.Linear(in_features=25, out_features=10, bias=False)
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+            return x
+
+    testtool.testKQI(TestFractionalMaxPool2d(), torch.randn(1, 10, 10))
+
+
+def test_FractionalMaxPool3d():
+    class TestFractionalMaxPool3d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.FractionalMaxPool3d(kernel_size=2, output_size=5)
+            self.layers2 = torch.nn.Linear(in_features=125, out_features=10, bias=False)
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+            return x
+
+    testtool.testKQI(TestFractionalMaxPool3d(), torch.randn(1, 10, 10, 10))
+
+
+def test_MaxUnpool1d():
+    class TestMaxUnpool1d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.MaxPool1d(2, return_indices=True)
+            self.layers2 = torch.nn.MaxUnpool1d(kernel_size = 2, stride = 2)
+            self.layers3 = torch.nn.Linear(in_features=28, out_features=10, bias=False)
+
+        def forward(self, x):
+            x, ind = self.layers1(x)
+            x = self.layers2(x, ind)
+            x = x.flatten()
+            x = self.layers3(x)
+            return x
+
+    testtool.testKQI(TestMaxUnpool1d(), torch.randn(1, 28))
+
+
+def test_MaxUnpool2d():
+    class TestMaxUnpool2d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.MaxPool2d(2, return_indices=True)
+            self.layers2 = torch.nn.MaxUnpool2d(kernel_size = 2, stride = 2)
+            self.layers3 = torch.nn.Linear(in_features=28 * 28, out_features=100, bias=False)
+
+        def forward(self, x):
+            x, ind = self.layers1(x)
+            x = self.layers2(x, ind)
+            x = x.flatten()
+            x = self.layers3(x)
+            return x
+
+    testtool.testKQI(TestMaxUnpool2d(), torch.randn(1, 28, 28))
+
+
+def test_MaxUnpool3d():
+    class TestMaxUnpool3d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.MaxPool3d(2, return_indices=True)
+            self.layers2 = torch.nn.MaxUnpool3d(kernel_size = 2, stride = 2)
+            self.layers3 = torch.nn.Linear(in_features=10 * 10 * 10, out_features=100, bias=False)
+
+        def forward(self, x):
+            x, ind = self.layers1(x)
+            x = self.layers2(x, ind)
+            x = x.flatten()
+            x = self.layers3(x)
+            return x
+
+    testtool.testKQI(TestMaxUnpool3d(), torch.randn(1, 10, 10, 10))
+
+
 if __name__ == '__main__':
     test_AvgPool1d()
     test_AvgPool2d()
@@ -367,3 +453,8 @@ if __name__ == '__main__':
     test_AdaptiveMaxPool3d()
     test_LPPool1d()
     test_LPPool2d()
+    test_FractionalMaxPool2d()
+    test_FractionalMaxPool3d()
+    test_MaxUnpool1d()
+    test_MaxUnpool2d()
+    test_MaxUnpool3d()

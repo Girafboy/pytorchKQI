@@ -1702,7 +1702,7 @@ __functions_mapping = {
     'MaxPool3DWithIndicesBackward0': MaxPool3DWithIndicesBackward0,
     'AdaptiveMaxPool2DBackward0': AdaptiveMaxPool2DBackward0,
     'AdaptiveMaxPool3DBackward0': AdaptiveMaxPool3DBackward0,
-    'EmbeddingBackward0': EmbeddingBackward0
+    'EmbeddingBackward0': EmbeddingBackward0,
 }
 
 
