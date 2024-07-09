@@ -1678,6 +1678,14 @@ class PixelShuffleBackward0(FB):
         return (input, )
 
     @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        factor = grad_fn.__getattribute__('_saved_downscale_factor')
+        kqi_out = FB.temporary_KQI(out, cls.pixel_shuffle(input, factor))
+        return (kqi_out, )
+
+    @classmethod
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
@@ -1764,7 +1772,6 @@ class PixelUnshuffleBackward0(FB):
         tensor = tensor.view(num, new_ch, new_height, new_width)
         
         return tensor
-
 
 
 __functions_mapping = {
