@@ -80,6 +80,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
 
 
 def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+    model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)

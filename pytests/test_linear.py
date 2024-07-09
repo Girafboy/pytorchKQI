@@ -72,8 +72,8 @@ def test_Bilinear():
 
 
 if __name__ == '__main__':
-    test_Identity()
-    test_Linear()
+    # test_Identity()
+    # test_Linear()
     # test_Bilinear()
     test_LazyLinear()
 
