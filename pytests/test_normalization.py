@@ -75,6 +75,6 @@ def test_LocalResponseNorm():
 
 
 if __name__ == '__main__':
-    # test_LayerNorm()
-    # test_GroupNorm()
+    test_LayerNorm()
+    test_GroupNorm()
     test_LocalResponseNorm()
