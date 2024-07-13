@@ -2,32 +2,32 @@ import torch
 import testtool
 
 
-# def test_LayerNorm():
-#     dim_1 = 3
-#     dim_2 = 4
-#     dim_3 = 5
+def test_LayerNorm():
+    dim_1 = 3
+    dim_2 = 4
+    dim_3 = 5
 
-#     class TestLayerNorm(torch.nn.Module):
-#         def __init__(self) -> None:
-#             super().__init__()
+    class TestLayerNorm(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
 
-#             self.layer1 = torch.nn.LayerNorm(normalized_shape=dim_3)
-#             self.layer2 = torch.nn.Linear(in_features=dim_1 * dim_2 * dim_3, out_features=dim_1 * dim_2 * dim_3,
-#                                           bias=False)
-#             self.layer3 = torch.nn.LayerNorm(normalized_shape=[dim_2, dim_3])
-#             self.layer4 = torch.nn.Linear(in_features=dim_1 * dim_2 * dim_3, out_features=dim_1 * dim_2 * dim_3,
-#                                           bias=False)
-#             self.layer5 = torch.nn.LayerNorm(normalized_shape=[dim_1, dim_2, dim_3])
+            self.layer1 = torch.nn.LayerNorm(normalized_shape=dim_3)
+            self.layer2 = torch.nn.Linear(in_features=dim_1 * dim_2 * dim_3, out_features=dim_1 * dim_2 * dim_3,
+                                          bias=False)
+            self.layer3 = torch.nn.LayerNorm(normalized_shape=[dim_2, dim_3])
+            self.layer4 = torch.nn.Linear(in_features=dim_1 * dim_2 * dim_3, out_features=dim_1 * dim_2 * dim_3,
+                                          bias=False)
+            self.layer5 = torch.nn.LayerNorm(normalized_shape=[dim_1, dim_2, dim_3])
 
-#         def forward(self, x):
-#             x = self.layer1(x)
-#             x = self.layer2(x.flatten())
-#             x = self.layer3(x.reshape(dim_1, dim_2, dim_3))
-#             x = self.layer4(x.flatten())
-#             x = self.layer5(x.reshape(dim_1, dim_2, dim_3))
-#             return x
+        def forward(self, x):
+            x = self.layer1(x)
+            x = self.layer2(x.flatten())
+            x = self.layer3(x.reshape(dim_1, dim_2, dim_3))
+            x = self.layer4(x.flatten())
+            x = self.layer5(x.reshape(dim_1, dim_2, dim_3))
+            return x
 
-#     testtool.testKQI(TestLayerNorm(), torch.randn(dim_1, dim_2, dim_3))
+    testtool.testKQI(TestLayerNorm(), torch.randn(dim_1, dim_2, dim_3))
 
 
 def test_GroupNorm():
@@ -75,6 +75,6 @@ def test_LocalResponseNorm():
 
 
 if __name__ == '__main__':
-    # test_LayerNorm()
+    test_LayerNorm()
     test_GroupNorm()
     test_LocalResponseNorm()
