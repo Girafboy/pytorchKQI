@@ -41,5 +41,5 @@ def test_PixelUnshuffle():
 
 
 if __name__ == '__main__':
-    # test_PixelShuffle()
+    test_PixelShuffle()
     test_PixelUnshuffle()

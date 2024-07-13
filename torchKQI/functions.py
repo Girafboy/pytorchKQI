@@ -226,6 +226,14 @@ class SignBackward0(OnetoOneMapping):
     pass
 
 
+class SqrtBackward0(OnetoOneMapping):
+    pass
+
+
+class AddBackward1(OnetoOneMapping):
+    pass
+
+
 class TwotoOneMapping(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=2, args_out=1)
@@ -761,6 +769,33 @@ class SoftmaxBackward0(FB):
 
 class LogSoftmaxBackward0(SoftmaxBackward0):
     pass
+
+
+class RepeatBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        size = grad_fn.__getattribute__('_saved_repeats')
+        num = np.prod(size)
+        input = num + out.view(num, *input.shape).sum(dim=0)
+        return (input, )
+    
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        size = grad_fn.__getattribute__('_saved_repeats')
+        kqi_out = FB.temporary_KQI(out, input.repeat(size))
+        return (kqi_out, )
+    
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        size = grad_fn.__getattribute__('_saved_repeats')
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.repeat(size)), torch.flatten(out))}
+        return adj
 
 
 class PreluKernelBackward0(FB):
@@ -1326,6 +1361,92 @@ class NativeBatchNormBackward0(FB):
         return degree
 
 
+class SumBackward1(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        dim = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dim'))
+        num = np.prod([input.shape[i] for i in dim])
+        input = 1 + out.expand_as(input) / num
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        dim = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dim'))
+        num = np.prod([input.shape[i] for i in dim])
+        kqi_out = FB.temporary_KQI(out.expand_as(input) / num, input)
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out,) = inputs, outputs
+        adj = defaultdict(list)
+        for i, o in zip(torch.flatten(input), torch.flatten(out.expand_as(input))):
+            adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+
+class NormBackward1(SumBackward1):
+    pass
+
+
+class ExpandBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        num = np.prod(out.shape) / np.prod(input.shape)
+        input = num + out.view(input.shape)     
+        return (input, )
+    
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        kqi_out = FB.temporary_KQI(out.view(input.shape), input)
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out,) = inputs, outputs
+        adj = defaultdict(list)
+        for i, o in zip(torch.flatten(input), torch.flatten(out.view(input.shape))):
+            adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+
+class MeanBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        num = np.prod(input.shape)
+        input = 1 + out.expand_as(input) / num
+        return (input, )
+    
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        num = np.prod(input.shape)
+        kqi_out = FB.temporary_KQI(out.expand_as(input) / num, input)
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out,) = inputs, outputs
+        adj = defaultdict(list)
+        for i, o in itertools.product(torch.flatten(input), torch.flatten(out)):
+            adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+
 class AvgPoolBackward0(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
@@ -1681,7 +1802,7 @@ class PixelShuffleBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        factor = grad_fn.__getattribute__('_saved_downscale_factor')
+        factor = grad_fn.__getattribute__('_saved_upscale_factor')
         kqi_out = FB.temporary_KQI(out, cls.pixel_shuffle(input, factor))
         return (kqi_out, )
 
@@ -1786,6 +1907,7 @@ __functions_mapping = {
     'TanhBackward0': TanhBackward0,
     'SigmoidBackward0': SigmoidBackward0,
     'AddBackward0': AddBackward0,
+    'AddBackward1': AddBackward1,
     'SubBackward0': SubBackward0,
     'SliceBackward0': SliceBackward0,
     'SelectBackward0': SelectBackward0,
@@ -1812,6 +1934,7 @@ __functions_mapping = {
     'NegBackward0': NegBackward0,
     'HardsigmoidBackward0': HardsigmoidBackward0,
     'AbsBackward0': AbsBackward0,
+    'SqrtBackward0': SqrtBackward0,
     'PreluKernelBackward0': PreluKernelBackward0,
     'PreluBackward0': PreluBackward0,
     'GluBackward0': GluBackward0,
@@ -1825,7 +1948,12 @@ __functions_mapping = {
     'ReluBackward0': ReluBackward0,
     'PowBackward0': PowBackward0,
     'SignBackward0': SignBackward0,
+    'RepeatBackward0': RepeatBackward0,
     'NativeBatchNormBackward0': NativeBatchNormBackward0,
+    'NormBackward1': NormBackward1,
+    'SumBackward1': SumBackward1,
+    'ExpandBackward0': ExpandBackward0,
+    'MeanBackward0': MeanBackward0,
     'AvgPool2DBackward0': AvgPool2DBackward0,
     'AvgPool3DBackward0': AvgPool3DBackward0,
     'AdaptiveAvgPool2DBackward0': AdaptiveAvgPool2DBackward0,
