@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import logging
 
 from typing import Tuple, Dict
@@ -87,4 +86,4 @@ class FuncBase:
             volume[torch.where(volume == 0)] = volume_backward[torch.where(volume == 0)]
         else:
             raise ValueError(f'Shape of volume {volume.shape} is incompatible with volume_backward {volume_backward.shape}')
-        return - volume * np.log2(volume / volume_backward)
+        return - volume * torch.log2(volume / volume_backward)

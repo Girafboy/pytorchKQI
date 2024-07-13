@@ -1180,68 +1180,68 @@ class NativeLayerNormBackward0(FB):
 
 class NativeGroupNormBackward0(FB):
     @classmethod
-    @FB.cell_Volume_Checking(args_in=3, args_out=3)
+    @FB.cell_Volume_Checking(args_in=3, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
-        (input, weight, bias), (out,) = grad_fn(*volume_outputs), volume_outputs
+        (input, weight, bias), (out,) = grad_fn(*volume_outputs, grad_fn._saved_result1, grad_fn._saved_result2), volume_outputs
         channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group')
         stride = int(channel / group)
         saved_input = grad_fn.__getattribute__('_saved_input')
-        num = np.prod(saved_input.shape[-3:]) / group
+        num = np.prod(saved_input.shape[1:]) / group
         degree = cls.degree(input, weight, bias, num)
         if input is not None:
             for i in range(0, channel, stride):
-                input[:, i:i + stride, :, :] += num + (out[:, i:i + stride, :, :] / degree).sum()
+                input[:, i:i + stride, :, :] = num + (out[:, i:i + stride, :, :] / degree).sum()
         if weight is not None:
-            for i in range(group):
-                weight[:, i, :, :] = num + (out[:, i * stride:i * stride + stride, :, :] / degree).sum()
+            for i in range(0, channel, stride):
+                weight[i] = num + (out[:, i:i + stride, :, :] / degree).sum()
         if bias is not None:
-            for i in range(group):
-                weight[:, i, :, :] = num + (out[:, i * stride:i * stride + stride, :, :] / degree).sum()
-        return tuple(input, weight, bias)
+            for i in range(0, channel, stride):
+                bias[i] = num + (out[:, i:i + stride, :, :] / degree).sum()
+        return (input, weight, bias)
 
     @classmethod
-    @FB.cell_KQI_Checking(args_in=3, args_out=3)
+    @FB.cell_KQI_Checking(args_in=3, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight, bias), (out,) = volume_inputs, volume_outputs
         channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group')
         stride = int(channel / group)
         saved_input = grad_fn.__getattribute__('_saved_input')
-        num = np.prod(saved_input.shape[-3:]) / group
+        num = np.prod(saved_input.shape[1:]) / group
         degree = cls.degree(input, weight, bias, num)
-        kqi_input, kqi_weight, kqi_bias = input, weight, bias
+        kqi_out = torch.zeros_like(out)
         if input is not None:
-            kqi_input = torch.zeros_like(input)
             for i in range(0, channel, stride):
-                kqi_input[:, i:i + stride, :, :] += FB.temporary_KQI(out[:, i:i + stride, :, :] / degree, input[:, i:i + stride, :, :]).sum()
+                kqi_out[:, i:i + stride, :, :] += FB.temporary_KQI(out[:, i:i + stride, :, :] / degree, input[:, i:i + stride, :, :]).sum()
         if weight is not None:
-            kqi_weight = torch.zeros_like(weight)
-            for i in range(group):
-                kqi_weight[:, i, :, :] = num + FB.temporary_KQI(out[:, i * stride:i * stride + stride, :, :] / degree, weight[:, i, :, :].expand_as(out)[:, i * stride:i * stride + stride, :, :]).sum()
+            for i in range(0, channel, stride):
+                kqi_out[:, i:i + stride, :, :] += FB.temporary_KQI(out[:, i:i + stride, :, :] / degree, weight[i]).sum()
         if bias is not None:
-            kqi_bias = torch.zeros_like(bias)
-            for i in range(group):
-                kqi_bias[:, i, :, :] = num + FB.temporary_KQI(out[:, i * stride:i * stride + stride, :, :] / degree, bias[:, i, :, :].expand_as(out)[:, i * stride:i * stride + stride, :, :]).sum()
-        return kqi_input, kqi_weight, kqi_bias
+            for i in range(0, channel, stride):
+                kqi_out[:, i:i + stride, :, :] += FB.temporary_KQI(out[:, i:i + stride, :, :] / degree, bias[i]).sum()
+        return (kqi_out,)
 
     @classmethod
-    @FB.cell_Graph_Checking(args_in=3, args_out=3)
+    @FB.cell_Graph_Checking(args_in=3, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, weight, bias), (out,) = inputs, outputs
         channel, group = grad_fn.__getattribute__('_saved_C'), grad_fn.__getattribute__('_saved_group')
         stride = int(channel / group)
         adj = defaultdict(list)
         if input is not None:
-            for c in range(0, channel, stride):
-                for i, o in itertools.product(torch.flatten(input[:, c:c + stride, :, :]), torch.flatten(out[:, c:c + stride, :, :])):
-                    adj[int(o)].append(int(i))
+            for batch_in, batch_out in zip(input, out):
+                for c in range(0, channel, stride):
+                    for o in torch.flatten(batch_out[c:c + stride, :, :]):
+                        adj[int(o)].extend([int(i) for i in torch.flatten(batch_in[c:c + stride, :, :])])
         if weight is not None:
-            for c in range(group):
-                for i, o in itertools.product(torch.flatten(weight[:, c, :, :]), torch.flatten(out[:, c * stride:c * stride + stride, :, :])):
-                    adj[int(o)].append(int(i))
+            for batch_in, batch_out in zip(input, weight):
+                for c in range(0, channel, stride):
+                    for o in torch.flatten(batch_out[c:c + stride]):
+                        adj[int(o)].extend([int(i) for i in torch.flatten(batch_in[c:c + stride, :, :])])
         if bias is not None:
-            for c in range(group):
-                for i, o in itertools.product(torch.flatten(bias[:, c, :, :]), torch.flatten(out[:, c * stride:c * stride + stride, :, :])):
-                    adj[int(o)].append(int(i))
+            for batch_in, batch_out in zip(input, bias):
+                for c in range(0, channel, stride):
+                    for o in torch.flatten(batch_out[c:c + stride]):
+                        adj[int(o)].extend([int(i) for i in torch.flatten(batch_in[c:c + stride, :, :])])
         return {k: tuple(v) for k, v in adj.items()}
 
     @classmethod
