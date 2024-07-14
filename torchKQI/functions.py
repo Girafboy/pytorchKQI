@@ -1441,10 +1441,8 @@ class MeanBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out,) = inputs, outputs
-        adj = defaultdict(list)
-        for i, o in itertools.product(torch.flatten(input), torch.flatten(out)):
-            adj[int(o)].append(int(i))
-        return {k: tuple(v) for k, v in adj.items()}
+        adj = {int(o): (int(i), ) for i, o in itertools.product(torch.flatten(input), torch.flatten(out))}
+        return adj
 
 
 class AvgPoolBackward0(FB):
@@ -1895,6 +1893,8 @@ class PixelUnshuffleBackward0(FB):
         return tensor
 
 
+
+
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -1966,6 +1966,7 @@ __functions_mapping = {
     'PixelShuffleBackward0': PixelShuffleBackward0,
     'PixelUnshuffleBackward0': PixelUnshuffleBackward0,
     'ConstantPadNdBackward0': ConstantPadNdBackward0,
+    #'Im2ColBackward0': Im2ColBackward0,
 }
 
 

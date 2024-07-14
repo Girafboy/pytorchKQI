@@ -36,5 +36,5 @@ def test_CosineSimilarity():
 
 
 if __name__ == '__main__':
-    test_PairwiseDistance()
+    # test_PairwiseDistance()
     test_CosineSimilarity()
