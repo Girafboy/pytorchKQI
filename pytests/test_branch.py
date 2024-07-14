@@ -1,16 +1,14 @@
 import torch
-import kqinn
-import kqitool
-import logging
+import testtool
 
 
 def test_Branch():
-    class TestBranch(torch.nn.Module, kqinn.KQI):
+    class TestBranch(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.linear1 = kqinn.Linear(in_features=784, out_features=512, bias=False)
-            self.linear2 = kqinn.Linear(in_features=512, out_features=512, bias=False)
-            self.linear3 = kqinn.Linear(in_features=512, out_features=10, bias=False)
+            self.linear1 = torch.nn.Linear(in_features=64, out_features=32, bias=False)
+            self.linear2 = torch.nn.Linear(in_features=32, out_features=32, bias=False)
+            self.linear3 = torch.nn.Linear(in_features=32, out_features=10, bias=False)
 
         def forward(self, x):
             x = self.linear1(x)
@@ -19,39 +17,7 @@ def test_Branch():
 
             return x
 
-        def KQIforward(self, x: torch.Tensor) -> torch.Tensor:
-            x = self.linear1.KQIforward(x)
-            x = kqinn.Branch(self.linear2, kqinn.EmptyModule()).KQIforward(x)
-            x = self.linear3.KQIforward(x)
-
-            return x
-
-        def KQIbackward(self, volume: torch.Tensor, volume_backward: torch.Tensor = None) -> torch.Tensor:
-            volume = self.linear3.KQIbackward(volume)
-            volume = kqinn.Branch(self.linear2, kqinn.EmptyModule()).KQIbackward(volume)
-            volume = self.linear1.KQIbackward(volume, volume_backward)
-
-            return volume
-
-        def true_kqi(self):
-            G = kqitool.DiGraph()
-            for i in range(0, 784):
-                G.add_node(i, [])
-            for i in range(784, 784+512):
-                G.add_node(i, list(range(0, 784)))
-            for i in range(784+512, 784+512+512):
-                G.add_node(i, list(range(784, 784+512)))
-            for i in range(784+512+512, 784+512+512+512):
-                G.add_node(i, [i-512, i-512-512])
-            for i in range(784+512+512+512, 784+512+512+512+10):
-                G.add_node(i, list(range(784+512+512, 784+512+512+512)))
-
-            return sum(map(lambda k: G.kqi(k), G.nodes()))
-
-    kqi = TestBranch().KQI(torch.randn(1*28*28))
-    true = TestBranch().true_kqi()
-    logging.debug(f'KQI = {kqi} (True KQI = {true})')
-    assert abs(kqi - true) / true < 0.0001
+    testtool.testKQI(TestBranch(), torch.randn(1, 8 * 8))
 
 
 if __name__ == '__main__':

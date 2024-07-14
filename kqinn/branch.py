@@ -30,12 +30,12 @@ class DefaultMerge(KQI):
 
     def KQIbackward(self, volume: torch.Tensor, volume_backwards: Tuple[torch.Tensor] = None) -> Tuple[torch.Tensor]:
         if volume_backwards is None:
-            volume_backwards = (volume/self.args_num+1, ) * self.args_num
+            volume_backwards = (volume / self.args_num + 1, ) * self.args_num
         else:
-            volume_backwards = [volume/self.args_num+1 if volume_backward is None else volume_backward for volume_backward in volume_backwards]
+            volume_backwards = [volume / self.args_num + 1 if volume_backward is None else volume_backward for volume_backward in volume_backwards]
 
         for volume_backward in volume_backwards:
-            KQI.kqi += self.KQI_formula(volume/self.args_num, volume_backward)
+            KQI.kqi += self.KQI_formula(volume / self.args_num, volume_backward)
         logging.debug(f'DefaultMerge: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backwards
 

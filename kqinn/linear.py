@@ -15,7 +15,7 @@ class Linear(torch.nn.Linear, KQI):
             volume_backward = torch.ones(self.in_features) * (self.out_features + (volume / self.in_features).sum())
 
         for vol in volume_backward:
-            KQI.kqi += self.KQI_formula(volume/self.in_features, vol)
+            KQI.kqi += self.KQI_formula(volume / self.in_features, vol)
 
         logging.debug(f'Linear: KQI={KQI.kqi}, node={np.prod(volume.shape)}, volume={volume.sum()}')
         return volume_backward
