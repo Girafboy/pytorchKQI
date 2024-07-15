@@ -1,6 +1,7 @@
 import torch
 import testtool
 
+
 def test_L1Loss():
     class TestL1Loss(torch.nn.Module):
         def __init__(self) -> None:
@@ -14,7 +15,7 @@ def test_L1Loss():
             x = self.linear2(x)
             loss = self.l1_loss(x, torch.randn(1, 10))
             return loss
-    
+
     testtool.testKQI(TestL1Loss(), torch.randn(1, 8 * 8))
 
 

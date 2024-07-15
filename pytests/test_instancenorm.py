@@ -26,7 +26,6 @@ def test_InstanceNorm1d():
     testtool.testKQI(TestInstanceNorm1d(), torch.randn(1, 6, 10))
 
 
-
 def test_InstanceNorm2d():
     class TestInstanceNorm2d(torch.nn.Module):
         def __init__(self) -> None:
@@ -99,7 +98,6 @@ def test_LazyInstanceNorm1d():
     testtool.testKQI(TestLazyInstanceNorm1d(), torch.randn(1, 6, 10))
 
 
-
 def test_LazyInstanceNorm2d():
     class TestLazyInstanceNorm2d(torch.nn.Module):
         def __init__(self) -> None:
@@ -146,7 +144,6 @@ def test_LazyInstanceNorm3d():
             return x
 
     testtool.testKQI(TestLazyInstanceNorm3d(), torch.randn(1, 3, 2, 2, 2))
-
 
 
 if __name__ == '__main__':

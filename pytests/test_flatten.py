@@ -1,6 +1,7 @@
 import torch
 import testtool
 
+
 def test_Flatten():
     class TestFlatten(torch.nn.Module):
         def __init__(self) -> None:
@@ -8,7 +9,7 @@ def test_Flatten():
             self.linear1 = torch.nn.Linear(in_features=64, out_features=32, bias=False)
             self.linear2 = torch.nn.Linear(in_features=32, out_features=32, bias=False)
             self.linear3 = torch.nn.Linear(in_features=32, out_features=10, bias=False)
-            self.flatten = torch.nn.Flatten()   
+            self.flatten = torch.nn.Flatten()
 
         def forward(self, x):
             x = self.linear1(x)

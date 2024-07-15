@@ -146,7 +146,7 @@ def test_ConstantPad1d():
     class TestConstantPad1d(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.constant_pad = torch.nn.ConstantPad1d(padding=(1, 1), value = 0)
+            self.constant_pad = torch.nn.ConstantPad1d(padding=(1, 1), value=0)
             self.linear1 = torch.nn.Linear(in_features=66, out_features=32, bias=False)  # Adjusted input size
             self.linear2 = torch.nn.Linear(in_features=32, out_features=32, bias=False)
             self.linear3 = torch.nn.Linear(in_features=32, out_features=10, bias=False)
@@ -166,7 +166,7 @@ def test_ConstantPad2d():
     class TestConstantPad2d(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.constant_pad = torch.nn.ConstantPad2d(padding=(1, 1, 1, 1), value = 0)
+            self.constant_pad = torch.nn.ConstantPad2d(padding=(1, 1, 1, 1), value=0)
             self.linear1 = torch.nn.Linear(in_features=100, out_features=32, bias=False)  # Adjusted input size
             self.linear2 = torch.nn.Linear(in_features=32, out_features=32, bias=False)
             self.linear3 = torch.nn.Linear(in_features=32, out_features=10, bias=False)
@@ -186,7 +186,7 @@ def test_ConstantPad3d():
     class TestConstantPad3d(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.constant_pad = torch.nn.ConstantPad3d(padding=(1, 1, 1, 1, 1, 1), value = 0)
+            self.constant_pad = torch.nn.ConstantPad3d(padding=(1, 1, 1, 1, 1, 1), value=0)
             self.linear1 = torch.nn.Linear(in_features=64, out_features=32, bias=False)  # Adjusted input size
             self.linear2 = torch.nn.Linear(in_features=32, out_features=16, bias=False)
             self.linear3 = torch.nn.Linear(in_features=16, out_features=10, bias=False)

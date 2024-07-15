@@ -389,7 +389,7 @@ def test_MaxUnpool1d():
         def __init__(self) -> None:
             super().__init__()
             self.layers1 = torch.nn.MaxPool1d(2, return_indices=True)
-            self.layers2 = torch.nn.MaxUnpool1d(kernel_size = 2, stride = 2)
+            self.layers2 = torch.nn.MaxUnpool1d(kernel_size=2, stride=2)
             self.layers3 = torch.nn.Linear(in_features=28, out_features=10, bias=False)
 
         def forward(self, x):
@@ -407,7 +407,7 @@ def test_MaxUnpool2d():
         def __init__(self) -> None:
             super().__init__()
             self.layers1 = torch.nn.MaxPool2d(2, return_indices=True)
-            self.layers2 = torch.nn.MaxUnpool2d(kernel_size = 2, stride = 2)
+            self.layers2 = torch.nn.MaxUnpool2d(kernel_size=2, stride=2)
             self.layers3 = torch.nn.Linear(in_features=28 * 28, out_features=100, bias=False)
 
         def forward(self, x):
@@ -425,7 +425,7 @@ def test_MaxUnpool3d():
         def __init__(self) -> None:
             super().__init__()
             self.layers1 = torch.nn.MaxPool3d(2, return_indices=True)
-            self.layers2 = torch.nn.MaxUnpool3d(kernel_size = 2, stride = 2)
+            self.layers2 = torch.nn.MaxUnpool3d(kernel_size=2, stride=2)
             self.layers3 = torch.nn.Linear(in_features=10 * 10 * 10, out_features=100, bias=False)
 
         def forward(self, x):

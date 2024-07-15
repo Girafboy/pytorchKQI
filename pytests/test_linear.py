@@ -1,6 +1,7 @@
 import torch
 import testtool
 
+
 def test_Identity():
     class TestIdentity(torch.nn.Module):
         def __init__(self) -> None:
@@ -16,6 +17,7 @@ def test_Identity():
             return x
 
     testtool.testKQI(TestIdentity(), torch.randn(1, 28))
+
 
 def test_Linear():
     class TestLinear(torch.nn.Module):
@@ -56,4 +58,3 @@ if __name__ == '__main__':
     test_Identity()
     test_Linear()
     test_LazyLinear()
-
