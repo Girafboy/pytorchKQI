@@ -24,7 +24,7 @@ def test_CosineSimilarity():
             super().__init__()
             self.fc1 = torch.nn.Linear(8 * 8, 25)
             self.fc2 = torch.nn.Linear(25, 10)
-            self.cos_similarity = torch.nn.CosineSimilarity(dim = 1)
+            self.cos_similarity = torch.nn.CosineSimilarity(dim = 0)
 
         def forward(self, x):
             x = self.fc1(x)
@@ -36,5 +36,5 @@ def test_CosineSimilarity():
 
 
 if __name__ == '__main__':
-    # test_PairwiseDistance()
+    test_PairwiseDistance()
     test_CosineSimilarity()
