@@ -50,7 +50,7 @@ def test_LazyLinear():
             x = self.linear2(x)
             x = self.linear3(x)
             return x
-    
+
     testtool.testKQI(TestLazyLinear(), torch.randn(1, 8 * 8))
 
 
