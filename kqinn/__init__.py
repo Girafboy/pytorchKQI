@@ -1,7 +1,7 @@
 from .kqi import KQI
 from .branch import Branch, EmptyModule
 
-from .linear import Linear
+from .linear import Identity, Linear, Bilinear, LazyLinear
 # from .linear import Identity, Linear, Bilinear, LazyLinear
 from .conv import Conv1d, Conv2d, Conv3d
 # from .conv import Conv1d, Conv2d, Conv3d, \
@@ -22,12 +22,12 @@ from .activation import Threshold, ReLU, Hardtanh, ReLU6, Sigmoid, Tanh, \
 from .container import Sequential
 # from .container import Container, Sequential, ModuleList, ModuleDict, ParameterList, ParameterDict
 from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
-    LPPool1d, LPPool2d, \
+    MaxUnpool1d, MaxUnpool2d, MaxUnpool3d, FractionalMaxPool2d, FractionalMaxPool3d, LPPool1d, LPPool2d, \
     AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, AdaptiveMaxPool3d
 # from .pooling import AvgPool1d, AvgPool2d, AvgPool3d, MaxPool1d, MaxPool2d, MaxPool3d, \
 #     MaxUnpool1d, MaxUnpool2d, MaxUnpool3d, FractionalMaxPool2d, FractionalMaxPool3d, LPPool1d, LPPool2d, \
 #     AdaptiveMaxPool1d, AdaptiveMaxPool2d, AdaptiveMaxPool3d, AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d
-from .batchnorm import BatchNorm1d, BatchNorm2d
+from .batchnorm import BatchNorm1d, BatchNorm2d, BatchNorm3d
 # from .batchnorm import BatchNorm1d, BatchNorm2d, BatchNorm3d, SyncBatchNorm, \
 #     LazyBatchNorm1d, LazyBatchNorm2d, LazyBatchNorm3d
 # from .instancenorm import InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, \

@@ -101,6 +101,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
 
 def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
     model.eval()
+    model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
@@ -116,6 +117,7 @@ def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
 
 def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
     model.eval()
+    model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
