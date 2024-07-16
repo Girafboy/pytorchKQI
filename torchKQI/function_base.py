@@ -1,10 +1,12 @@
 import torch
 import logging
+import tqdm
 
 from typing import Tuple, Dict
 from functools import wraps
 
-logging.basicConfig(level=logging.DEBUG, filename='debug.log')
+logging.basicConfig(level=logging.DEBUG, filename='debug.log', filemode='w')
+bar = tqdm.tqdm()
 
 
 class FuncBase:
@@ -17,6 +19,7 @@ class FuncBase:
                     assert len(volume_outputs) == args_out, f"{cls.__name__}.cell_Volume must have exactly {args_out} volume_outputs."
 
                 volume_inputs = func(cls, grad_fn, volume_outputs)
+                bar.update()
 
                 if args_in is not None:
                     assert len(volume_inputs) == args_in, f"{cls.__name__}.cell_Volume must have exactly {args_in} volume_inputs."
@@ -40,6 +43,7 @@ class FuncBase:
                     assert len(volume_inputs) == args_in, f"{cls.__name__}.cell_KQI must have exactly {args_in} volume_inputs."
 
                 kqis = func(cls, grad_fn, volume_inputs, volume_outputs)
+                bar.update()
 
                 assert len(kqis) == len(volume_outputs), f"{cls.__name__}.cell_KQI must return {len(volume_outputs)} kqis, but now return {len(kqis)} kqis."
                 logging.debug(f'{cls.__name__}.cell_KQI: kqi=[{", ".join([f"{k.sum()}/W {k.shape}" if k is not None else "None" for k in kqis])}]')
@@ -62,6 +66,7 @@ class FuncBase:
                     assert len(inputs) == args_in, f"{cls.__name__}.cell_Graph must have exactly {args_in} inputs."
 
                 adj = func(cls, grad_fn, inputs, outputs)
+                bar.update()
 
                 logging.debug(f'{cls.__name__}.cell_Graph: nodes={len(adj)}, edges={sum(map(len, adj.values()))}')
                 return adj
