@@ -6,8 +6,6 @@ from . import functions
 from typing import Tuple, Iterator, Union, Dict
 from itertools import zip_longest
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 def __construct_compute_graph(grad_fn):
     G = nx.MultiDiGraph()
@@ -102,6 +100,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
 
 
 def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+    model.eval()
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
@@ -116,6 +115,7 @@ def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
 
 
 def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
+    model.eval()
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)

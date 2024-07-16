@@ -4,7 +4,7 @@ import logging
 from typing import Tuple, Dict
 from functools import wraps
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, filename='debug.log')
 
 
 class FuncBase:
@@ -79,11 +79,13 @@ class FuncBase:
         Remember to divide by W before returning the final KQI value.
         The volume parameter and the volume_backward parameter should be the same shape, unless the volume_backward is a scalar.
         '''
-        volume = volume.clone()
-        if volume_backward.dim() == 0:
-            volume[torch.where(volume == 0)] = volume_backward
-        elif volume.shape == volume_backward.shape:
-            volume[torch.where(volume == 0)] = volume_backward[torch.where(volume == 0)]
-        else:
+        if volume_backward.dim() != 0 and volume.shape != volume_backward.shape:
             raise ValueError(f'Shape of volume {volume.shape} is incompatible with volume_backward {volume_backward.shape}')
+
+        if volume.eq(0).any():
+            volume = volume.clone()
+            if volume_backward.dim() == 0:
+                volume[torch.where(volume == 0)] = volume_backward
+            else:
+                volume[torch.where(volume == 0)] = volume_backward[torch.where(volume == 0)]
         return - volume * torch.log2(volume / volume_backward)
