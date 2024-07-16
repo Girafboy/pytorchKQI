@@ -2,11 +2,9 @@ import torch
 import networkx as nx
 
 import logging
-from . import functions
+from . import functions, function_base
 from typing import Tuple, Iterator, Union, Dict
 from itertools import zip_longest
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def __construct_compute_graph(grad_fn):
@@ -31,8 +29,9 @@ __W = torch.tensor(0, dtype=float)
 
 def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
     grad_fn = model_output.grad_fn
-
     G = __construct_compute_graph(grad_fn)
+    function_base.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
+
     waiting = {}  # Dict[torch.autograd.graph.Node, int]
     volumes = {grad_fn: (torch.zeros_like(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
     garbage_counter = {}  # Dict[torch.autograd.graph.Node, int]
@@ -102,11 +101,14 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
 
 
 def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+    model.eval()
     model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
     model_output = model(x)
+    function_base.bar.desc = model.__class__.__name__
+    function_base.bar.n = 0
 
     kqi = torch.tensor(0, dtype=float)
     for grad_fn, ks, Vs in __intermediate_result_generator(model_output):
@@ -117,10 +119,14 @@ def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
 
 
 def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
+    model.eval()
+    model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
     model_output = model(x)
+    function_base.bar.desc = model.__class__.__name__
+    function_base.bar.n = 0
 
     for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
         for kqi, volume, node_id in zip(kqis, volumes, node_ids):
