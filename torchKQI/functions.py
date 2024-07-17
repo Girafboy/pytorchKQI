@@ -1477,7 +1477,7 @@ class AvgPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
 
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
@@ -1500,7 +1500,7 @@ class AvgPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
         input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]] = input
         kqi_out = torch.zeros_like(out)
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
@@ -1570,7 +1570,7 @@ class AdaptivePoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] + add[i - 1] for i in range(1, ndim + 1)]))
 
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
@@ -1595,7 +1595,7 @@ class AdaptivePoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] for i in range(1, ndim + 1)]))
+        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] + add[i - 1] for i in range(1, ndim + 1)]))
         input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]] = input
         kqi_out = torch.zeros_like(out)
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
@@ -1664,7 +1664,7 @@ class MaxPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
 
         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
@@ -1688,7 +1688,7 @@ class MaxPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
         input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]] = input
         kqi_out = torch.zeros_like(out)
         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
