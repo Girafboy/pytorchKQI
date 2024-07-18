@@ -46,6 +46,8 @@ class FuncBase:
                 bar.update()
 
                 assert len(kqis) == len(volume_outputs), f"{cls.__name__}.cell_KQI must return {len(volume_outputs)} kqis, but now return {len(kqis)} kqis."
+                for kqi, volume_out in zip(kqis, volume_outputs):
+                    assert kqi.shape == volume_out.shape, f"{cls.__name__}.cell_KQI must return the same size of volume_output {volume_out.shape} and kqi {kqi.shape}."
                 logging.debug(f'{cls.__name__}.cell_KQI: kqi=[{", ".join([f"{k.sum()}/W {k.shape}" if k is not None else "None" for k in kqis])}]')
                 return kqis
             return wrapped_function
