@@ -79,7 +79,87 @@ def test_Conv3d():
     testtool.testKQI(TestConv3d(), torch.randn(3, 9, 9, 9))
 
 
+def test_LazyConv1d():
+    class TestLazyConv1d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.Sequential(
+                # 3x28
+                torch.nn.LazyConv1d(out_channels=2, kernel_size=3, stride=1, padding=1, dilation=1, bias=False),
+                # 2x28
+                torch.nn.LazyConv1d(out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+            )
+            self.layers2 = torch.nn.Sequential(
+                # 3x8
+                torch.nn.Linear(in_features=3 * 8, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+    testtool.testKQI(TestLazyConv1d(), torch.randn(3, 28))
+
+
+def test_LazyConv2d():
+    class TestLazyConv2d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.Sequential(
+                # 1x28x28
+                torch.nn.LazyConv2d(out_channels=2, kernel_size=3, stride=1, padding=1, dilation=1, bias=False),
+                # 2x28x28
+                torch.nn.LazyConv2d(out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+            )
+            self.layers2 = torch.nn.Sequential(
+                # 3x8x8
+                torch.nn.Linear(in_features=3 * 8 * 8, out_features=100, bias=False),
+                torch.nn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+    testtool.testKQI(TestLazyConv2d(), torch.randn(3, 28, 28))
+
+
+def test_LazyConv3d():
+    class TestLazyConv3d(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.layers1 = torch.nn.Sequential(
+                # 3x9x9x9
+                torch.nn.LazyConv3d(out_channels=2, kernel_size=3, stride=1, padding=1, dilation=1, bias=False),
+                # 2x9x9x9
+                torch.nn.LazyConv3d(out_channels=3, kernel_size=3, stride=3, padding=0, dilation=2, bias=False),
+            )
+            self.layers2 = torch.nn.Sequential(
+                # 3x2x2x2
+                torch.nn.Linear(in_features=3 * 2 * 2 * 2, out_features=100, bias=False),
+                torch.nn.Linear(in_features=100, out_features=10, bias=False),
+            )
+
+        def forward(self, x):
+            x = self.layers1(x)
+            x = x.flatten()
+            x = self.layers2(x)
+
+            return x
+
+    testtool.testKQI(TestLazyConv3d(), torch.randn(3, 9, 9, 9))
+
+
 if __name__ == '__main__':
     test_Conv1d()
     test_Conv2d()
     test_Conv3d()
+    test_LazyConv1d()
+    test_LazyConv2d()
+    test_LazyConv3d()
