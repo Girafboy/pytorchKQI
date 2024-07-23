@@ -1,10 +1,12 @@
 import torch
 import networkx as nx
+import numpy as np
 
 import logging
+import itertools
 from . import functions, function_base
 from typing import Tuple, Iterator, Union, Dict
-from itertools import zip_longest
+from matplotlib import cm, colors, pyplot as plt
 
 
 def __construct_compute_graph(grad_fn):
@@ -47,9 +49,9 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
         for (next_fn, i), vI in zip(cur.next_functions, inputs):
             if next_fn is not None:
                 waiting[cur] = waiting.get(cur, 0) + 1
-                volumes[next_fn] = tuple(v_old + vI for v_old, vI in zip_longest(volumes.get(next_fn, tuple()), (0,) * i + (vI,), fillvalue=0))
+                volumes[next_fn] = tuple(v_old + vI for v_old, vI in itertools.zip_longest(volumes.get(next_fn, tuple()), (0,) * i + (vI,), fillvalue=0))
                 if return_graph:
-                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype=torch.float32).reshape_as(vI) for v_old, vI in zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
+                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype=torch.float32).reshape_as(vI) for v_old, vI in itertools.zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
                     increID += vI.numel()
 
         for _, succ in G.out_edges(cur):
@@ -97,21 +99,25 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
     global __W
     __W = sum(K.isnan().sum() + V.masked_select(K.isnan()).sum() for _, Ks, Vs, *_ in pending for K, V in zip(Ks, Vs))
     for grad_fn, kqis, vols, *args in pending:
-        yield grad_fn, (kqi.masked_scatter(kqi.isnan(), torch.masked_select(functions.FB.temporary_KQI(vol, __W), kqi.isnan())) for kqi, vol in zip(kqis, vols)), vols, *args
+        yield grad_fn, tuple(kqi.masked_scatter(kqi.isnan(), torch.masked_select(functions.FB.temporary_KQI(vol, __W), kqi.isnan())) for kqi, vol in zip(kqis, vols)), vols, *args
 
 
-def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+def __prepare(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+    function_base.bar.desc = model.__class__.__name__
+    function_base.bar.n = 0
     model.eval()
     model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
-    model_output = model(x)
-    function_base.bar.desc = model.__class__.__name__
-    function_base.bar.n = 0
+    return model(x)
+
+
+def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+    model_output = __prepare(model, x)
 
     kqi = torch.tensor(0, dtype=float)
-    for grad_fn, ks, Vs in __intermediate_result_generator(model_output):
+    for _, ks, _ in __intermediate_result_generator(model_output):
         kqi += sum(map(lambda k: k.sum(), ks))
     kqi /= __W
     logging.debug(f'W = {__W}, KQI = {kqi}')
@@ -119,16 +125,105 @@ def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
 
 
 def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
-    model.eval()
-    model(x)
-    for param in model.parameters():
-        param.requires_grad_(True)
-    x.requires_grad_(False)
-    model_output = model(x)
-    function_base.bar.desc = model.__class__.__name__
-    function_base.bar.n = 0
+    model_output = __prepare(model, x)
 
     for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
         for kqi, volume, node_id in zip(kqis, volumes, node_ids):
             for k, v, i in zip(kqi.flatten(), volume.flatten(), node_id.flatten()):
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
+
+
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, filename: str, dots_per_unit: int = 4):
+    plt.rcParams['figure.autolayout'] = False
+    plt.rcParams['axes.spines.left'] = False
+    plt.rcParams['axes.spines.bottom'] = False
+    plt.rcParams['axes.spines.top'] = False
+    plt.rcParams['axes.spines.right'] = False
+    plt.rcParams['ytick.left'] = False
+    plt.rcParams['ytick.right'] = False
+    plt.rcParams['ytick.labelleft'] = False
+    plt.rcParams['ytick.labelright'] = False
+    plt.rcParams['xtick.top'] = False
+    plt.rcParams['xtick.bottom'] = False
+    plt.rcParams['xtick.labeltop'] = False
+    plt.rcParams['xtick.labelbottom'] = False
+    plt.rcParams['font.size'] = 9
+    plt.rcParams['axes.titlesize'] = 9
+    plt.rcParams['axes.labelsize'] = 9
+    plt.rcParams['xtick.labelsize'] = 9
+    plt.rcParams['ytick.labelsize'] = 9
+    plt.rcParams['savefig.bbox'] = 'tight'
+    INTERVAL = 5
+    SCALE_INCH_PT = 72
+    PADDING = 10
+
+    def compact_to_2d(x):
+        if x.dim() == 0:
+            x = x.unsqueeze(0).unsqueeze(0)
+        elif x.dim() == 1:
+            x = x.unsqueeze(0)
+        else:
+            pad = 0
+            while x.dim() > 2:
+                xs = x.unbind(dim=-3)
+                interval = tuple(torch.zeros(k.shape[:-1] + (int(pad / 2 + 1),) if pad % 2 == 0 else k.shape[:-2] + (int(pad / 2 + 1),) + k.shape[-1:]) * float('nan') for k in xs)
+                x = torch.concat(list(itertools.chain.from_iterable(zip(xs, interval)))[:-1], -1 if pad % 2 == 0 else -2)
+                pad += 1
+
+        return x.detach().numpy()
+
+    model_params = {var: name for name, var in model.named_parameters()}
+
+    def get_name(grad_fn):
+        if 'AccumulateGrad' in grad_fn.name():
+            return model_params[grad_fn.variable]
+        return grad_fn.name()
+
+    model_output = __prepare(model, x)
+    G = __construct_compute_graph(model_output.grad_fn)
+    kqi_min, kqi_max = np.inf, -np.inf
+    for grad_fn, kqis, _ in __intermediate_result_generator(model_output):
+        kqis_compact = [compact_to_2d(kqi) for kqi in kqis]
+        G.nodes[grad_fn]['width'] = (sum(map(lambda k: k.shape[1], kqis_compact)) + INTERVAL * (len(kqis_compact) - 1) + PADDING * 2) / SCALE_INCH_PT
+        G.nodes[grad_fn]['height'] = (max(map(lambda k: k.shape[0], kqis_compact)) + PADDING * 2) / SCALE_INCH_PT
+        G.nodes[grad_fn]['shape'] = 'box'
+        G.nodes[grad_fn]['fontsize'] = 9
+        G.nodes[grad_fn]['label'] = get_name(grad_fn)
+        G.nodes[grad_fn]['labelloc'] = 't'
+        kqi_min, kqi_max = min(*map(lambda k: k.min(), kqis), kqi_min), max(*map(lambda k: k.max(), kqis), kqi_max)
+    pos = nx.drawing.nx_agraph.graphviz_layout(G, prog='dot')
+
+    x_min, x_max = min(map(lambda k: k[1][0] - G.nodes[k[0]]['width'] * SCALE_INCH_PT / 2, pos.items())), max(map(lambda k: k[1][0] + G.nodes[k[0]]['width'] * SCALE_INCH_PT / 2, pos.items()))
+    y_min, y_max = min(map(lambda k: k[1][1] - G.nodes[k[0]]['height'] * SCALE_INCH_PT / 2, pos.items())), max(map(lambda k: k[1][1] + G.nodes[k[0]]['height'] * SCALE_INCH_PT / 2, pos.items()))
+    plt.figure(figsize=((x_max - x_min) / SCALE_INCH_PT, (y_max - y_min) / SCALE_INCH_PT), dpi=SCALE_INCH_PT * dots_per_unit)
+
+    posx_transform, posy_transform = lambda x: (x - x_min) / (x_max - x_min), lambda y: (y - y_min) / (y_max - y_min)
+
+    plt.axes([0, 0, 1, 1])
+    for grad_fn in G.nodes():
+        for pred in G.predecessors(grad_fn):
+            plt.plot([posx_transform(pos[grad_fn][0]), posx_transform(pos[pred][0])],
+                     [posy_transform(pos[grad_fn][1] + G.nodes[grad_fn]['height'] * SCALE_INCH_PT / 2 + 13), posy_transform(pos[pred][1] - G.nodes[pred]['height'] * SCALE_INCH_PT / 2)], color='black')
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+
+    for grad_fn, kqis, _ in __intermediate_result_generator(model_output):
+        plt.axes([posx_transform(pos[grad_fn][0] - G.nodes[grad_fn]['width'] * SCALE_INCH_PT / 2 + PADDING),
+                  posy_transform(pos[grad_fn][1] - G.nodes[grad_fn]['height'] * SCALE_INCH_PT / 2 + PADDING),
+                  posx_transform(G.nodes[grad_fn]['width'] * SCALE_INCH_PT - PADDING * 2 + x_min),
+                  posy_transform(G.nodes[grad_fn]['height'] * SCALE_INCH_PT - PADDING * 2 + y_min)])
+        plt.title(get_name(grad_fn), pad=13, bbox=dict(facecolor='white', linewidth=0, boxstyle='Square, pad=0'))
+        offset = 0
+        for kqi in kqis:
+            kqi_compact = compact_to_2d(kqi)
+            plt.axes([posx_transform(offset + pos[grad_fn][0] - G.nodes[grad_fn]['width'] * SCALE_INCH_PT / 2 + PADDING),
+                      posy_transform(pos[grad_fn][1] - G.nodes[grad_fn]['height'] * SCALE_INCH_PT / 2 + PADDING),
+                      posx_transform(kqi_compact.shape[1] + x_min),
+                      posy_transform(kqi_compact.shape[0] + y_min)])
+            plt.imshow(kqi_compact, cmap='turbo', norm=colors.Normalize(vmin=kqi_min, vmax=kqi_max))
+            plt.title("$\\times$".join(map(str, kqi.shape)), pad=3, bbox=dict(facecolor='white', linewidth=0, boxstyle='Square, pad=0'))
+            offset += kqi_compact.shape[1] + INTERVAL
+
+    plt.colorbar(cm.ScalarMappable(norm=colors.Normalize(vmin=kqi_min / __W, vmax=kqi_max / __W), cmap='turbo'), cax=plt.axes([0, -20 / (y_max - y_min), 1, 10 / (y_max - y_min)]), orientation='horizontal', fraction=1)
+    plt.xlabel('KQI')
+    plt.savefig(filename, dpi=SCALE_INCH_PT * dots_per_unit)
