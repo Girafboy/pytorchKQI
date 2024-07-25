@@ -2506,7 +2506,6 @@ __functions_mapping = {
     'PixelUnshuffleBackward0': PixelUnshuffleBackward0,
     'ConstantPadNdBackward0': ConstantPadNdBackward0,
     'L1LossBackward0': L1LossBackward0,
-    'NllLossBackward0': NllLossBackward0,
     'HardtanhBackward0': HardtanhBackward0,
     'DivBackward0': DivBackward0,
     'HardswishBackward0': HardswishBackward0,
