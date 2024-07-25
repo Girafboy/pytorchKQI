@@ -91,8 +91,11 @@ class FuncBase:
 
         if volume.eq(0).any():
             volume = volume.clone()
-            if volume_backward.dim() == 0:
-                volume[torch.where(volume == 0)] = volume_backward
+            if volume.dim() == 0:
+                volume = volume_backward
             else:
-                volume[torch.where(volume == 0)] = volume_backward[torch.where(volume == 0)]
+                if volume_backward.dim() == 0:
+                    volume[torch.where(volume == 0)] = volume_backward
+                else:
+                    volume[torch.where(volume == 0)] = volume_backward[torch.where(volume == 0)]
         return - volume * torch.log2(volume / volume_backward)
