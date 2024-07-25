@@ -2219,30 +2219,22 @@ class IndexCopyBackward0(FB):
         index = index.unsqueeze(0) if index.dim() == 0 else index
         dim = grad_fn.__getattribute__('_saved_dim')
         adj = defaultdict(list)
-        if input is not None and source is not None:
-            for ind in range(out.size(dim)):
-                if ind not in index:
-                    for i, o in zip(torch.flatten(input.select(dim, ind)), torch.flatten(out.select(dim, ind))):
-                        adj[int(o)].append(int(i))
-            for num, ind in enumerate(index):
-                for i, o in zip(torch.flatten(source.select(dim, num)), torch.flatten(out.select(dim, ind))):
-                    adj[int(o)].append(int(i))
-        elif source is not None:
-            for num, ind in enumerate(index):
-                for i, o in zip(torch.flatten(source.select(dim, num)), torch.flatten(out.select(dim, ind))):
-                    adj[int(o)].append(int(i))
-            for ind in range(out.size(dim)):
-                if ind not in index:
-                    for o in torch.flatten(out.select(dim, ind)):
-                        adj[int(o)].append(tuple())
-        else:
-            for ind in range(out.size(dim)):
-                if ind not in index:
+        for ind in range(out.size(dim)):
+            if ind not in index:
+                if input is not None:
                     for i, o in zip(torch.flatten(input.select(dim, ind)), torch.flatten(out.select(dim, ind))):
                         adj[int(o)].append(int(i))
                 else:
                     for o in torch.flatten(out.select(dim, ind)):
-                        adj[int(o)].append(tuple())
+                        adj[int(o)].append(())
+            else:
+                num = list(index).index(ind)
+                if source is not None:
+                    for i, o in zip(torch.flatten(source.select(dim, num)), torch.flatten(out.select(dim, ind))):
+                        adj[int(o)].append(int(i))
+                else:
+                    for o in torch.flatten(out.select(dim, ind)):
+                        adj[int(o)].append(())
         return {k: tuple(v) for k, v in adj.items()}
 
 
@@ -2350,7 +2342,7 @@ class IndexSelectBackward0(FB):
         dim = grad_fn.__getattribute__('_saved_dim')
         kqi_out = torch.zeros_like(out)
         for num, i in enumerate(index):
-            kqi_out += FB.temporary_KQI(out[num], input.select(dim, i))
+            kqi_out[num] += FB.temporary_KQI(out[num], input.select(dim, i))
         return (kqi_out, )
 
     @classmethod
@@ -2516,6 +2508,8 @@ __functions_mapping = {
     'IndexSelectBackward0': IndexSelectBackward0,
     'RollBackward0': RollBackward0,
     'IndexBackward0': IndexBackward0,
+    'Im2ColBackward0': Im2ColBackward0,
+    'Col2ImBackward0': Col2ImBackward0,
 }
 
 
