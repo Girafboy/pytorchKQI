@@ -134,7 +134,7 @@ def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
 
 
-def VisualKQI(model: torch.nn.Module, x: torch.Tensor, filename: str, dots_per_unit: int = 4):
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, filename: str = None, dots_per_unit: int = 4):
     plt.rcParams['figure.autolayout'] = False
     plt.rcParams['axes.spines.left'] = False
     plt.rcParams['axes.spines.bottom'] = False
@@ -227,4 +227,8 @@ def VisualKQI(model: torch.nn.Module, x: torch.Tensor, filename: str, dots_per_u
 
     plt.colorbar(cm.ScalarMappable(norm=colors.Normalize(vmin=kqi_min / __W, vmax=kqi_max / __W), cmap='turbo'), cax=plt.axes([0, -20 / (y_max - y_min), 1, 10 / (y_max - y_min)]), orientation='horizontal', fraction=1)
     plt.xlabel('KQI')
-    plt.savefig(filename, dpi=SCALE_INCH_PT * dots_per_unit)
+
+    if filename is None:
+        plt.show()
+    else:
+        plt.savefig(filename, dpi=SCALE_INCH_PT * dots_per_unit)
