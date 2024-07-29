@@ -51,5 +51,104 @@ def task_ImageClassification():
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
+def task_SemanticSegmentation():
+    x = torch.randn(1, 3, 224, 224)
+
+    model_fns = [
+        torchvision.models.segmentation.deeplabv3_mobilenet_v3_large, torchvision.models.segmentation.deeplabv3_resnet50, torchvision.models.segmentation.deeplabv3_resnet101,
+        torchvision.models.segmentation.deeplabv3_resnet50,
+        torchvision.models.segmentation.deeplabv3_resnet101,
+    ]
+
+    results_file = 'model_results.csv'
+    errors_file = 'model_errors.csv'
+
+    if not os.path.exists(results_file):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
+    if not os.path.exists(errors_file):
+        pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
+
+    for model_fn in model_fns:
+        if model_fn.__name__ in pd.read_csv(results_file)['Model Name'].values:
+            continue
+        try:
+            model = model_fn().eval()
+            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out']).item()
+            result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
+            result.to_csv(results_file, mode='a', header=False, index=False)
+        except Exception as e:
+            error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
+            error.to_csv(errors_file, mode='a', header=False, index=False)
+
+
+
+def task_ObjectDetection():
+    x = torch.randn(1, 3, 224, 224)
+
+    model_fns = [
+        # torchvision.models.detection.fasterrcnn_resnet50_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn, torchvision.models.detection.fasterrcnn_resnet50_fpn_v2,
+        torchvision.models.detection.fcos_resnet50_fpn,
+        torchvision.models.detection.retinanet_resnet50_fpn, torchvision.models.detection.retinanet_resnet50_fpn_v2,
+        torchvision.models.detection.ssd300_vgg16,
+        torchvision.models.detection.ssdlite320_mobilenet_v3_large,
+    ]
+
+    results_file = 'model_results.csv'
+    errors_file = 'model_errors.csv'
+
+    if not os.path.exists(results_file):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False) 
+    if not os.path.exists(errors_file):
+        pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
+
+    for model_fn in model_fns:
+        if model_fn.__name__ in pd.read_csv(results_file)['Model Name'].values:
+            continue
+        try:
+            model = model_fn().eval()
+            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)[0]['boxes']).item()
+            result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
+            result.to_csv(results_file, mode='a', header=False, index=False)
+        except Exception as e:
+            error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
+            error.to_csv(errors_file, mode='a', header=False, index=False)
+
+
+
+def task_VideoClassification():
+    x = torch.randn(1, 3, 3, 224, 224)
+
+    model_fns = [
+        # torchvision.models.video.mvit_v1_b, torchvision.models.video.mvit_v2_s,
+        torchvision.models.video.r3d_18, torchvision.models.video.mc3_18, torchvision.models.video.r2plus1d_18,
+        # torchvision.models.video.s3d,
+        # torchvision.models.video.swin3d_t, torchvision.models.video.swin3d_s, torchvision.models.video.swin3d_b
+
+    ]
+
+    results_file = 'model_results.csv'
+    errors_file = 'model_errors.csv'
+
+    if not os.path.exists(results_file):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
+    if not os.path.exists(errors_file):
+        pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
+
+    for model_fn in model_fns:
+        if model_fn.__name__ in pd.read_csv(results_file)['Model Name'].values:
+            continue
+        try:
+            model = model_fn().eval()
+            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out']).item()
+            result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
+            result.to_csv(results_file, mode='a', header=False, index=False)
+        except Exception as e:
+            error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
+            error.to_csv(errors_file, mode='a', header=False, index=False)
+
+
 if __name__ == '__main__':
     task_ImageClassification()
+    task_SemanticSegmentation()
+    task_ObjectDetection()
+    task_VideoClassification()

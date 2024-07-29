@@ -5,7 +5,7 @@ import numpy as np
 import logging
 import itertools
 from . import functions, function_base
-from typing import Tuple, Iterator, Union, Dict
+from typing import Tuple, Iterator, Union, Dict, Callable
 from matplotlib import cm, colors, pyplot as plt
 
 
@@ -103,7 +103,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
         yield grad_fn, tuple(kqi.masked_scatter(kqi.isnan(), torch.masked_select(functions.FB.temporary_KQI(vol, __W), kqi.isnan())) for kqi, vol in zip(kqis, vols)), vols, *args
 
 
-def __prepare(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable) -> torch.Tensor:
     function_base.bar.desc = model.__class__.__name__
     function_base.bar.n = 0
     model.eval()
@@ -111,11 +111,11 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
-    return model(x)
+    return callback_func(model, x)
 
 
-def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
-    model_output = __prepare(model, x)
+def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> torch.Tensor:
+    model_output = __prepare(model, x, callback_func)
 
     kqi = torch.tensor(0, dtype=float)
     for _, ks, _ in __intermediate_result_generator(model_output):
@@ -125,8 +125,8 @@ def KQI(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
     return kqi
 
 
-def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
-    model_output = __prepare(model, x)
+def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
+    model_output = __prepare(model, x, callback_func)
 
     for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
         for kqi, volume, node_id in zip(kqis, volumes, node_ids):
@@ -134,7 +134,7 @@ def Graph(model: torch.nn.Module, x: torch.Tensor) -> Iterator[Tuple[int, Tuple[
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
 
 
-def VisualKQI(model: torch.nn.Module, x: torch.Tensor, filename: str = None, dots_per_unit: int = 4):
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), filename: str = None, dots_per_unit: int = 4):
     plt.rcParams['figure.autolayout'] = False
     plt.rcParams['axes.spines.left'] = False
     plt.rcParams['axes.spines.bottom'] = False
@@ -180,7 +180,7 @@ def VisualKQI(model: torch.nn.Module, x: torch.Tensor, filename: str = None, dot
             return model_params[grad_fn.variable]
         return grad_fn.name()
 
-    model_output = __prepare(model, x)
+    model_output = __prepare(model, x, callback_func)
     G = __construct_compute_graph(model_output.grad_fn)
     kqi_min, kqi_max = np.inf, -np.inf
     for grad_fn, kqis, _ in __intermediate_result_generator(model_output):
