@@ -81,7 +81,6 @@ def task_SemanticSegmentation():
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
-
 def task_ObjectDetection():
     x = torch.randn(1, 3, 224, 224)
 
@@ -97,7 +96,7 @@ def task_ObjectDetection():
     errors_file = 'model_errors.csv'
 
     if not os.path.exists(results_file):
-        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False) 
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
     if not os.path.exists(errors_file):
         pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
 
@@ -112,7 +111,6 @@ def task_ObjectDetection():
         except Exception as e:
             error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
-
 
 
 def task_VideoClassification():

@@ -1,6 +1,7 @@
 import torch
 import testtool
 
+
 def test_Upsample():
     class TestUpsample(torch.nn.Module):
         def __init__(self) -> None:
