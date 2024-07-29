@@ -250,6 +250,18 @@ class SiluBackward0(OnetoOneMapping):
     pass
 
 
+class ClampBackward1(OnetoOneMapping):
+    pass
+
+
+class ExpBackward0(OnetoOneMapping):
+    pass
+
+
+class ClampMinBackward0(OnetoOneMapping):
+    pass
+
+
 class TwotoOneMapping(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=2, args_out=1)
@@ -665,7 +677,7 @@ class ConvolutionBackward0(FB):
                 volume_padding = torch.zeros((input.shape[0], input.shape[1], *[input.shape[2 + i] + 2 * padding[i] for i in range(ndim)]))
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
-                        volume_padding[(slice(None), cin) + tuple(indexing(*offset))] += n_output + (output[slice(None), cout] / degree / n_input).sum(dim=1)
+                        volume_padding[(slice(None), cin) + tuple(indexing(*offset))] += n_output + (output[slice(None), cout] / degree / n_input).sum(dim=1).unsqueeze(1)
 
                 input = volume_padding[(slice(None), slice(None)) + tuple(slice(padding[i], None if padding[i] == 0 else -padding[i]) for i in range(ndim))].clone()
 
@@ -1480,14 +1492,14 @@ class ExpandBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
         num = np.prod(out.shape) / np.prod(input.shape)
-        input = num + out.view(input.shape)
+        input = num + out.sum_to_size(input.shape)
         return (input, )
 
     @classmethod
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        kqi_out = FB.temporary_KQI(out.view(input.shape), input)
+        kqi_out = FB.temporary_KQI(out, input.expand_as(out))
         return (kqi_out, )
 
     @classmethod
@@ -1495,7 +1507,7 @@ class ExpandBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out,) = inputs, outputs
         adj = defaultdict(list)
-        for i, o in zip(torch.flatten(input), torch.flatten(out.view(input.shape))):
+        for i, o in zip(torch.flatten(input), torch.flatten(out.sum_to_size(input.shape))):
             adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
@@ -2395,6 +2407,8 @@ class IndexBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         indices = grad_fn.__getattribute__('_saved_indices')[0]
+        if indices.dtype == torch.bool:
+            indices = torch.nonzero(indices, as_tuple=True)[0]
         input = torch.zeros_like(input)
         for i in range(len(indices)):
             input[indices[i], :] = 1 + out[i, :]
@@ -2405,6 +2419,8 @@ class IndexBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
         indices = grad_fn.__getattribute__('_saved_indices')[0]
+        if indices.dtype == torch.bool:
+            indices = torch.nonzero(indices, as_tuple=True)[0]
         kqi_out = torch.zeros_like(out)
         for i in range(len(indices)):
             kqi_out[i, :] = FB.temporary_KQI(out[i, :], input[indices[i], :])
@@ -2415,10 +2431,137 @@ class IndexBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
         indices = grad_fn.__getattribute__('_saved_indices')[0]
+        if indices.dtype == torch.bool:
+            indices = torch.nonzero(indices, as_tuple=True)[0]
         adj = defaultdict(list)
         for k in range(len(indices)):
             for i, o in zip(torch.flatten(input[indices[k], :]), torch.flatten(out[k, :])):
                 adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+
+class Upsample2DBackward1(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        offset = np.prod(out.shape[2:]) + (out / np.prod(input.shape[2:])).sum(axis=tuple(range(2, out.ndim)))
+        input = torch.ones_like(input) * offset.view(*input.shape[:2], *([1] * (input.dim() - 2))).expand_as(input)
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), (out, ) = volume_inputs, volume_outputs
+        input_sum = input.sum_to_size(*input.shape[:2], *([1] * (input.dim() - 2)))
+        kqi_out = FB.temporary_KQI(out, input_sum.expand_as(out))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), (out, ) = inputs, outputs
+        batch, channel = input.shape[:2]
+        adj = defaultdict(list)
+        for b, c in itertools.product(range(batch), range(channel)):
+            for i, o in itertools.product(torch.flatten(input[b, c]), torch.flatten(out[b, c])):
+                adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+
+class UpsampleBilinear2DBackward1(Upsample2DBackward1):
+    pass
+
+
+class UpsampleNearest2DBackward1(Upsample2DBackward1):
+    pass
+
+
+class SplitWithSizesBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=1, args_out=None)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        input, outputs = grad_fn(*volume_outputs), volume_outputs
+        dim = grad_fn.__getattribute__('_saved_dim')
+        input = torch.zeros_like(input) + 1 + torch.cat(outputs, dim)
+        return (input, )
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=1, args_out=None)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, ), outputs = volume_inputs, volume_outputs
+        dim = grad_fn.__getattribute__('_saved_dim')
+        sizes = grad_fn.__getattribute__('_saved_split_sizes')
+        kqi_outs = tuple(FB.temporary_KQI(o, i) for i, o in zip(input.split_with_sizes(sizes, dim), outputs))
+        return kqi_outs
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=1, args_out=None)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, ), outputs = inputs, outputs
+        dim = grad_fn.__getattribute__('_saved_dim')
+        adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input), torch.flatten(torch.cat(outputs, dim)))}
+        return adj
+
+
+class IndexPutBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=2, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, value), (out, ) = grad_fn(volume_outputs[0]), volume_outputs
+        indices = grad_fn.__getattribute__('_saved_indices')[0]
+        if len(indices) == 0:
+            input = 1 + out
+        else:
+            if input is not None:
+                all_indices = torch.arange(input.shape[0])
+                remain_indices = [i for i in all_indices if i not in indices]
+                for i in remain_indices:
+                    input[i] = 1 + out[i]
+            if value is not None:
+                for num, i in enumerate(indices):
+                    value[num] = 1 + out[i]
+        return (input, value)
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=2, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, value), (out, ) = volume_inputs, volume_outputs
+        indices = indices = grad_fn.__getattribute__('_saved_indices')[0]
+        if len(indices) == 0:
+            kqi_out = FB.temporary_KQI(out, input)
+        else:
+            kqi_out = torch.zeros_like(out)
+            if input is not None:
+                all_indices = torch.arange(input.shape[0])
+                remain_indices = [i for i in all_indices if i not in indices]
+                for i in remain_indices:
+                    kqi_out[i] += FB.temporary_KQI(out[i], input[i])
+            if value is not None:
+                for num, i in enumerate(indices):
+                    kqi_out[i] += FB.temporary_KQI(out[i], value[num])
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=2, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, value), (out, ) = inputs, outputs
+        indices = indices = grad_fn.__getattribute__('_saved_indices')[0]
+        adj = defaultdict(list)
+        if len(indices) == 0:
+            for i, o in zip(torch.flatten(input), torch.flatten(out)):
+                adj[int(o)].append(int(i))
+        else:
+            if input is not None:
+                all_indices = torch.arange(input.shape[0])
+                remain_indices = [i for i in all_indices if i not in indices]
+                for k in remain_indices:
+                    for i, o in zip(torch.flatten(input[k]), torch.flatten(out[k])):
+                        adj[int(o)].append(int(i))
+            if value is not None:
+                for num, k in enumerate(indices):
+                    for i, o in zip(torch.flatten(value[num]), torch.flatten(out[k])):
+                        adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
 
@@ -2510,6 +2653,13 @@ __functions_mapping = {
     'IndexBackward0': IndexBackward0,
     'Im2ColBackward0': Im2ColBackward0,
     'Col2ImBackward0': Col2ImBackward0,
+    'UpsampleBilinear2DBackward1': UpsampleBilinear2DBackward1,
+    'UpsampleNearest2DBackward1': UpsampleNearest2DBackward1,
+    'ClampBackward1': ClampBackward1,
+    'ClampMinBackward0': ClampMinBackward0,
+    'ExpBackward0': ExpBackward0,
+    'SplitWithSizesBackward0': SplitWithSizesBackward0,
+    'IndexPutBackward0': IndexPutBackward0,
 }
 
 
