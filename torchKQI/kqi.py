@@ -7,6 +7,7 @@ import itertools
 from . import functions, function_base
 from typing import Tuple, Iterator, Union, Dict, Callable
 from matplotlib import cm, colors, pyplot as plt
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 
 
 def __construct_compute_graph(grad_fn):
@@ -116,6 +117,10 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable) 
 
 def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> torch.Tensor:
     model_output = __prepare(model, x, callback_func)
+    if isinstance(model_output, BaseModelOutputWithPast):
+        model_output = model_output.last_hidden_state
+    elif isinstance(model_output, CausalLMOutputWithPast):
+        model_output = model_output.logits
 
     kqi = torch.tensor(0, dtype=float)
     for _, ks, _ in __intermediate_result_generator(model_output):

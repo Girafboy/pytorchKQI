@@ -1,0 +1,47 @@
+{
+  "architectures": [
+    "LlamaForCausalLM"
+  ],
+  "attention_bias": false,
+  "bos_token_id": 1,
+  "eos_token_id": 2,
+  "hidden_act": "silu",
+  "hidden_size": 7168,
+  "initializer_range": 0.02,
+  "intermediate_size": 20480,
+  "max_position_embeddings": 4096,
+  "model_type": "llama",
+  "num_attention_heads": 56,
+  "num_hidden_layers": 60,
+  "num_key_value_heads": 8,
+  "pretraining_tp": 1,
+  "quantization_config": {
+    "batch_size": 1,
+    "bits": 8,
+    "block_name_to_quantize": "model.layers",
+    "damp_percent": 0.1,
+    "dataset": "wikitext2",
+    "desc_act": false,
+    "disable_exllama": false,
+    "group_size": 128,
+    "max_input_length": null,
+    "model_seqlen": 4096,
+    "module_name_preceding_first_block": [
+      "model.embed_tokens"
+    ],
+    "pad_token_id": null,
+    "quant_method": "gptq",
+    "sym": true,
+    "tokenizer": null,
+    "true_sequential": true,
+    "use_cuda_fp16": true
+  },
+  "rms_norm_eps": 1e-05,
+  "rope_scaling": null,
+  "rope_theta": 5000000.0,
+  "tie_word_embeddings": false,
+  "torch_dtype": "float16",
+  "transformers_version": "4.35.0",
+  "use_cache": true,
+  "vocab_size": 64000
+}
