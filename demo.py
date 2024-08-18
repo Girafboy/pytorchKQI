@@ -765,9 +765,9 @@ def task_LLM():
         "Meta_Llama_3_8B": (Meta_Llama_3_8B , LlamaConfig),
         "bert_base_uncased": (bert_base_uncased, BertConfig),
         "bert_large_uncased": (bert_large_uncased, BertConfig),
-        "t5_small": (t5_small, T5Config),
-        "t5_base": (t5_base, T5Config),
-        "t5_large": (t5_large, T5Config),
+        # "t5_small": (t5_small, T5Config),
+        # "t5_base": (t5_base, T5Config),
+        # "t5_large": (t5_large, T5Config),
         "gemma_2_2b": (gemma_2_2b, Gemma2Config),
         "gemma_2_9b": (gemma_2_9b, Gemma2Config),
         "gpt": (gpt, OpenAIGPTConfig),
@@ -793,9 +793,10 @@ def task_LLM():
             continue
         try:
             config = llm_config[1].from_dict(llm_config[0])
-            x = torch.randint(0, config.vocab_size, (1, config.max_position_embeddings))
+            sequence_length = getattr(config, 'max_position_embeddings', config.n_positions)
+            x = torch.randint(0, config.vocab_size, (1, sequence_length))
             model = AutoModel.from_config(config).eval()
-            callback_func = lambda model, x: model(x).logits if isinstance(model(x), CausalLMOutputWithPast) else model(x).last_hidden_state
+            callback_func = lambda model, x: model(x).last_hidden_state if isinstance(model(x), BaseModelOutputWithPast) else model(x).logits
             kqi = torchKQI.KQI(model, x, callback_func).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
