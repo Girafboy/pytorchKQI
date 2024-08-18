@@ -107,12 +107,12 @@ class MmBackward0(FB):
         (mat1, mat2), (out,) = grad_fn(volume_outputs[0]), volume_outputs
         size = (out.shape[0], mat1.shape[1] if mat1 is not None else mat2.shape[0], out.shape[1])
         if mat1 is not None and mat2 is not None:
-            mat1 = (1 + out.unsqueeze(1).expand(size) / (size[1] * 2)).sum(2)
-            mat2 = (1 + out.unsqueeze(1).expand(size) / (size[1] * 2)).sum(0)
+            mat1 = size[2] + out.unsqueeze(1).sum(2).expand((size[0], size[1])) / (size[1] * 2)
+            mat2 = size[0] + out.unsqueeze(1).sum(0).expand((size[1], size[2])) / (size[1] * 2)
         elif mat1 is not None:
-            mat1 = (1 + out.unsqueeze(1).expand(size) / (size[1])).sum(2)
+            mat1 = size[2] + out.unsqueeze(1).sum(2).expand((size[0], size[1])) / (size[1])
         else:
-            mat2 = (1 + out.unsqueeze(1).expand(size) / (size[1])).sum(0)
+            mat2 = size[0] + out.unsqueeze(1).sum(0).expand((size[1], size[2])) / (size[1])
         return (mat1, mat2)
 
     @classmethod
@@ -120,13 +120,17 @@ class MmBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (mat1, mat2), (out,) = volume_inputs, volume_outputs
         size = (out.shape[0], mat1.shape[1] if mat1 is not None else mat2.shape[0], out.shape[1])
+        kqi_out = torch.zeros_like(out)
         if mat1 is not None and mat2 is not None:
-            kqi_out = FB.temporary_KQI(out.unsqueeze(1).expand(size) / (size[1] * 2), mat1.unsqueeze(2).expand(size)).sum(1)
-            kqi_out += FB.temporary_KQI(out.unsqueeze(1).expand(size) / (size[1] * 2), mat2.unsqueeze(0).expand(size)).sum(1)
+            for i in range(size[1]):
+                kqi_out += FB.temporary_KQI(out / (size[1] * 2), mat1[:, i:i + 1].expand_as(out))
+                kqi_out += FB.temporary_KQI(out / (size[1] * 2), mat2[i:i + 1, :].expand_as(out))
         elif mat1 is not None:
-            kqi_out = FB.temporary_KQI(out.unsqueeze(1).expand(size) / (size[1]), mat1.unsqueeze(2).expand(size)).sum(1)
+            for i in range(size[1]):
+                kqi_out += FB.temporary_KQI(out / (size[1]), mat1[:, i:i + 1].expand_as(out))
         else:
-            kqi_out = FB.temporary_KQI(out.unsqueeze(1).expand(size) / (size[1]), mat2.unsqueeze(0).expand(size)).sum(1)
+            for i in range(size[1]):
+                kqi_out += FB.temporary_KQI(out / (size[1]), mat2[i:i + 1, :].expand_as(out))
         return (kqi_out, )
 
     @classmethod
@@ -259,6 +263,10 @@ class ExpBackward0(OnetoOneMapping):
 
 
 class ClampMinBackward0(OnetoOneMapping):
+    pass
+
+
+class RsqrtBackward0(OnetoOneMapping):
     pass
 
 
@@ -1041,9 +1049,9 @@ class AddmmBackward0(FB):
         if input is not None:
             input = 1 + out / degree
         if mat1 is not None:
-            mat1 = (1 + out.unsqueeze(1).expand(size) / degree).sum(2)
+            mat1 = size[2] + out.unsqueeze(1).sum(2).expand((size[0], size[1])) / degree
         if mat2 is not None:
-            mat2 = (1 + out.unsqueeze(1).expand(size) / degree).sum(0)
+            mat2 = size[0] + out.unsqueeze(1).sum(0).expand((size[1], size[2])) / degree
         return (input, mat1, mat2)
 
     @classmethod
@@ -1056,9 +1064,11 @@ class AddmmBackward0(FB):
         if input is not None:
             kqi_out += FB.temporary_KQI(out / degree, input)
         if mat1 is not None:
-            kqi_out += FB.temporary_KQI(out.unsqueeze(1).expand(size) / degree, mat1.unsqueeze(2).expand(size)).sum(1)
+            for i in range(size[1]):
+                kqi_out += FB.temporary_KQI(out / degree, mat1[:, i:i + 1].expand_as(out))
         if mat2 is not None:
-            kqi_out += FB.temporary_KQI(out.unsqueeze(1).expand(size) / degree, mat2.unsqueeze(0).expand(size)).sum(1)
+            for i in range(size[1]):
+                kqi_out += FB.temporary_KQI(out / degree, mat2[i:i + 1, :].expand_as(out))
         return (kqi_out, )
 
     @classmethod
@@ -1127,12 +1137,12 @@ class BmmBackward0(FB):
         (mat1, mat2), (out,) = grad_fn(volume_outputs[0]), volume_outputs
         size = (out.shape[0], out.shape[1], mat1.shape[2] if mat1 is not None else mat2.shape[1], out.shape[2])
         if mat1 is not None and mat2 is not None:
-            mat1 = (1 + out.unsqueeze(2).expand(size) / (size[2] * 2)).sum(3)
-            mat2 = (1 + out.unsqueeze(2).expand(size) / (size[2] * 2)).sum(1)
+            mat1 = size[3] + out.unsqueeze(2).sum(3).expand(size[0], size[1], size[2]) / (size[2] * 2)
+            mat2 = size[1] + out.unsqueeze(2).sum(1).expand(size[0], size[2], size[3]) / (size[2] * 2)
         elif mat1 is not None:
-            mat1 = (1 + out.unsqueeze(2).expand(size) / size[2]).sum(3)
+            mat1 = size[3] + out.unsqueeze(2).sum(3).expand(size[0], size[1], size[2]) / size[2]
         else:
-            mat2 = (1 + out.unsqueeze(2).expand(size) / size[2]).sum(1)
+            mat2 = size[1] + out.unsqueeze(2).sum(1).expand(size[0], size[2], size[3]) / size[2]
         return (mat1, mat2)
 
     @classmethod
@@ -1140,13 +1150,17 @@ class BmmBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (mat1, mat2), (out,) = volume_inputs, volume_outputs
         size = (out.shape[0], out.shape[1], mat1.shape[2] if mat1 is not None else mat2.shape[1], out.shape[2])
+        kqi_out = torch.zeros_like(out)
         if mat1 is not None and mat2 is not None:
-            kqi_out = FB.temporary_KQI(out.unsqueeze(2).expand(size) / (size[2] * 2), mat1.unsqueeze(3).expand(size)).sum(2)
-            kqi_out += FB.temporary_KQI(out.unsqueeze(2).expand(size) / (size[2] * 2), mat2.unsqueeze(1).expand(size)).sum(2)
+            for i in range(size[2]):
+                kqi_out += FB.temporary_KQI(out / (size[2] * 2), mat1[:, :, i:i + 1].expand_as(out))
+                kqi_out += FB.temporary_KQI(out / (size[2] * 2), mat2[:, i:i + 1, :].expand_as(out))
         elif mat1 is not None:
-            kqi_out = FB.temporary_KQI(out.unsqueeze(2).expand(size) / size[2], mat1.unsqueeze(3).expand(size)).sum(2)
+            for i in range(size[2]):
+                kqi_out += FB.temporary_KQI(out / size[2], mat1[:, :, i:i + 1].expand_as(out))
         else:
-            kqi_out = FB.temporary_KQI(out.unsqueeze(2).expand(size) / size[2], mat2.unsqueeze(1).expand(size)).sum(2)
+            for i in range(size[2]):
+                kqi_out += FB.temporary_KQI(out / size[2], mat2[:, i:i + 1, :].expand_as(out))
         return (kqi_out, )
 
     @classmethod
@@ -2565,6 +2579,42 @@ class IndexPutBackward0(FB):
         return {k: tuple(v) for k, v in adj.items()}
 
 
+class WhereBackward0(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=2, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, other), (out,) = grad_fn(volume_outputs[0]), volume_outputs
+        if input is not None:
+            input = 1 + out.sum_to_size(input.shape)
+        if other is not None:
+            other = 1 + out.sum_to_size(other.shape)
+        return (input, other)
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=2, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, other), (out, ) = volume_inputs, volume_outputs
+        kqi_out = torch.zeros_like(out)
+        if input is not None:
+            kqi_out += FB.temporary_KQI(out, input.broadcast_to(out.shape))
+        if other is not None:
+            kqi_out += FB.temporary_KQI(out, other.broadcast_to(out.shape))
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=2, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, other), (out, ) = inputs, outputs
+        adj = defaultdict(list)
+        if input is not None:
+            for i, o in zip(torch.flatten(input.broadcast_to(out.shape)), torch.flatten(out)):
+                adj[int(o)].append(int(i))
+        if other is not None:
+            for i, o in zip(torch.flatten(other.broadcast_to(out.shape)), torch.flatten(out)):
+                adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+
 __functions_mapping = {
     'torch::autograd::AccumulateGrad': AccumulateGrad,
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
@@ -2660,6 +2710,8 @@ __functions_mapping = {
     'ExpBackward0': ExpBackward0,
     'SplitWithSizesBackward0': SplitWithSizesBackward0,
     'IndexPutBackward0': IndexPutBackward0,
+    'RsqrtBackward0': RsqrtBackward0,
+    'WhereBackward0': WhereBackward0,
 }
 
 
