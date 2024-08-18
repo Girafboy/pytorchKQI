@@ -759,25 +759,25 @@ def task_VideoClassification():
 
 def task_LLM():
     llm_configs = {
-        "Llama_2_7b_hf": (Llama_2_7b_hf, LlamaConfig),
-        "Llama_2_13b_hf": (Llama_2_13b_hf, LlamaConfig),
-        "Llama_2_70b_hf": (Llama_2_70b_hf, LlamaConfig),
-        "Meta_Llama_3_8B": (Meta_Llama_3_8B , LlamaConfig),
-        "bert_base_uncased": (bert_base_uncased, BertConfig),
-        "bert_large_uncased": (bert_large_uncased, BertConfig),
+        # "Llama_2_7b_hf": (Llama_2_7b_hf, LlamaConfig),
+        # "Llama_2_13b_hf": (Llama_2_13b_hf, LlamaConfig),
+        # "Llama_2_70b_hf": (Llama_2_70b_hf, LlamaConfig),
+        # "Meta_Llama_3_8B": (Meta_Llama_3_8B , LlamaConfig),
+        # "bert_base_uncased": (bert_base_uncased, BertConfig),
+        # "bert_large_uncased": (bert_large_uncased, BertConfig),
         "t5_small": (t5_small, T5Config),
         "t5_base": (t5_base, T5Config),
         "t5_large": (t5_large, T5Config),
-        "gemma_2_2b": (gemma_2_2b, Gemma2Config),
-        "gemma_2_9b": (gemma_2_9b, Gemma2Config),
-        "gpt": (gpt, OpenAIGPTConfig),
-        "gpt2": (gpt2, GPT2Config),
-        "Qwen1_5_110B": (Qwen1_5_110B, Qwen2Config),
-        "Qwen2_7B": (Qwen2_7B, Qwen2Config),
-        "Qwen2_72B": (Qwen2_72B, Qwen2Config),
-        "Yi_1_5_6B": (Yi_1_5_6B, LlamaConfig),
-        "Yi_1_5_34B": (Yi_1_5_34B, LlamaConfig),
-        "deepseek_llm_7b_base": (deepseek_llm_7b_base, LlamaConfig),
+        # "gemma_2_2b": (gemma_2_2b, Gemma2Config),
+        # "gemma_2_9b": (gemma_2_9b, Gemma2Config),
+        # "gpt": (gpt, OpenAIGPTConfig),
+        # "gpt2": (gpt2, GPT2Config),
+        # "Qwen1_5_110B": (Qwen1_5_110B, Qwen2Config),
+        # "Qwen2_7B": (Qwen2_7B, Qwen2Config),
+        # "Qwen2_72B": (Qwen2_72B, Qwen2Config),
+        # "Yi_1_5_6B": (Yi_1_5_6B, LlamaConfig),
+        # "Yi_1_5_34B": (Yi_1_5_34B, LlamaConfig),
+        # "deepseek_llm_7b_base": (deepseek_llm_7b_base, LlamaConfig),
     }
 
     results_file = 'model_results.csv'
@@ -793,9 +793,10 @@ def task_LLM():
             continue
         try:
             config = llm_config[1].from_dict(llm_config[0])
-            x = torch.randint(0, config.vocab_size, (1, config.max_position_embeddings))
+            sequence_length = getattr(config, 'max_position_embeddings', config.n_positions)
+            x = torch.randint(0, config.vocab_size, (1, sequence_length))
             model = AutoModel.from_config(config).eval()
-            callback_func = lambda model, x: model(x).logits if isinstance(model(x), CausalLMOutputWithPast) else model(x).last_hidden_state
+            callback_func = lambda model, x: model(x).last_hidden_state if isinstance(model(x), BaseModelOutputWithPast) else model(x).logits
             kqi = torchKQI.KQI(model, x, callback_func).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
@@ -805,8 +806,8 @@ def task_LLM():
 
 
 if __name__ == '__main__':
-    task_ImageClassification()
-    task_SemanticSegmentation()
-    task_ObjectDetection()
-    task_VideoClassification()
+    # task_ImageClassification()
+    # task_SemanticSegmentation()
+    # task_ObjectDetection()
+    # task_VideoClassification()
     task_LLM()
