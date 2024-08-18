@@ -1,6 +1,6 @@
 ## Overview
 
-pytorchKQI provides a KQI (Knowledge Quantization Index) calculation API for neural networks based on the PyTorch framework, capable of efficiently computing the KQI for various neural networks. The functionalities provided by pytorchKQI include the following three items:
+pytorchKQI provides a KQI (Knowledge Quantification Index) calculation API for neural networks based on the PyTorch framework, which can efficiently compute the KQI for various neural networks. The functionalities provided by pytorchKQI include the following three items:
 1. Calculation of KQI for neural networks;
 2. Calculation of KQI for neural network nodes; 
 3. Visualization of KQI for neural networks.
@@ -46,10 +46,10 @@ import torchvision
 import torchKQI
 
 x = torch.randn(1, 3, 224, 224)
-model = torchvision.models.alexnet().eval()
+model = torchvision.models.alexnet()
 
 # Calculation of KQI for neural networks
-kqi = torchKQI.KQI(model, x).item()
+kqi = torchKQI.KQI(model, x)
 print(kqi)
 
 # Calculation of KQI for neural network nodes
