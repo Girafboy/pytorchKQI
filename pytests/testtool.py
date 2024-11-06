@@ -158,4 +158,4 @@ def testKQI(model, x):
     assert math.isclose(kqi_graph, kqi_torch, rel_tol=1e-4), f'KQI (torch) = {kqi_torch}, KQI (graph) = {kqi_graph}'
 
     logging.debug('============================ KQI (vision) ============================')
-    # torchKQI.VisualKQI(model, x)
+    torchKQI.VisualKQI(model, x)
