@@ -794,7 +794,7 @@ class ConvolutionBackward0(FB):
 
             if bias is not None:
                 for c in range(out_channels):
-                    for i, o in zip(bias[c:c + 1], torch.flatten(output[c:c + 1])):
+                    for i, o in zip(bias[c:c + 1].broadcast_to(output[c:c + 1].shape), torch.flatten(output[c:c + 1])):
                         adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
 
