@@ -749,7 +749,7 @@ def task_VideoClassification():
             continue
         try:
             model = model_fn().eval()
-            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out']).item()
+            kqi = torchKQI.KQI(model, x).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
         except Exception as e:
