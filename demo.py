@@ -668,8 +668,8 @@ def task_SemanticSegmentation():
 
     model_fns = [
         torchvision.models.segmentation.deeplabv3_mobilenet_v3_large, torchvision.models.segmentation.deeplabv3_resnet50, torchvision.models.segmentation.deeplabv3_resnet101,
-        torchvision.models.segmentation.deeplabv3_resnet50,
-        torchvision.models.segmentation.deeplabv3_resnet101,
+        # torchvision.models.segmentation.fcn_resnet50, torchvision.models.segmentation.fcn_resnet101
+        # torchvision.models.segmentation.lraspp_mobilenet_v3_large,
     ]
 
     results_file = 'model_results.csv'
