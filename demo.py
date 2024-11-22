@@ -3,8 +3,13 @@ import torchvision
 import torchKQI
 import pandas as pd
 import os
+import multiprocessing
 from transformers import LlamaConfig, BertConfig, T5Config, Gemma2Config, OpenAIGPTConfig, GPT2Config, Qwen2Config, AutoModel
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
+
+
+cpu_num = multiprocessing.cpu_count()
+torch.set_num_threads(cpu_num)
 
 
 Llama_2_7b_hf = {
