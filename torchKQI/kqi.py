@@ -40,7 +40,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
     pending = []
     if return_graph:
         increID = 1
-        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype=torch.float32).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
+        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel()).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
         increID += model_output.numel()
 
     for cur in reversed(list(nx.topological_sort(G))):
