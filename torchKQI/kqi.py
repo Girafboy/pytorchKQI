@@ -40,7 +40,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
     pending = []
     if return_graph:
         increID = 1
-        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype=torch.float32).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
+        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype = torch.float64).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
         increID += model_output.numel()
 
     for cur in reversed(list(nx.topological_sort(G))):
@@ -51,7 +51,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
                 waiting[cur] = waiting.get(cur, 0) + 1
                 volumes[next_fn] = tuple(v_old + vI for v_old, vI in itertools.zip_longest(volumes.get(next_fn, tuple()), (0,) * i + (vI,), fillvalue=0))
                 if return_graph:
-                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype=torch.float32).reshape_as(vI) for v_old, vI in itertools.zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
+                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype = torch.float64).reshape_as(vI) for v_old, vI in itertools.zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
                     if any(nodeID is not None and nodeID.eq(increID).any() for nodeID in nodeIDs[next_fn]):
                         increID += vI.numel()
 
