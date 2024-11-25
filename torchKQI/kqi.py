@@ -134,7 +134,7 @@ def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lam
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
 
 
-def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), filename: str = None, dots_per_unit: int = 4):
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), filename: str = None, dots_per_unit: int = 4, fontsize=7):
     plt.rcParams['figure.autolayout'] = False
     plt.rcParams['axes.spines.left'] = False
     plt.rcParams['axes.spines.bottom'] = False
@@ -148,11 +148,11 @@ def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable =
     plt.rcParams['xtick.bottom'] = False
     plt.rcParams['xtick.labeltop'] = False
     plt.rcParams['xtick.labelbottom'] = False
-    plt.rcParams['font.size'] = 9
-    plt.rcParams['axes.titlesize'] = 9
-    plt.rcParams['axes.labelsize'] = 9
-    plt.rcParams['xtick.labelsize'] = 9
-    plt.rcParams['ytick.labelsize'] = 9
+    plt.rcParams['font.size'] = fontsize
+    plt.rcParams['axes.titlesize'] = fontsize
+    plt.rcParams['axes.labelsize'] = fontsize
+    plt.rcParams['xtick.labelsize'] = fontsize
+    plt.rcParams['ytick.labelsize'] = fontsize
     plt.rcParams['savefig.bbox'] = 'tight'
     INTERVAL = 5
     SCALE_INCH_PT = 72

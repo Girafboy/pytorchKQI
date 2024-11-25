@@ -3,617 +3,622 @@ import torchvision
 import torchKQI
 import pandas as pd
 import os
+import multiprocessing
 from transformers import LlamaConfig, BertConfig, T5Config, Gemma2Config, OpenAIGPTConfig, GPT2Config, Qwen2Config, AutoModel
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 
 
+cpu_num = multiprocessing.cpu_count()
+torch.set_num_threads(cpu_num)
+
+
 Llama_2_7b_hf = {
-  "_name_or_path": "meta-llama/Llama-2-7b-hf",
-  "architectures": [
-    "LlamaForCausalLM"
-  ],
-  "bos_token_id": 1,
-  "eos_token_id": 2,
-  "hidden_act": "silu",
-  "hidden_size": 4096,
-  "initializer_range": 0.02,
-  "intermediate_size": 11008,
-  "max_position_embeddings": 4096,
-  "model_type": "llama",
-  "num_attention_heads": 32,
-  "num_hidden_layers": 32,
-  "num_key_value_heads": 32,
-  "pretraining_tp": 1,
-  "rms_norm_eps": 1e-05,
-  "rope_scaling": None,
-  "tie_word_embeddings": False,
-  "torch_dtype": "float16",
-  "transformers_version": "4.31.0.dev0",
-  "use_cache": True,
-  "vocab_size": 32000
+    "_name_or_path": "meta-llama/Llama-2-7b-hf",
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "hidden_act": "silu",
+    "hidden_size": 4096,
+    "initializer_range": 0.02,
+    "intermediate_size": 11008,
+    "max_position_embeddings": 4096,
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 32,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-05,
+    "rope_scaling": None,
+    "tie_word_embeddings": False,
+    "torch_dtype": "float16",
+    "transformers_version": "4.31.0.dev0",
+    "use_cache": True,
+    "vocab_size": 32000
 }
 
 Llama_2_13b_hf = {
-  "_name_or_path": "meta-llama/Llama-2-13b-hf",
-  "architectures": [
-    "LlamaForCausalLM"
-  ],
-  "bos_token_id": 1,
-  "eos_token_id": 2,
-  "hidden_act": "silu",
-  "hidden_size": 5120,
-  "initializer_range": 0.02,
-  "intermediate_size": 13824,
-  "max_position_embeddings": 4096,
-  "model_type": "llama",
-  "num_attention_heads": 40,
-  "num_hidden_layers": 40,
-  "num_key_value_heads": 40,
-  "pretraining_tp": 1,
-  "rms_norm_eps": 1e-05,
-  "rope_scaling": None,
-  "tie_word_embeddings": False,
-  "torch_dtype": "float16",
-  "transformers_version": "4.32.0.dev0",
-  "use_cache": True,
-  "vocab_size": 32000
+    "_name_or_path": "meta-llama/Llama-2-13b-hf",
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "hidden_act": "silu",
+    "hidden_size": 5120,
+    "initializer_range": 0.02,
+    "intermediate_size": 13824,
+    "max_position_embeddings": 4096,
+    "model_type": "llama",
+    "num_attention_heads": 40,
+    "num_hidden_layers": 40,
+    "num_key_value_heads": 40,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-05,
+    "rope_scaling": None,
+    "tie_word_embeddings": False,
+    "torch_dtype": "float16",
+    "transformers_version": "4.32.0.dev0",
+    "use_cache": True,
+    "vocab_size": 32000
 }
 
 Llama_2_70b_hf = {
-  "_name_or_path": "meta-llama/Llama-2-70b-hf",
-  "architectures": [
-    "LlamaForCausalLM"
-  ],
-  "bos_token_id": 1,
-  "eos_token_id": 2,
-  "hidden_act": "silu",
-  "hidden_size": 8192,
-  "initializer_range": 0.02,
-  "intermediate_size": 28672,
-  "max_position_embeddings": 4096,
-  "model_type": "llama",
-  "num_attention_heads": 64,
-  "num_hidden_layers": 80,
-  "num_key_value_heads": 8,
-  "pretraining_tp": 1,
-  "rms_norm_eps": 1e-05,
-  "rope_scaling": None,
-  "tie_word_embeddings": False,
-  "torch_dtype": "float16",
-  "transformers_version": "4.32.0.dev0",
-  "use_cache": True,
-  "vocab_size": 32000
+    "_name_or_path": "meta-llama/Llama-2-70b-hf",
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "hidden_act": "silu",
+    "hidden_size": 8192,
+    "initializer_range": 0.02,
+    "intermediate_size": 28672,
+    "max_position_embeddings": 4096,
+    "model_type": "llama",
+    "num_attention_heads": 64,
+    "num_hidden_layers": 80,
+    "num_key_value_heads": 8,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-05,
+    "rope_scaling": None,
+    "tie_word_embeddings": False,
+    "torch_dtype": "float16",
+    "transformers_version": "4.32.0.dev0",
+    "use_cache": True,
+    "vocab_size": 32000
 }
 
 Meta_Llama_3_8B = {
-  "architectures": [
-    "LlamaForCausalLM"
-  ],
-  "attention_bias": False,
-  "attention_dropout": 0.0,
-  "bos_token_id": 128000,
-  "eos_token_id": 128001,
-  "hidden_act": "silu",
-  "hidden_size": 4096,
-  "initializer_range": 0.02,
-  "intermediate_size": 14336,
-  "max_position_embeddings": 8192,
-  "model_type": "llama",
-  "num_attention_heads": 32,
-  "num_hidden_layers": 32,
-  "num_key_value_heads": 8,
-  "pretraining_tp": 1,
-  "rms_norm_eps": 1e-05,
-  "rope_scaling": None,
-  "rope_theta": 500000.0,
-  "tie_word_embeddings": False,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.40.0.dev0",
-  "use_cache": True,
-  "vocab_size": 128256
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "bos_token_id": 128000,
+    "eos_token_id": 128001,
+    "hidden_act": "silu",
+    "hidden_size": 4096,
+    "initializer_range": 0.02,
+    "intermediate_size": 14336,
+    "max_position_embeddings": 8192,
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 8,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-05,
+    "rope_scaling": None,
+    "rope_theta": 500000.0,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.40.0.dev0",
+    "use_cache": True,
+    "vocab_size": 128256
 }
 
 bert_base_uncased = {
-  "architectures": [
-    "BertForMaskedLM"
-  ],
-  "attention_probs_dropout_prob": 0.1,
-  "gradient_checkpointing": False,
-  "hidden_act": "gelu",
-  "hidden_dropout_prob": 0.1,
-  "hidden_size": 768,
-  "initializer_range": 0.02,
-  "intermediate_size": 3072,
-  "layer_norm_eps": 1e-12,
-  "max_position_embeddings": 512,
-  "model_type": "bert",
-  "num_attention_heads": 12,
-  "num_hidden_layers": 12,
-  "pad_token_id": 0,
-  "position_embedding_type": "absolute",
-  "transformers_version": "4.6.0.dev0",
-  "type_vocab_size": 2,
-  "use_cache": True,
-  "vocab_size": 30522
+    "architectures": [
+        "BertForMaskedLM"
+    ],
+    "attention_probs_dropout_prob": 0.1,
+    "gradient_checkpointing": False,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 768,
+    "initializer_range": 0.02,
+    "intermediate_size": 3072,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "model_type": "bert",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 12,
+    "pad_token_id": 0,
+    "position_embedding_type": "absolute",
+    "transformers_version": "4.6.0.dev0",
+    "type_vocab_size": 2,
+    "use_cache": True,
+    "vocab_size": 30522
 }
 
 bert_large_uncased = {
-  "architectures": [
-    "BertForMaskedLM"
-  ],
-  "attention_probs_dropout_prob": 0.1,
-  "gradient_checkpointing": False,
-  "hidden_act": "gelu",
-  "hidden_dropout_prob": 0.1,
-  "hidden_size": 1024,
-  "initializer_range": 0.02,
-  "intermediate_size": 4096,
-  "layer_norm_eps": 1e-12,
-  "max_position_embeddings": 512,
-  "model_type": "bert",
-  "num_attention_heads": 16,
-  "num_hidden_layers": 24,
-  "pad_token_id": 0,
-  "position_embedding_type": "absolute",
-  "transformers_version": "4.6.0.dev0",
-  "type_vocab_size": 2,
-  "use_cache": True,
-  "vocab_size": 30522
+    "architectures": [
+        "BertForMaskedLM"
+    ],
+    "attention_probs_dropout_prob": 0.1,
+    "gradient_checkpointing": False,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 1024,
+    "initializer_range": 0.02,
+    "intermediate_size": 4096,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "model_type": "bert",
+    "num_attention_heads": 16,
+    "num_hidden_layers": 24,
+    "pad_token_id": 0,
+    "position_embedding_type": "absolute",
+    "transformers_version": "4.6.0.dev0",
+    "type_vocab_size": 2,
+    "use_cache": True,
+    "vocab_size": 30522
 }
 
 t5_small = {
-  "architectures": [
-    "T5ForConditionalGeneration"
-  ],
-  "d_ff": 2048,
-  "d_kv": 64,
-  "d_model": 512,
-  "decoder_start_token_id": 0,
-  "dropout_rate": 0.1,
-  "eos_token_id": 1,
-  "initializer_factor": 1.0,
-  "is_encoder_decoder": True,
-  "layer_norm_epsilon": 1e-06,
-  "model_type": "t5",
-  "n_positions": 512,
-  "num_heads": 8,
-  "num_layers": 6,
-  "output_past": True,
-  "pad_token_id": 0,
-  "relative_attention_num_buckets": 32,
-  "task_specific_params": {
-    "summarization": {
-      "early_stopping": True,
-      "length_penalty": 2.0,
-      "max_length": 200,
-      "min_length": 30,
-      "no_repeat_ngram_size": 3,
-      "num_beams": 4,
-      "prefix": "summarize: "
+    "architectures": [
+        "T5ForConditionalGeneration"
+    ],
+    "d_ff": 2048,
+    "d_kv": 64,
+    "d_model": 512,
+    "decoder_start_token_id": 0,
+    "dropout_rate": 0.1,
+    "eos_token_id": 1,
+    "initializer_factor": 1.0,
+    "is_encoder_decoder": True,
+    "layer_norm_epsilon": 1e-06,
+    "model_type": "t5",
+    "n_positions": 512,
+    "num_heads": 8,
+    "num_layers": 6,
+    "output_past": True,
+    "pad_token_id": 0,
+    "relative_attention_num_buckets": 32,
+    "task_specific_params": {
+        "summarization": {
+            "early_stopping": True,
+            "length_penalty": 2.0,
+            "max_length": 200,
+            "min_length": 30,
+            "no_repeat_ngram_size": 3,
+            "num_beams": 4,
+            "prefix": "summarize: "
+        },
+        "translation_en_to_de": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to German: "
+        },
+        "translation_en_to_fr": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to French: "
+        },
+        "translation_en_to_ro": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to Romanian: "
+        }
     },
-    "translation_en_to_de": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to German: "
-    },
-    "translation_en_to_fr": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to French: "
-    },
-    "translation_en_to_ro": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to Romanian: "
-    }
-  },
-  "vocab_size": 32128
+    "vocab_size": 32128
 }
 
 t5_base = {
-  "architectures": [
-    "T5ForConditionalGeneration"
-  ],
-  "d_ff": 3072,
-  "d_kv": 64,
-  "d_model": 768,
-  "decoder_start_token_id": 0,
-  "dropout_rate": 0.1,
-  "eos_token_id": 1,
-  "initializer_factor": 1.0,
-  "is_encoder_decoder": True,
-  "layer_norm_epsilon": 1e-06,
-  "model_type": "t5",
-  "n_positions": 512,
-  "num_heads": 12,
-  "num_layers": 12,
-  "output_past": True,
-  "pad_token_id": 0,
-  "relative_attention_num_buckets": 32,
-  "task_specific_params": {
-    "summarization": {
-      "early_stopping": True,
-      "length_penalty": 2.0,
-      "max_length": 200,
-      "min_length": 30,
-      "no_repeat_ngram_size": 3,
-      "num_beams": 4,
-      "prefix": "summarize: "
+    "architectures": [
+        "T5ForConditionalGeneration"
+    ],
+    "d_ff": 3072,
+    "d_kv": 64,
+    "d_model": 768,
+    "decoder_start_token_id": 0,
+    "dropout_rate": 0.1,
+    "eos_token_id": 1,
+    "initializer_factor": 1.0,
+    "is_encoder_decoder": True,
+    "layer_norm_epsilon": 1e-06,
+    "model_type": "t5",
+    "n_positions": 512,
+    "num_heads": 12,
+    "num_layers": 12,
+    "output_past": True,
+    "pad_token_id": 0,
+    "relative_attention_num_buckets": 32,
+    "task_specific_params": {
+        "summarization": {
+            "early_stopping": True,
+            "length_penalty": 2.0,
+            "max_length": 200,
+            "min_length": 30,
+            "no_repeat_ngram_size": 3,
+            "num_beams": 4,
+            "prefix": "summarize: "
+        },
+        "translation_en_to_de": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to German: "
+        },
+        "translation_en_to_fr": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to French: "
+        },
+        "translation_en_to_ro": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to Romanian: "
+        }
     },
-    "translation_en_to_de": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to German: "
-    },
-    "translation_en_to_fr": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to French: "
-    },
-    "translation_en_to_ro": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to Romanian: "
-    }
-  },
-  "vocab_size": 32128
+    "vocab_size": 32128
 }
 
 t5_large = {
-  "architectures": [
-    "T5ForConditionalGeneration"
-  ],
-  "d_ff": 4096,
-  "d_kv": 64,
-  "d_model": 1024,
-  "decoder_start_token_id": 0,
-  "dropout_rate": 0.1,
-  "eos_token_id": 1,
-  "initializer_factor": 1.0,
-  "is_encoder_decoder": True,
-  "layer_norm_epsilon": 1e-06,
-  "model_type": "t5",
-  "n_positions": 512,
-  "num_heads": 16,
-  "num_layers": 24,
-  "output_past": True,
-  "pad_token_id": 0,
-  "relative_attention_num_buckets": 32,
-  "task_specific_params": {
-    "summarization": {
-      "early_stopping": True,
-      "length_penalty": 2.0,
-      "max_length": 200,
-      "min_length": 30,
-      "no_repeat_ngram_size": 3,
-      "num_beams": 4,
-      "prefix": "summarize: "
+    "architectures": [
+        "T5ForConditionalGeneration"
+    ],
+    "d_ff": 4096,
+    "d_kv": 64,
+    "d_model": 1024,
+    "decoder_start_token_id": 0,
+    "dropout_rate": 0.1,
+    "eos_token_id": 1,
+    "initializer_factor": 1.0,
+    "is_encoder_decoder": True,
+    "layer_norm_epsilon": 1e-06,
+    "model_type": "t5",
+    "n_positions": 512,
+    "num_heads": 16,
+    "num_layers": 24,
+    "output_past": True,
+    "pad_token_id": 0,
+    "relative_attention_num_buckets": 32,
+    "task_specific_params": {
+        "summarization": {
+            "early_stopping": True,
+            "length_penalty": 2.0,
+            "max_length": 200,
+            "min_length": 30,
+            "no_repeat_ngram_size": 3,
+            "num_beams": 4,
+            "prefix": "summarize: "
+        },
+        "translation_en_to_de": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to German: "
+        },
+        "translation_en_to_fr": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to French: "
+        },
+        "translation_en_to_ro": {
+            "early_stopping": True,
+            "max_length": 300,
+            "num_beams": 4,
+            "prefix": "translate English to Romanian: "
+        }
     },
-    "translation_en_to_de": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to German: "
-    },
-    "translation_en_to_fr": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to French: "
-    },
-    "translation_en_to_ro": {
-      "early_stopping": True,
-      "max_length": 300,
-      "num_beams": 4,
-      "prefix": "translate English to Romanian: "
-    }
-  },
-  "vocab_size": 32128
+    "vocab_size": 32128
 }
 
 gemma_2_2b = {
-  "architectures": [
-    "Gemma2ForCausalLM"
-  ],
-  "attention_bias": False,
-  "attention_dropout": 0.0,
-  "attn_logit_softcapping": 50.0,
-  "bos_token_id": 2,
-  "cache_implementation": "hybrid",
-  "eos_token_id": 1,
-  "final_logit_softcapping": 30.0,
-  "head_dim": 256,
-  "hidden_act": "gelu_pytorch_tanh",
-  "hidden_activation": "gelu_pytorch_tanh",
-  "hidden_size": 2304,
-  "initializer_range": 0.02,
-  "intermediate_size": 9216,
-  "max_position_embeddings": 8192,
-  "model_type": "gemma2",
-  "num_attention_heads": 8,
-  "num_hidden_layers": 26,
-  "num_key_value_heads": 4,
-  "pad_token_id": 0,
-  "query_pre_attn_scalar": 256,
-  "rms_norm_eps": 1e-06,
-  "rope_theta": 10000.0,
-  "sliding_window": 4096,
-  "torch_dtype": "float32",
-  "transformers_version": "4.42.4",
-  "use_cache": True,
-  "vocab_size": 256000
+    "architectures": [
+        "Gemma2ForCausalLM"
+    ],
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "attn_logit_softcapping": 50.0,
+    "bos_token_id": 2,
+    "cache_implementation": "hybrid",
+    "eos_token_id": 1,
+    "final_logit_softcapping": 30.0,
+    "head_dim": 256,
+    "hidden_act": "gelu_pytorch_tanh",
+    "hidden_activation": "gelu_pytorch_tanh",
+    "hidden_size": 2304,
+    "initializer_range": 0.02,
+    "intermediate_size": 9216,
+    "max_position_embeddings": 8192,
+    "model_type": "gemma2",
+    "num_attention_heads": 8,
+    "num_hidden_layers": 26,
+    "num_key_value_heads": 4,
+    "pad_token_id": 0,
+    "query_pre_attn_scalar": 256,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 10000.0,
+    "sliding_window": 4096,
+    "torch_dtype": "float32",
+    "transformers_version": "4.42.4",
+    "use_cache": True,
+    "vocab_size": 256000
 }
 
 gemma_2_9b = {
-  "architectures": [
-    "Gemma2ForCausalLM"
-  ],
-  "attention_bias": False,
-  "attention_dropout": 0.0,
-  "attn_logit_softcapping": 50.0,
-  "bos_token_id": 2,
-  "cache_implementation": "hybrid",
-  "eos_token_id": 1,
-  "final_logit_softcapping": 30.0,
-  "head_dim": 256,
-  "hidden_act": "gelu_pytorch_tanh",
-  "hidden_activation": "gelu_pytorch_tanh",
-  "hidden_size": 3584,
-  "initializer_range": 0.02,
-  "intermediate_size": 14336,
-  "max_position_embeddings": 8192,
-  "model_type": "gemma2",
-  "num_attention_heads": 16,
-  "num_hidden_layers": 42,
-  "num_key_value_heads": 8,
-  "pad_token_id": 0,
-  "query_pre_attn_scalar": 256,
-  "rms_norm_eps": 1e-06,
-  "rope_theta": 10000.0,
-  "sliding_window": 4096,
-  "sliding_window_size": 4096,
-  "torch_dtype": "float32",
-  "transformers_version": "4.42.0.dev0",
-  "use_cache": True,
-  "vocab_size": 256000
+    "architectures": [
+        "Gemma2ForCausalLM"
+    ],
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "attn_logit_softcapping": 50.0,
+    "bos_token_id": 2,
+    "cache_implementation": "hybrid",
+    "eos_token_id": 1,
+    "final_logit_softcapping": 30.0,
+    "head_dim": 256,
+    "hidden_act": "gelu_pytorch_tanh",
+    "hidden_activation": "gelu_pytorch_tanh",
+    "hidden_size": 3584,
+    "initializer_range": 0.02,
+    "intermediate_size": 14336,
+    "max_position_embeddings": 8192,
+    "model_type": "gemma2",
+    "num_attention_heads": 16,
+    "num_hidden_layers": 42,
+    "num_key_value_heads": 8,
+    "pad_token_id": 0,
+    "query_pre_attn_scalar": 256,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 10000.0,
+    "sliding_window": 4096,
+    "sliding_window_size": 4096,
+    "torch_dtype": "float32",
+    "transformers_version": "4.42.0.dev0",
+    "use_cache": True,
+    "vocab_size": 256000
 }
 
 gpt = {
-  "afn": "gelu",
-  "architectures": [
-    "OpenAIGPTLMHeadModel"
-  ],
-  "attn_pdrop": 0.1,
-  "embd_pdrop": 0.1,
-  "initializer_range": 0.02,
-  "layer_norm_epsilon": 1e-05,
-  "model_type": "openai-gpt",
-  "n_ctx": 512,
-  "n_embd": 768,
-  "n_head": 12,
-  "n_layer": 12,
-  "n_positions": 512,
-  "n_special": 0,
-  "predict_special_tokens": True,
-  "resid_pdrop": 0.1,
-  "summary_activation": None,
-  "summary_first_dropout": 0.1,
-  "summary_proj_to_labels": True,
-  "summary_type": "cls_index",
-  "summary_use_proj": True,
-  "task_specific_params": {
-    "text-generation": {
-      "do_sample": True,
-      "max_length": 50
-    }
-  },
-  "vocab_size": 40478
+    "afn": "gelu",
+    "architectures": [
+        "OpenAIGPTLMHeadModel"
+    ],
+    "attn_pdrop": 0.1,
+    "embd_pdrop": 0.1,
+    "initializer_range": 0.02,
+    "layer_norm_epsilon": 1e-05,
+    "model_type": "openai-gpt",
+    "n_ctx": 512,
+    "n_embd": 768,
+    "n_head": 12,
+    "n_layer": 12,
+    "n_positions": 512,
+    "n_special": 0,
+    "predict_special_tokens": True,
+    "resid_pdrop": 0.1,
+    "summary_activation": None,
+    "summary_first_dropout": 0.1,
+    "summary_proj_to_labels": True,
+    "summary_type": "cls_index",
+    "summary_use_proj": True,
+    "task_specific_params": {
+        "text-generation": {
+            "do_sample": True,
+            "max_length": 50
+        }
+    },
+    "vocab_size": 40478
 }
 
 gpt2 = {
-  "activation_function": "gelu_new",
-  "architectures": [
-    "GPT2LMHeadModel"
-  ],
-  "attn_pdrop": 0.1,
-  "bos_token_id": 50256,
-  "embd_pdrop": 0.1,
-  "eos_token_id": 50256,
-  "initializer_range": 0.02,
-  "layer_norm_epsilon": 1e-05,
-  "model_type": "gpt2",
-  "n_ctx": 1024,
-  "n_embd": 768,
-  "n_head": 12,
-  "n_layer": 12,
-  "n_positions": 1024,
-  "resid_pdrop": 0.1,
-  "summary_activation": None,
-  "summary_first_dropout": 0.1,
-  "summary_proj_to_labels": True,
-  "summary_type": "cls_index",
-  "summary_use_proj": True,
-  "task_specific_params": {
-    "text-generation": {
-      "do_sample": True,
-      "max_length": 50
-    }
-  },
-  "vocab_size": 50257
+    "activation_function": "gelu_new",
+    "architectures": [
+        "GPT2LMHeadModel"
+    ],
+    "attn_pdrop": 0.1,
+    "bos_token_id": 50256,
+    "embd_pdrop": 0.1,
+    "eos_token_id": 50256,
+    "initializer_range": 0.02,
+    "layer_norm_epsilon": 1e-05,
+    "model_type": "gpt2",
+    "n_ctx": 1024,
+    "n_embd": 768,
+    "n_head": 12,
+    "n_layer": 12,
+    "n_positions": 1024,
+    "resid_pdrop": 0.1,
+    "summary_activation": None,
+    "summary_first_dropout": 0.1,
+    "summary_proj_to_labels": True,
+    "summary_type": "cls_index",
+    "summary_use_proj": True,
+    "task_specific_params": {
+        "text-generation": {
+            "do_sample": True,
+            "max_length": 50
+        }
+    },
+    "vocab_size": 50257
 }
 
 Qwen1_5_110B = {
-  "architectures": [
-    "Qwen2ForCausalLM"
-  ],
-  "attention_dropout": 0.0,
-  "bos_token_id": 151643,
-  "eos_token_id": 151643,
-  "hidden_act": "silu",
-  "hidden_size": 8192,
-  "initializer_range": 0.02,
-  "intermediate_size": 49152,
-  "max_position_embeddings": 32768,
-  "max_window_layers": 28,
-  "model_type": "qwen2",
-  "num_attention_heads": 64,
-  "num_hidden_layers": 80,
-  "num_key_value_heads": 8,
-  "rms_norm_eps": 1e-06,
-  "rope_theta": 1000000.0,
-  "sliding_window": 32768,
-  "tie_word_embeddings": False,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.37.0",
-  "use_cache": True,
-  "use_sliding_window": False,
-  "vocab_size": 152064
+    "architectures": [
+        "Qwen2ForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "bos_token_id": 151643,
+    "eos_token_id": 151643,
+    "hidden_act": "silu",
+    "hidden_size": 8192,
+    "initializer_range": 0.02,
+    "intermediate_size": 49152,
+    "max_position_embeddings": 32768,
+    "max_window_layers": 28,
+    "model_type": "qwen2",
+    "num_attention_heads": 64,
+    "num_hidden_layers": 80,
+    "num_key_value_heads": 8,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 1000000.0,
+    "sliding_window": 32768,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.37.0",
+    "use_cache": True,
+    "use_sliding_window": False,
+    "vocab_size": 152064
 }
 
 Qwen2_7B = {
-  "architectures": [
-    "Qwen2ForCausalLM"
-  ],
-  "attention_dropout": 0.0,
-  "bos_token_id": 151643,
-  "eos_token_id": 151643,
-  "hidden_act": "silu",
-  "hidden_size": 3584,
-  "initializer_range": 0.02,
-  "intermediate_size": 18944,
-  "max_position_embeddings": 131072,
-  "max_window_layers": 28,
-  "model_type": "qwen2",
-  "num_attention_heads": 28,
-  "num_hidden_layers": 28,
-  "num_key_value_heads": 4,
-  "rms_norm_eps": 1e-06,
-  "rope_theta": 1000000.0,
-  "sliding_window": 131072,
-  "tie_word_embeddings": False,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.37.2",
-  "use_cache": True,
-  "use_sliding_window": False,
-  "vocab_size": 152064
+    "architectures": [
+        "Qwen2ForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "bos_token_id": 151643,
+    "eos_token_id": 151643,
+    "hidden_act": "silu",
+    "hidden_size": 3584,
+    "initializer_range": 0.02,
+    "intermediate_size": 18944,
+    "max_position_embeddings": 131072,
+    "max_window_layers": 28,
+    "model_type": "qwen2",
+    "num_attention_heads": 28,
+    "num_hidden_layers": 28,
+    "num_key_value_heads": 4,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 1000000.0,
+    "sliding_window": 131072,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.37.2",
+    "use_cache": True,
+    "use_sliding_window": False,
+    "vocab_size": 152064
 }
 
 Qwen2_72B = {
-  "architectures": [
-    "Qwen2ForCausalLM"
-  ],
-  "attention_dropout": 0.0,
-  "bos_token_id": 151643,
-  "eos_token_id": 151643,
-  "hidden_act": "silu",
-  "hidden_size": 8192,
-  "initializer_range": 0.02,
-  "intermediate_size": 29568,
-  "max_position_embeddings": 131072,
-  "max_window_layers": 80,
-  "model_type": "qwen2",
-  "num_attention_heads": 64,
-  "num_hidden_layers": 80,
-  "num_key_value_heads": 8,
-  "rms_norm_eps": 1e-05,
-  "rope_theta": 1000000.0,
-  "sliding_window": 131072,
-  "tie_word_embeddings": False,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.40.1",
-  "use_cache": True,
-  "use_sliding_window": False,
-  "vocab_size": 152064
+    "architectures": [
+        "Qwen2ForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "bos_token_id": 151643,
+    "eos_token_id": 151643,
+    "hidden_act": "silu",
+    "hidden_size": 8192,
+    "initializer_range": 0.02,
+    "intermediate_size": 29568,
+    "max_position_embeddings": 131072,
+    "max_window_layers": 80,
+    "model_type": "qwen2",
+    "num_attention_heads": 64,
+    "num_hidden_layers": 80,
+    "num_key_value_heads": 8,
+    "rms_norm_eps": 1e-05,
+    "rope_theta": 1000000.0,
+    "sliding_window": 131072,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.40.1",
+    "use_cache": True,
+    "use_sliding_window": False,
+    "vocab_size": 152064
 }
 
 Yi_1_5_6B = {
-  "architectures": [
-    "LlamaForCausalLM"
-  ],
-  "attention_bias": False,
-  "attention_dropout": 0.0,
-  "bos_token_id": 1,
-  "eos_token_id": 2,
-  "hidden_act": "silu",
-  "hidden_size": 4096,
-  "initializer_range": 0.02,
-  "intermediate_size": 11008,
-  "max_position_embeddings": 4096,
-  "model_type": "llama",
-  "num_attention_heads": 32,
-  "num_hidden_layers": 32,
-  "num_key_value_heads": 4,
-  "pad_token_id": 0,
-  "pretraining_tp": 1,
-  "rms_norm_eps": 1e-06,
-  "rope_scaling": None,
-  "rope_theta": 5000000.0,
-  "tie_word_embeddings": False,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.37.2",
-  "use_cache": True,
-  "vocab_size": 64000
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "hidden_act": "silu",
+    "hidden_size": 4096,
+    "initializer_range": 0.02,
+    "intermediate_size": 11008,
+    "max_position_embeddings": 4096,
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 4,
+    "pad_token_id": 0,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-06,
+    "rope_scaling": None,
+    "rope_theta": 5000000.0,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.37.2",
+    "use_cache": True,
+    "vocab_size": 64000
 }
 
 Yi_1_5_34B = {
-  "architectures": [
-    "LlamaForCausalLM"
-  ],
-  "attention_bias": False,
-  "attention_dropout": 0.0,
-  "bos_token_id": 1,
-  "eos_token_id": 2,
-  "hidden_act": "silu",
-  "hidden_size": 7168,
-  "initializer_range": 0.02,
-  "intermediate_size": 20480,
-  "max_position_embeddings": 4096,
-  "model_type": "llama",
-  "num_attention_heads": 56,
-  "num_hidden_layers": 60,
-  "num_key_value_heads": 8,
-  "pad_token_id": 0,
-  "pretraining_tp": 1,
-  "rms_norm_eps": 1e-06,
-  "rope_scaling": None,
-  "rope_theta": 5000000.0,
-  "tie_word_embeddings": False,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.37.2",
-  "use_cache": True,
-  "vocab_size": 64000
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "hidden_act": "silu",
+    "hidden_size": 7168,
+    "initializer_range": 0.02,
+    "intermediate_size": 20480,
+    "max_position_embeddings": 4096,
+    "model_type": "llama",
+    "num_attention_heads": 56,
+    "num_hidden_layers": 60,
+    "num_key_value_heads": 8,
+    "pad_token_id": 0,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-06,
+    "rope_scaling": None,
+    "rope_theta": 5000000.0,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.37.2",
+    "use_cache": True,
+    "vocab_size": 64000
 }
 
 deepseek_llm_7b_base = {
-  "architectures": [
-    "LlamaForCausalLM"
-  ],
-  "bos_token_id": 1,
-  "eos_token_id": 2,
-  "hidden_act": "silu",
-  "hidden_size": 4096,
-  "initializer_range": 0.02,
-  "intermediate_size": 11008,
-  "max_position_embeddings": 4096,
-  "model_type": "llama",
-  "num_attention_heads": 32,
-  "num_hidden_layers": 30,
-  "num_key_value_heads": 32,
-  "pretraining_tp": 1,
-  "rms_norm_eps": 1e-06,
-  "rope_scaling": None,
-  "rope_theta": 10000.0,
-  "tie_word_embeddings": False,
-  "torch_dtype": "bfloat16",
-  "transformers_version": "4.33.1",
-  "use_cache": True,
-  "vocab_size": 102400
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "hidden_act": "silu",
+    "hidden_size": 4096,
+    "initializer_range": 0.02,
+    "intermediate_size": 11008,
+    "max_position_embeddings": 4096,
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 30,
+    "num_key_value_heads": 32,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-06,
+    "rope_scaling": None,
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.33.1",
+    "use_cache": True,
+    "vocab_size": 102400
 }
 
 
@@ -762,7 +767,7 @@ def task_LLM():
         "Llama_2_7b_hf": (Llama_2_7b_hf, LlamaConfig),
         "Llama_2_13b_hf": (Llama_2_13b_hf, LlamaConfig),
         "Llama_2_70b_hf": (Llama_2_70b_hf, LlamaConfig),
-        "Meta_Llama_3_8B": (Meta_Llama_3_8B , LlamaConfig),
+        "Meta_Llama_3_8B": (Meta_Llama_3_8B, LlamaConfig),
         "bert_base_uncased": (bert_base_uncased, BertConfig),
         "bert_large_uncased": (bert_large_uncased, BertConfig),
         # "t5_small": (t5_small, T5Config),
