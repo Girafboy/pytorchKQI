@@ -1888,13 +1888,8 @@ class ConstantPadNdBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
         pad = grad_fn.__getattribute__('_saved_pad')
-        adj = defaultdict(list)
-        for i, o in zip(torch.flatten(torch.nn.functional.pad(input, pad, value=float('nan'))), torch.flatten(out)):
-            if i == i:
-                adj[int(o)].append(int(i))
-            else:
-                adj[int(o)].append(tuple())
-        return {k: tuple(v) for k, v in adj.items()}
+        adj = {int(o): (int(i), ) if i == i else tuple() for i, o in zip(torch.flatten(torch.nn.functional.pad(input, pad, value=float('nan'))), torch.flatten(out))}
+        return adj
 
 
 class PixelShuffleBackward0(FB):
