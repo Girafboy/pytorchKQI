@@ -8,8 +8,12 @@ from transformers import LlamaConfig, BertConfig, T5Config, Gemma2Config, OpenAI
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 
 
-cpu_num = multiprocessing.cpu_count()
-torch.set_num_threads(cpu_num)
+if torch.cuda.is_available():
+    torch.set_default_dtype(torch.float32)
+    torch.set_default_device('cuda:0')
+else:
+    cpu_num = multiprocessing.cpu_count()
+    torch.set_num_threads(cpu_num)
 
 
 Llama_2_7b_hf = {
