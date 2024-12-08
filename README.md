@@ -14,6 +14,12 @@ git clone https://github.com/Girafboy/pytorchKQI.git
 cd pytorchKQI
 ```
 
+#### Graphviz Dependencies
+
+```bash
+sudo apt-get install graphviz graphviz-dev
+```
+
 #### Python Dependencies
 
 ```
