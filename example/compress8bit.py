@@ -55,6 +55,7 @@ def compress_float(num, mantissa_bits=6, exponent_bits=0):
 
     return sign_bit, compressed_mantissa, compressed_exponent
 
+
 def decompress_float(sign_bit, compressed_mantissa, compressed_exponent, mantissa_bits=6, exponent_bits=0):
     """
     Decompress a compressed float32 number.
@@ -85,6 +86,7 @@ def decompress_float(sign_bit, compressed_mantissa, compressed_exponent, mantiss
     raw = (sign_bit << 31) | (original_exponent << 23) | expanded_mantissa
     return struct.unpack('>f', raw.to_bytes(4, 'big'))[0]
 
+
 def compress_tensor(tensor, mantissa_bits=3, exponent_bits=4):
     """
     Compress all values in a tensor.
@@ -102,7 +104,7 @@ def compress_tensor(tensor, mantissa_bits=3, exponent_bits=4):
         sign_bits = []
         mantissas = []
         exponents = []
-        
+
         # Loop through each element in the tensor
         for num in tensor.view(-1):  # Flatten the tensor for iteration
             sign_bit, compressed_mantissa, compressed_exponent = compress_float(num.item(), mantissa_bits, exponent_bits)
@@ -158,19 +160,20 @@ def calculate_accuracy(model, dataloader):
             # Top-1 Accuracy
             _, predicted_classes = torch.max(outputs, 1)
             correct_top1 += (predicted_classes == labels).sum().item()
-            
+
             # Top-5 Accuracy
             _, top5_classes = torch.topk(outputs, 5, dim=1, largest=True, sorted=True)
             top5_classes = top5_classes.numpy()
             labels = labels.numpy()
             correct_top5 += sum([label in top5_classes[i] for i, label in enumerate(labels)])
-            
+
             total_images += labels.size
 
     top1_accuracy = correct_top1 / total_images
     top5_accuracy = correct_top5 / total_images
 
     return top1_accuracy, top5_accuracy
+
 
 def evaluate_model(model, transform, dataset_path='ILSVRC2012_img_val', batch_size=64, num_workers=4):
     model.eval()
@@ -268,6 +271,7 @@ def mask_alexnet(per, top, mantissa_bits=3, exponent_bits=4):
 
     return model.__class__.__name__, top1_accuracy, top5_accuracy, kqi_mask, original_bits / (10 ** 6), compressed_bits / (10 ** 6)
 
+
 def mask_densenet(per, top, mantissa_bits=3, exponent_bits=4):
     model = models.densenet121()
     x = torch.randn(1, 3, 224, 224)
@@ -339,6 +343,7 @@ def mask_efficientnet(per, top, mantissa_bits=3, exponent_bits=4):
 
     return model.__class__.__name__, top1_accuracy, top5_accuracy, kqi_mask, original_bits / (10 ** 6), compressed_bits / (10 ** 6)
 
+
 def mask_googlenet(per, top, mantissa_bits=3, exponent_bits=4):
     model = models.googlenet()
     x = torch.randn(1, 3, 224, 224)
@@ -409,6 +414,7 @@ def mask_inception(per, top, mantissa_bits=3, exponent_bits=4):
     top1_accuracy, top5_accuracy = evaluate_model(model, transform)
 
     return model.__class__.__name__, top1_accuracy, top5_accuracy, kqi_mask, original_bits / (10 ** 6), compressed_bits / (10 ** 6)
+
 
 def mask_mobilenet(per, top, mantissa_bits=3, exponent_bits=4):
     model = models.mobilenet_v2()
@@ -517,6 +523,7 @@ def mask_resnet(per, top, mantissa_bits=3, exponent_bits=4):
 
     return model.__class__.__name__, top1_accuracy, top5_accuracy, kqi_mask, original_bits / (10 ** 6), compressed_bits / (10 ** 6)
 
+
 def mask_shufflenet(per, top, mantissa_bits=3, exponent_bits=4):
     model = models.shufflenet_v2_x0_5()
     x = torch.randn(1, 3, 224, 224)
@@ -551,6 +558,7 @@ def mask_shufflenet(per, top, mantissa_bits=3, exponent_bits=4):
     top1_accuracy, top5_accuracy = evaluate_model(model, transform)
 
     return model.__class__.__name__, top1_accuracy, top5_accuracy, kqi_mask, original_bits / (10 ** 6), compressed_bits / (10 ** 6)
+
 
 def mask_squeezenet(per, top, mantissa_bits=3, exponent_bits=4):
     model = models.squeezenet1_0()
@@ -639,7 +647,7 @@ def mask_vit(per, top, mantissa_bits=3, exponent_bits=4):
     else:
         statedict_mask = bottomkqi_mask(statedict_kqi, per)
     model = models.vit_b_16(weights=models.ViT_B_16_Weights.IMAGENET1K_V1)
-    
+
     state_dict = {}
     compressed_bits = 0
     original_bits = 0
@@ -661,6 +669,7 @@ def mask_vit(per, top, mantissa_bits=3, exponent_bits=4):
 
     return model.__class__.__name__, top1_accuracy, top5_accuracy, kqi_mask, original_bits / (10 ** 6), compressed_bits / (10 ** 6)
 
+
 def output(mask):
     for per in np.arange(0, 1.1, 0.1):
         name, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits = mask(per, True)
@@ -668,7 +677,7 @@ def output(mask):
         df = pd.DataFrame([result], columns=["Name", "Mask Percentage", "Top-1 Accuracy", "Top-5 Accuracy", "Mask KQI", "original bits(Mb)", "compressed bits(Mb)"])
         df["Mask Percentage"] = df["Mask Percentage"].map(lambda x: f"{x:.1f}%")
         df.to_csv('top8bit.csv', mode='a', header=False, index=False)
-    
+
     for per in np.arange(0, 1.1, 0.1):
         name, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits = mask(per, False)
         result = (name, per * 100, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits)
@@ -682,8 +691,6 @@ if __name__ == '__main__':
         pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv('top8bit.csv', index=False)
     if not os.path.exists('bottom8bit.csv'):
         pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv('bottom8bit.csv', index=False)
-    
+
     for mask in [mask_alexnet, mask_densenet, mask_efficientnet, mask_googlenet, mask_inception, mask_mobilenet, mask_regnet, mask_shufflenet, mask_squeezenet, mask_resnet, mask_vgg, mask_vit]:
         output(mask)
-    
-
