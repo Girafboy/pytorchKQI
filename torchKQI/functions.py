@@ -1459,6 +1459,10 @@ class NativeBatchNormBackward0(FB):
         return degree
 
 
+class CudnnBatchNormBackward0(NativeBatchNormBackward0):
+    pass
+
+
 class SumBackward1(FB):
     @classmethod
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
@@ -2672,6 +2676,7 @@ __functions_mapping = {
     'SignBackward0': SignBackward0,
     'RepeatBackward0': RepeatBackward0,
     'NativeBatchNormBackward0': NativeBatchNormBackward0,
+    'CudnnBatchNormBackward0': CudnnBatchNormBackward0,
     'NormBackward1': NormBackward1,
     'SumBackward1': SumBackward1,
     'MeanBackward1': MeanBackward1,

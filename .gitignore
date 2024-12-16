@@ -4,4 +4,8 @@ __pycache__
 *.log
 *.png
 *.csv
+*.JPEG
+*.bin
+*.out
+slurm*
 figure/
