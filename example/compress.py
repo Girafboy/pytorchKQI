@@ -125,41 +125,27 @@ transform = transforms.Compose([
 ])
 
 
-def topkqi_mask(statedict_kqi: dict, percentage: float):
+def topkqi_mask(statedict_kqi: dict, percentage: float, top=True):
     kqis = torch.cat(tuple(kqi.flatten() for kqi in statedict_kqi.values()), 0)
     num_masked = int(percentage * len(kqis))
-    topk = torch.tensor(np.partition(kqis.cpu(), -num_masked)[-num_masked]) if abs(num_masked) > 1e-6 else max(kqis)
-    cnt = num_masked - sum(kqis > topk)
+    if top:
+        topk = torch.tensor(np.partition(kqis.cpu(), -num_masked)[-num_masked]) if abs(num_masked) > 1e-6 else max(kqis)
+        cnt = num_masked - sum(kqis > topk)
+    else:
+        num_remain = len(kqis) - num_masked
+        topk = torch.tensor(np.partition(kqis.cpu(), -num_remain)[-num_remain]) if abs(num_remain) > 1e-6 else max(kqis)
+        cnt = num_masked - sum(kqis < topk)
     statedict_mask = {}
     for key, value in statedict_kqi.items():
         res = torch.ones(value.shape, dtype=bool)
-        res[value > topk] = False
+        if top:
+            res[value > topk] = False
+        else:
+            res[value < topk] = False
         if cnt > 0:
             idx = torch.where(value.flatten() == topk)[0]
             if idx.shape[0] > cnt:
                 idx = torch.from_numpy(np.random.choice(idx.cpu().numpy(), int(cnt), replace=False))
-            res = res.flatten()
-            res[idx] = False
-            res = res.reshape(value.shape)
-            cnt -= idx.shape[0]
-        statedict_mask[key] = res
-    return statedict_mask
-
-
-def bottomkqi_mask(statedict_kqi: dict, percentage: float):
-    kqis = torch.cat(tuple(kqi.flatten() for kqi in statedict_kqi.values()), 0)
-    num_masked = int(percentage * len(kqis))
-    num_remain = len(kqis) - num_masked
-    topk = np.partition(kqis, -num_remain)[-num_remain] if abs(num_remain) > 1e-6 else max(kqis)
-    cnt = num_masked - sum(kqis < topk)
-    statedict_mask = {}
-    for key, value in statedict_kqi.items():
-        res = np.ones(value.shape, dtype=bool)
-        res[value < topk] = False
-        if cnt > 0:
-            idx = np.where(value.flatten() == topk)[0]
-            if idx.shape[0] > cnt:
-                idx = np.random.choice(idx, int(cnt), replace=False)
             res = res.flatten()
             res[idx] = False
             res = res.reshape(value.shape)
@@ -177,10 +163,7 @@ def mask_model(model_builder, model_weight, per, top, significand_bits=3, expone
         if 'AccumulateGrad' in grad_fn.name():
             assert len(kqis) == 1
             statedict_kqi[model_params[grad_fn.variable]] = kqis[0][0]
-    if top:
-        statedict_mask = topkqi_mask(statedict_kqi, per)
-    else:
-        statedict_mask = bottomkqi_mask(statedict_kqi, per)
+    statedict_mask = topkqi_mask(statedict_kqi, per, top)
     model = model_builder(weights=model_weight)
 
     state_dict = {}
