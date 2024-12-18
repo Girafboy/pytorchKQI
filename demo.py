@@ -4,7 +4,19 @@ import torchKQI
 import pandas as pd
 import os
 import multiprocessing
-from transformers import LlamaConfig, BertConfig, T5Config, Gemma2Config, OpenAIGPTConfig, GPT2Config, Qwen2Config, AutoModel
+from transformers import (
+    AutoModel,
+    LlamaConfig, 
+    BertConfig, 
+    T5Config, 
+    Gemma2Config, 
+    OpenAIGPTConfig, 
+    GPT2Config, 
+    MistralConfig, 
+    Qwen2Config, 
+    PhiConfig, 
+    Phi3Config,
+)
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 
 
@@ -92,6 +104,34 @@ Llama_2_70b_hf = {
     "transformers_version": "4.32.0.dev0",
     "use_cache": True,
     "vocab_size": 32000
+}
+
+Meta_Llama_3_8B = {
+    "architectures": [
+        "LlamaForCausalLM"
+    ],
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "bos_token_id": 128000,
+    "eos_token_id": 128001,
+    "hidden_act": "silu",
+    "hidden_size": 4096,
+    "initializer_range": 0.02,
+    "intermediate_size": 14336,
+    "max_position_embeddings": 8192,
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 8,
+    "pretraining_tp": 1,
+    "rms_norm_eps": 1e-05,
+    "rope_scaling": None,
+    "rope_theta": 500000.0,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.40.0.dev0",
+    "use_cache": True,
+    "vocab_size": 128256
 }
 
 Meta_Llama_3_8B = {
@@ -625,6 +665,221 @@ deepseek_llm_7b_base = {
     "vocab_size": 102400
 }
 
+scibert_scivocab_cased = {
+    "attention_probs_dropout_prob": 0.1,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 768,
+    "initializer_range": 0.02,
+    "intermediate_size": 3072,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "model_type": "bert",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 12,
+    "pad_token_id": 0,
+    "type_vocab_size": 2,
+    "vocab_size": 31116
+}
+
+scibert_scivocab_uncased = {
+    "attention_probs_dropout_prob": 0.1,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 768,
+    "initializer_range": 0.02,
+    "intermediate_size": 3072,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "model_type": "bert",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 12,
+    "pad_token_id": 0,
+    "type_vocab_size": 2,
+    "vocab_size": 31090
+}
+
+specter = {
+    "_name_or_path": "allenai/scibert_scivocab_cased",
+    "architectures": [
+        "BertModel"
+    ],
+    "attention_probs_dropout_prob": 0.1,
+    "gradient_checkpointing": False,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 768,
+    "initializer_range": 0.02,
+    "intermediate_size": 3072,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "model_type": "bert",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 12,
+    "pad_token_id": 0,
+    "position_embedding_type": "absolute",
+    "transformers_version": "4.2.2",
+    "type_vocab_size": 2,
+    "use_cache": True,
+    "vocab_size": 31116
+}
+
+specter2_base = {
+    "_name_or_path": "scirepeval/specterv4/checkpoints/model",
+    "adapters": {
+        "adapters": {},
+        "config_map": {},
+        "fusion_config_map": {},
+        "fusions": {}
+    },
+    "architectures": [
+        "BertModel"
+    ],
+    "attention_probs_dropout_prob": 0.1,
+    "classifier_dropout": None,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 768,
+    "initializer_range": 0.02,
+    "intermediate_size": 3072,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "model_type": "bert",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 12,
+    "pad_token_id": 0,
+    "position_embedding_type": "absolute",
+    "torch_dtype": "float32",
+    "transformers_version": "4.26.1",
+    "type_vocab_size": 2,
+    "use_cache": True,
+    "vocab_size": 31090
+}
+
+scincl = {
+    "_name_or_path": "malteos/scincl",
+    "architectures": [
+        "BertModel"
+    ],
+    "attention_probs_dropout_prob": 0.1,
+    "gradient_checkpointing": False,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 768,
+    "initializer_range": 0.02,
+    "intermediate_size": 3072,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "model_type": "bert",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 12,
+    "pad_token_id": 0,
+    "position_embedding_type": "absolute",
+    "transformers_version": "4.5.1",
+    "type_vocab_size": 2,
+    "use_cache": True,
+    "vocab_size": 31090
+}
+
+phi_1 = {
+    "_name_or_path": "microsoft/phi-1",
+    "architectures": [
+        "PhiForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "bos_token_id": None,
+    "embd_pdrop": 0.0,
+    "eos_token_id": None,
+    "hidden_act": "gelu_new",
+    "hidden_size": 2048,
+    "initializer_range": 0.02,
+    "intermediate_size": 8192,
+    "layer_norm_eps": 1e-05,
+    "max_position_embeddings": 2048,
+    "model_type": "phi",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 24,
+    "num_key_value_heads": None,
+    "partial_rotary_factor": 0.5,
+    "qk_layernorm": False,
+    "resid_pdrop": 0.0,
+    "rope_scaling": None,
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": False,
+    "torch_dtype": "float32",
+    "transformers_version": "4.37.0",
+    "use_cache": True,
+    "vocab_size": 51200
+}
+
+phi_1_5 = {
+    "_name_or_path": "microsoft/phi-1_5",
+    "architectures": [
+        "PhiForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "bos_token_id": None,
+    "embd_pdrop": 0.0,
+    "eos_token_id": None,
+    "hidden_act": "gelu_new",
+    "hidden_size": 2048,
+    "initializer_range": 0.02,
+    "intermediate_size": 8192,
+    "layer_norm_eps": 1e-05,
+    "max_position_embeddings": 2048,
+    "model_type": "phi",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 24,
+    "num_key_value_heads": None,
+    "partial_rotary_factor": 0.5,
+    "qk_layernorm": False,
+    "resid_pdrop": 0.0,
+    "rope_scaling": None,
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": False,
+    "torch_dtype": "float16",
+    "transformers_version": "4.37.0",
+    "use_cache": True,
+    "vocab_size": 51200
+}
+
+Phi_3_mini_4k_instruct = {
+    "_name_or_path": "Phi-3-mini-4k-instruct",
+    "architectures": [
+        "Phi3ForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "auto_map": {
+        "AutoConfig": "configuration_phi3.Phi3Config",
+        "AutoModelForCausalLM": "modeling_phi3.Phi3ForCausalLM"
+    },
+    "bos_token_id": 1,
+    "embd_pdrop": 0.0,
+    "eos_token_id": 32000,
+    "hidden_act": "silu",
+    "hidden_size": 3072,
+    "initializer_range": 0.02,
+    "intermediate_size": 8192,
+    "max_position_embeddings": 4096,
+    "model_type": "phi3",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 32,
+    "original_max_position_embeddings": 4096,
+    "pad_token_id": 32000,
+    "resid_pdrop": 0.0,
+    "rms_norm_eps": 1e-05,
+    "rope_scaling": None,
+    "rope_theta": 10000.0,
+    "sliding_window": 2047,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.40.2",
+    "use_cache": True,
+    "attention_bias": False,
+    "vocab_size": 32064
+}
+
 
 def task_ImageClassification():
     x = torch.randn(1, 3, 224, 224)
@@ -772,6 +1027,7 @@ def task_LLM():
         "Llama_2_13b_hf": (Llama_2_13b_hf, LlamaConfig),
         "Llama_2_70b_hf": (Llama_2_70b_hf, LlamaConfig),
         "Meta_Llama_3_8B": (Meta_Llama_3_8B, LlamaConfig),
+        "Llama_3_2_1B_Instruct": (Llama_3_2_1B_Instruct, LlamaConfig),
         "bert_base_uncased": (bert_base_uncased, BertConfig),
         "bert_large_uncased": (bert_large_uncased, BertConfig),
         # "t5_small": (t5_small, T5Config),
@@ -787,6 +1043,14 @@ def task_LLM():
         "Yi_1_5_6B": (Yi_1_5_6B, LlamaConfig),
         "Yi_1_5_34B": (Yi_1_5_34B, LlamaConfig),
         "deepseek_llm_7b_base": (deepseek_llm_7b_base, LlamaConfig),
+        "scibert_scivocab_cased": (scibert_scivocab_cased, BertConfig),
+        "scibert_scivocab_uncased": (scibert_scivocab_uncased, BertConfig),
+        "specter": (specter, BertConfig),
+        "specter2_base": (specter2_base, BertConfig),
+        "scincl": (scincl, BertConfig),
+        "phi_1": (phi_1, PhiConfig),
+        "phi_1_5": (phi_1_5, PhiConfig),
+        "Phi_3_mini_4k_instruct": (Phi_3_mini_4k_instruct, Phi3Config),
     }
 
     results_file = 'model_results.csv'
@@ -800,12 +1064,25 @@ def task_LLM():
     for llm_name, llm_config in llm_configs.items():
         if llm_name in pd.read_csv(results_file)['Model Name'].values:
             continue
-        try:
+        try: 
             config = llm_config[1].from_dict(llm_config[0])
-            sequence_length = getattr(config, 'max_position_embeddings', config.n_positions)
-            x = torch.randint(0, config.vocab_size, (1, sequence_length))
             model = AutoModel.from_config(config).eval()
-            callback_func = lambda model, x: model(x).last_hidden_state if isinstance(model(x), BaseModelOutputWithPast) else model(x).logits
+
+            if 'max_position_embeddings' in config.__dict__:
+                sequence_length = config.max_position_embeddings
+            else:
+                sequence_length = config.n_positions
+
+            batch_size = 1
+            if isinstance(config, T5Config):
+                x = {
+                    'input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length)),
+                    'decoder_input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length))
+                }
+            else:
+                x = torch.randint(0, config.vocab_size, (batch_size, sequence_length))
+
+            callback_func = lambda model, x: model(x).logits if isinstance(model(x), CausalLMOutputWithPast) else model(x).last_hidden_state
             kqi = torchKQI.KQI(model, x, callback_func).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
