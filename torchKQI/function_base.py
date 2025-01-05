@@ -1,12 +1,52 @@
 import torch
 import logging
 import tqdm
-
+import ctypes
 from typing import Tuple, Dict
 from functools import wraps
 
 logging.basicConfig(level=logging.DEBUG, filename='debug.log', filemode='w')
 bar = tqdm.tqdm()
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+
+def to_device(tensor, device=device):
+    if isinstance(tensor, tuple):
+        return tuple(t.to(device) if t is not None else t for t in tensor)
+    else:
+        return tensor.to(device) if tensor is not None else tensor
+
+
+class GradFn:
+    def __init__(self, grad_fn):
+        self.grad_fn = grad_fn
+        self.ctype = torch.rand(1).element_size()
+
+    def __call__(self, *args, **kwds):
+        args = to_device(args, device=torch.device('cpu'))
+        res = self.grad_fn(*args, **kwds)
+        return to_device(res)
+    
+    def __getattribute__(self, __name):
+        def unsign_to_sign(attr):            
+            if self.ctype == 4:
+                return ctypes.c_int32(attr).value
+            else:
+                return ctypes.c_int64(attr).value
+        try:
+            return super().__getattribute__(__name)
+        except AttributeError:
+            attr = self.grad_fn.__getattribute__(__name)
+            if __name == '_saved_keepdim':
+                return bool(attr)
+            if __name == '_saved_end':
+                return attr
+            else:
+                if isinstance(attr, int):
+                    attr = unsign_to_sign(attr)
+                if isinstance(attr, tuple):
+                    attr = tuple(unsign_to_sign(a) if isinstance(a, int) else a for a in attr)
+                return attr
 
 
 class FuncBase:
@@ -17,8 +57,8 @@ class FuncBase:
             def wrapped_function(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
                 if args_out is not None:
                     assert len(volume_outputs) == args_out, f"{cls.__name__}.cell_Volume must have exactly {args_out} volume_outputs."
-
-                volume_inputs = func(cls, grad_fn, volume_outputs)
+                
+                volume_inputs = to_device(func(cls, GradFn(grad_fn), to_device(volume_outputs)), device=torch.device('cpu'))
                 bar.update()
 
                 if args_in is not None:
@@ -42,7 +82,7 @@ class FuncBase:
                 if args_in is not None:
                     assert len(volume_inputs) == args_in, f"{cls.__name__}.cell_KQI must have exactly {args_in} volume_inputs."
 
-                kqis = func(cls, grad_fn, volume_inputs, volume_outputs)
+                kqis = to_device(func(cls, GradFn(grad_fn), to_device(volume_inputs), to_device(volume_outputs)), device=torch.device('cpu'))
                 bar.update()
 
                 assert len(kqis) == len(volume_outputs), f"{cls.__name__}.cell_KQI must return {len(volume_outputs)} kqis, but now return {len(kqis)} kqis."
@@ -67,7 +107,7 @@ class FuncBase:
                 if args_in is not None:
                     assert len(inputs) == args_in, f"{cls.__name__}.cell_Graph must have exactly {args_in} inputs."
 
-                adj = func(cls, grad_fn, inputs, outputs)
+                adj = func(cls, GradFn(grad_fn), to_device(inputs), to_device(outputs))
                 bar.update()
 
                 logging.debug(f'{cls.__name__}.cell_Graph: nodes={len(adj)}, edges={sum(map(len, adj.values()))}')

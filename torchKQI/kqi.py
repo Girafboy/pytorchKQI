@@ -29,6 +29,7 @@ def __construct_compute_graph(grad_fn):
 __W = torch.tensor(0, dtype=float)
 
 
+@torch.no_grad()
 def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
     grad_fn = model_output.grad_fn
     G = __construct_compute_graph(grad_fn)
@@ -104,6 +105,14 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
 
 
 def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable) -> torch.Tensor:
+    torch.backends.cuda.enable_flash_sdp(False)
+    torch.backends.cuda.enable_mem_efficient_sdp(False)
+    torch._C._jit_set_profiling_executor(False)
+    torch._C._jit_set_profiling_mode(False)
+    torch._C._jit_override_can_fuse_on_cpu(False)
+    torch._C._jit_override_can_fuse_on_gpu(False)
+    torch.backends.mkldnn.enabled = False
+
     function_base.bar.desc = model.__class__.__name__
     function_base.bar.n = 0
     model.eval()

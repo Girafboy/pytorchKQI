@@ -1,18 +1,10 @@
 import torch
-import ctypes
 import itertools
 import numpy as np
 import math
 from collections import defaultdict
-from .function_base import FuncBase as FB
+from .function_base import FuncBase as FB, device
 from typing import Tuple, Dict
-
-
-def unsign_to_sign(val):
-    if torch.rand(1).element_size() == 4:
-        return ctypes.c_int32(val).value
-    else:
-        return ctypes.c_int64(val).value
 
 
 class AccumulateGrad(FB):
@@ -120,7 +112,7 @@ class MmBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (mat1, mat2), (out,) = volume_inputs, volume_outputs
         size = (out.shape[0], mat1.shape[1] if mat1 is not None else mat2.shape[0], out.shape[1])
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if mat1 is not None and mat2 is not None:
             for i in range(size[1]):
                 kqi_out += FB.temporary_KQI(out / (size[1] * 2), mat1[:, i:i + 1].expand_as(out))
@@ -171,6 +163,10 @@ class OnetoOneMapping(FB):
 
 
 class CopySlices(OnetoOneMapping):
+    pass
+
+
+class ToCopyBackward0(OnetoOneMapping):
     pass
 
 
@@ -239,6 +235,10 @@ class AddBackward1(OnetoOneMapping):
 
 
 class HardtanhBackward0(OnetoOneMapping):
+    pass
+
+
+class MulBackward1(OnetoOneMapping):
     pass
 
 
@@ -374,7 +374,7 @@ class SliceBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         dim, start, end, step = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_start'), grad_fn.__getattribute__('_saved_end'), grad_fn.__getattribute__('_saved_step')
-        input = torch.zeros_like(input)
+        input = torch.zeros_like(input, device=device)
         input[tuple(slice(start, end, step) if i == dim else slice(None) for i in range(input.dim()))] = 1 + out
         return (input,)
 
@@ -400,8 +400,8 @@ class SelectBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim, index = grad_fn.__getattribute__('_saved_dim'), unsign_to_sign(grad_fn.__getattribute__('_saved_index'))
-        input = torch.zeros_like(input)
+        dim, index = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_index')
+        input = torch.zeros_like(input, device=device)
         input[tuple(index if i == dim else slice(None) for i in range(input.dim()))] = 1 + out
         return (input,)
 
@@ -409,7 +409,7 @@ class SelectBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim, index = grad_fn.__getattribute__('_saved_dim'), unsign_to_sign(grad_fn.__getattribute__('_saved_index'))
+        dim, index = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_index')
         kqi_out = FB.temporary_KQI(out, input.select(dim, index))
         return (kqi_out, )
 
@@ -417,7 +417,7 @@ class SelectBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim, index = grad_fn.__getattribute__('_saved_dim'), unsign_to_sign(grad_fn.__getattribute__('_saved_index'))
+        dim, index = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_index')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.select(dim, index)), torch.flatten(out))}
         return adj
 
@@ -427,8 +427,8 @@ class SqueezeBackward1(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
-        input = torch.zeros_like(input)
+        dim = grad_fn.__getattribute__('_saved_dim')
+        input = torch.zeros_like(input, device=device)
         input = 1 + torch.unsqueeze(out, dim)
         return (input,)
 
@@ -436,7 +436,7 @@ class SqueezeBackward1(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         kqi_out = FB.temporary_KQI(out, torch.squeeze(input, dim))
         return (kqi_out, )
 
@@ -444,7 +444,7 @@ class SqueezeBackward1(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(torch.squeeze(input, dim)), torch.flatten(out))}
         return adj
 
@@ -454,7 +454,7 @@ class UnsqueezeBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         input = (1 + out).sum(dim=dim)
         return (input, )
 
@@ -462,7 +462,7 @@ class UnsqueezeBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         kqi_out = FB.temporary_KQI(out, input.unsqueeze(dim).expand_as(out))
         return (kqi_out, )
 
@@ -470,7 +470,7 @@ class UnsqueezeBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.unsqueeze(dim).expand_as(out)), torch.flatten(out))}
         return adj
 
@@ -481,7 +481,7 @@ class StackBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         inputs, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        inputs = tuple(torch.zeros_like(input) + 1 + out.select(dim, index) for index, input in enumerate(inputs))
+        inputs = tuple(torch.zeros_like(input, device=device) + 1 + out.select(dim, index) for index, input in enumerate(inputs))
         return inputs
 
     @classmethod
@@ -507,7 +507,7 @@ class CatBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         inputs, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         inputs = inputs if type(inputs) is tuple else (inputs, )
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         inputs = tuple(1 + input for input in out.split([input.shape[dim] for input in inputs], dim))
         return inputs
 
@@ -515,7 +515,7 @@ class CatBackward0(FB):
     @FB.cell_KQI_Checking(args_in=None, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         inputs, (out, ) = volume_inputs, volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         kqi_out = FB.temporary_KQI(out, torch.cat(inputs, dim))
         return (kqi_out, )
 
@@ -523,7 +523,7 @@ class CatBackward0(FB):
     @FB.cell_Graph_Checking(args_in=None, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         inputs, (out, ) = inputs, outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(torch.cat(inputs, dim)), torch.flatten(out))}
         return adj
 
@@ -534,7 +534,7 @@ class UnbindBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, outputs = grad_fn(*volume_outputs), volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        input = torch.zeros_like(input) + 1 + torch.stack(outputs, dim)
+        input = torch.zeros_like(input, device=device) + 1 + torch.stack(outputs, dim)
         return (input, )
 
     @classmethod
@@ -560,7 +560,7 @@ class UnsafeSplitBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, outputs = grad_fn(*volume_outputs), volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        input = torch.zeros_like(input) + 1 + torch.cat(outputs, dim)
+        input = torch.zeros_like(input, device=device) + 1 + torch.cat(outputs, dim)
         return (input, )
 
     @classmethod
@@ -682,7 +682,7 @@ class ConvolutionBackward0(FB):
             degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
 
             if input is not None:
-                volume_padding = torch.zeros((input.shape[0], input.shape[1], *[input.shape[2 + i] + 2 * padding[i] for i in range(ndim)]))
+                volume_padding = torch.zeros((input.shape[0], input.shape[1], *[input.shape[2 + i] + 2 * padding[i] for i in range(ndim)]), device=device)
                 for cin, cout in zip(channel_input_slice, channel_output_slice):
                     for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
                         volume_padding[(slice(None), cin) + tuple(indexing(*offset))] += n_output + (output[slice(None), cout] / degree / n_input).sum(dim=1).unsqueeze(1)
@@ -690,7 +690,7 @@ class ConvolutionBackward0(FB):
                 input = volume_padding[(slice(None), slice(None)) + tuple(slice(padding[i], None if padding[i] == 0 else -padding[i]) for i in range(ndim))].clone()
 
             if weight is not None:
-                weight = torch.zeros_like(weight)
+                weight = torch.zeros_like(weight, device=device)
                 for b in range(out_channels):
                     for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
                         left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
@@ -701,7 +701,7 @@ class ConvolutionBackward0(FB):
                         weight[(b, slice(None)) + tuple(offset)] += (size + (output[0][b][slices] / degree[slices] / n_input).sum())
 
             if bias is not None:
-                bias = torch.zeros_like(bias)
+                bias = torch.zeros_like(bias, device=device)
                 for c in range(out_channels):
                     bias[c] = output[0][c].sum() + np.prod(output.shape[2:])
 
@@ -721,15 +721,15 @@ class ConvolutionBackward0(FB):
         channel_output_slice = [slice(n_output * i, n_output * i + n_output) for i in range(groups)]
         indexing = lambda *args: tuple(slice(i, H * s + i, s) for i, H, s in zip(args, output.shape[2:], stride))
 
-        kqi_out = torch.zeros_like(output)
+        kqi_out = torch.zeros_like(output, device=device)
         if transposed:
             raise NotImplementedError('ConvolutionBackward0 with transposed parameters is not yet implemented.')
         else:
             degree = cls.degree(input, weight, bias, saved_input, output.shape[2:], kernel_size, dilation, stride, padding, False)
 
             if input is not None:
-                volume_padding = torch.zeros((input.shape[0], input.shape[1], *[input.shape[2 + i] + 2 * padding[i] for i in range(ndim)]))
-                tmp = torch.zeros_like(volume_padding)
+                volume_padding = torch.zeros((input.shape[0], input.shape[1], *[input.shape[2 + i] + 2 * padding[i] for i in range(ndim)]), device=device)
+                tmp = torch.zeros_like(volume_padding, device=device)
                 end = [None if pad == 0 else -pad for pad in padding]
                 volume_padding[(slice(None), slice(None)) + tuple(slice(padding[k], None if padding[k] == 0 else -padding[k]) for k in range(ndim))] = input
 
@@ -752,7 +752,7 @@ class ConvolutionBackward0(FB):
 
             if bias is not None:
                 for c in range(out_channels):
-                    kqi_out += FB.temporary_KQI(output[0][c] / degree / n_input, torch.ones(output[0][c].shape) * bias[c])
+                    kqi_out += FB.temporary_KQI(output[0][c] / degree / n_input, torch.ones(output[0][c].shape, device=device) * bias[c])
 
             return (kqi_out, )
 
@@ -800,7 +800,7 @@ class ConvolutionBackward0(FB):
 
     @classmethod
     def degree(cls, input, weight, bias, saved_input, degree_size, kernel_size, dilation, stride, padding, transposed):
-        degree = torch.zeros(degree_size)
+        degree = torch.zeros(degree_size, device=device)
         ndim = len(degree_size)
 
         if transposed:
@@ -837,8 +837,8 @@ class SoftmaxBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
-        input = torch.zeros_like(input)
+        dim = grad_fn.__getattribute__('_saved_dim')
+        input = torch.zeros_like(input, device=device)
         input = torch.mean(out, dim, True).expand_as(out) + out.size(dim)
         return (input,)
 
@@ -846,7 +846,7 @@ class SoftmaxBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         kqi_out = sum(FB.temporary_KQI(out.select(dim, id).unsqueeze(dim).expand_as(out) / out.size(dim), input) for id in range(out.size(dim)))
         return (kqi_out, )
 
@@ -854,9 +854,13 @@ class SoftmaxBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         adj = {int(o): tuple(int(i) for i in ii) for id in range(out.size(dim)) for ii, o in zip(torch.flatten(torch.stack(input.unbind(dim), -1), 0, -2), torch.flatten(out.select(dim, id)))}
         return adj
+
+
+class SafeSoftmaxBackward0(SoftmaxBackward0):
+    pass
 
 
 class LogSoftmaxBackward0(SoftmaxBackward0):
@@ -899,7 +903,7 @@ class PreluKernelBackward0(FB):
             input = 1 + out / 2
             weight = grad_fn.__getattribute__('_saved_weight')
             assert len(weight.shape) >= 3, "actual weight.shape " + str(weight.shape)
-            weight = torch.zeros_like(weight)
+            weight = torch.zeros_like(weight, device=device)
             if weight.shape[2] == 1:
                 weight[0][0] = np.prod(input.shape) + (out / 2).sum()
             else:
@@ -909,7 +913,7 @@ class PreluKernelBackward0(FB):
         else:
             weight = grad_fn.__getattribute__('_saved_weight')
             assert len(weight.shape) >= 3, "actual weight.shape " + str(weight.shape)
-            weight = torch.zeros_like(weight)
+            weight = torch.zeros_like(weight, device=device)
             if weight.shape[2] == 1:
                 weight[0][0] = np.prod(input.shape) + out.sum()
             else:
@@ -921,7 +925,7 @@ class PreluKernelBackward0(FB):
     @FB.cell_KQI_Checking(args_in=2, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight), (out, ) = volume_inputs, volume_outputs
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if input is not None and weight is not None:
             kqi_out += FB.temporary_KQI(out / 2, input)
             kqi_out += FB.temporary_KQI(out / 2, weight.detach().expand_as(out))
@@ -958,7 +962,7 @@ class PreluBackward0(FB):
         if input is not None and weight is not None:
             input = 1 + out / 2
             weight = grad_fn.__getattribute__('_saved_weight')
-            weight = torch.zeros_like(weight)
+            weight = torch.zeros_like(weight, device=device)
             if weight.shape[0] == 1:
                 weight[0] = np.prod(input.shape) + (out / 2).sum()
             else:
@@ -967,7 +971,7 @@ class PreluBackward0(FB):
             input = 1 + out
         else:
             weight = grad_fn.__getattribute__('_saved_weight')
-            weight = torch.zeros_like(weight)
+            weight = torch.zeros_like(weight, device=device)
             if weight.shape[0] == 1:
                 weight[0] = np.prod(input.shape) + out.sum()
             else:
@@ -979,7 +983,7 @@ class PreluBackward0(FB):
     @FB.cell_KQI_Checking(args_in=2, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, weight), (out, ) = volume_inputs, volume_outputs
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if input is not None and weight is not None:
             kqi_out += FB.temporary_KQI(out / 2, input)
             kqi_out += FB.temporary_KQI(out / 2, weight.detach().expand_as(out))
@@ -1013,7 +1017,7 @@ class GluBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         input_half = 1 + out / 2
         input = torch.cat((input_half, input_half), dim=dim)
         return (input, )
@@ -1022,7 +1026,7 @@ class GluBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         input_left, input_right = torch.chunk(input, 2, dim=dim)
         kqi_out = FB.temporary_KQI(out / 2, input_left) + FB.temporary_KQI(out / 2, input_right)
         return (kqi_out,)
@@ -1031,7 +1035,7 @@ class GluBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         input_left, input_right = torch.chunk(input, 2, dim=dim)
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input_left.reshape_as(out)), torch.flatten(out))}
         for i, o in zip(torch.flatten(input_right.reshape_as(out)), torch.flatten(out)):
@@ -1060,7 +1064,7 @@ class AddmmBackward0(FB):
         (input, mat1, mat2), (out, ) = volume_inputs, volume_outputs
         size = (out.shape[0], mat1.shape[1] if mat1 is not None else mat2.shape[0], out.shape[1])
         degree = cls.degree(input, mat1, mat2, size)
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if input is not None:
             kqi_out += FB.temporary_KQI(out / degree, input)
         if mat1 is not None:
@@ -1109,7 +1113,7 @@ class TransposeBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
-        dim0, dim1 = unsign_to_sign(grad_fn.__getattribute__('_saved_dim0')), unsign_to_sign(grad_fn.__getattribute__('_saved_dim1'))
+        dim0, dim1 = grad_fn.__getattribute__('_saved_dim0'), grad_fn.__getattribute__('_saved_dim1')
         input = 1 + out.transpose(dim0, dim1)
         return (input, )
 
@@ -1117,7 +1121,7 @@ class TransposeBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (vI, ), (vO,) = volume_inputs, volume_outputs
-        dim0, dim1 = unsign_to_sign(grad_fn.__getattribute__('_saved_dim0')), unsign_to_sign(grad_fn.__getattribute__('_saved_dim1'))
+        dim0, dim1 = grad_fn.__getattribute__('_saved_dim0'), grad_fn.__getattribute__('_saved_dim1')
         kqi_out = FB.temporary_KQI(vO, vI.transpose(dim0, dim1))
         return (kqi_out, )
 
@@ -1125,7 +1129,7 @@ class TransposeBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (vI, ), (vO,) = inputs, outputs
-        dim0, dim1 = unsign_to_sign(grad_fn.__getattribute__('_saved_dim0')), unsign_to_sign(grad_fn.__getattribute__('_saved_dim1'))
+        dim0, dim1 = grad_fn.__getattribute__('_saved_dim0'), grad_fn.__getattribute__('_saved_dim1')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(vI), torch.flatten(vO.transpose(dim0, dim1)))}
         return adj
 
@@ -1150,7 +1154,7 @@ class BmmBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (mat1, mat2), (out,) = volume_inputs, volume_outputs
         size = (out.shape[0], out.shape[1], mat1.shape[2] if mat1 is not None else mat2.shape[1], out.shape[2])
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if mat1 is not None and mat2 is not None:
             for i in range(size[2]):
                 kqi_out += FB.temporary_KQI(out / (size[2] * 2), mat1[:, :, i:i + 1].expand_as(out))
@@ -1182,15 +1186,15 @@ class SplitBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=None)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, outputs = grad_fn(*volume_outputs), volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
-        input = torch.zeros_like(input) + 1 + torch.cat(outputs, dim)
+        dim = grad_fn.__getattribute__('_saved_dim')
+        input = torch.zeros_like(input, device=device) + 1 + torch.cat(outputs, dim)
         return (input, )
 
     @classmethod
     @FB.cell_KQI_Checking(args_in=1, args_out=None)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), outputs = volume_inputs, volume_outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         kqi_outs = tuple(FB.temporary_KQI(o, i) for i, o in zip(torch.split(input, input.shape[dim] // len(outputs), dim), outputs))
         return kqi_outs
 
@@ -1198,7 +1202,7 @@ class SplitBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=None)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), outputs = inputs, outputs
-        dim = unsign_to_sign(grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input), torch.flatten(torch.cat(outputs, dim)))}
         return adj
 
@@ -1214,15 +1218,15 @@ class NativeLayerNormBackward0(FB):
         out_slice = out.reshape(-1, *size)
         if input is not None:
             if index != 0:
-                input_slice = torch.zeros_like(out_slice)
+                input_slice = torch.zeros_like(out_slice, device=device)
                 for i in range(input_slice.shape[0]):
                     input_slice[i] += np.prod(size) + (out_slice[i] / degree).sum()
                 input = input_slice.reshape_as(out)
             else:
-                input = torch.ones_like(out) * (np.prod(size) + (out / degree).sum())
+                input = torch.ones_like(out, device=device) * (np.prod(size) + (out / degree).sum())
 
         if weight is not None:
-            weight = torch.zeros(size)
+            weight = torch.zeros(size, device=device)
             if index != 0:
                 for i in range(out_slice.shape[0]):
                     weight += 1 + out_slice[i] / degree
@@ -1230,7 +1234,7 @@ class NativeLayerNormBackward0(FB):
                 weight += 1 + out / degree
 
         if bias is not None:
-            bias = torch.zeros(size)
+            bias = torch.zeros(size, device=device)
             if index != 0:
                 for i in range(out_slice.shape[0]):
                     bias += 1 + out_slice[i] / degree
@@ -1244,12 +1248,12 @@ class NativeLayerNormBackward0(FB):
         (input, weight, bias), (out,) = volume_inputs, volume_outputs
         size = grad_fn.__getattribute__('_saved_normalized_shape')
         degree = cls.degree(input, weight, bias, size)
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         index = len(out.shape) - len(size)
         if input is not None:
             if index != 0:
                 input_slice, out_slice = input.reshape(-1, *size), out.reshape(-1, *size)
-                kqi_slice = torch.zeros_like(kqi_out).reshape(-1, *size)
+                kqi_slice = torch.zeros_like(kqi_out, device=device).reshape(-1, *size)
                 for i in range(input_slice.shape[0]):
                     kqi_slice[i] += FB.temporary_KQI(out_slice[i] / degree, input_slice[i]).sum()
                 kqi_out += kqi_slice.reshape_as(out)
@@ -1341,7 +1345,7 @@ class NativeGroupNormBackward0(FB):
         saved_input = grad_fn.__getattribute__('_saved_input')
         num = np.prod(saved_input.shape[1:]) / group
         degree = cls.degree(input, weight, bias, num)
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if input is not None:
             for i in range(0, channel, stride):
                 kqi_out[:, i:i + stride, :, :] += FB.temporary_KQI(out[:, i:i + stride, :, :] / degree, input[:, i:i + stride, :, :]).sum()
@@ -1397,15 +1401,15 @@ class NativeBatchNormBackward0(FB):
         num = np.prod(out.shape) / out.shape[1]
         degree = cls.degree(input, weight, bias, num)
         if input is not None:
-            input = torch.zeros_like(input)
+            input = torch.zeros_like(input, device=device)
             for i in range(input.shape[1]):
                 input[:, i, ...] = num + (out[:, i, ...] / degree).sum()
         if weight is not None:
-            weight = torch.zeros_like(weight)
+            weight = torch.zeros_like(weight, device=device)
             for i in range(out.shape[1]):
                 weight[i] = num + (out[:, i, ...] / degree).sum()
         if bias is not None:
-            bias = torch.zeros_like(bias)
+            bias = torch.zeros_like(bias, device=device)
             for i in range(out.shape[1]):
                 bias[i] = num + (out[:, i, ...] / degree).sum()
         return (input, weight, bias)
@@ -1416,7 +1420,7 @@ class NativeBatchNormBackward0(FB):
         (input, weight, bias), (out,) = volume_inputs, volume_outputs
         num = np.prod(out.shape) / out.shape[1]
         degree = cls.degree(input, weight, bias, num)
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if input is not None:
             for i in range(input.shape[1]):
                 kqi_out[:, i, ...] += FB.temporary_KQI(out[:, i, ...] / degree, input.detach()[:, i, ...]).sum()
@@ -1468,7 +1472,7 @@ class SumBackward1(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out,) = grad_fn(volume_outputs[0]), volume_outputs
-        dim, keepdim = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dim')), grad_fn.__getattribute__('_saved_keepdim')
+        dim, keepdim = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_keepdim')
         if not keepdim:
             out = out[tuple(None if d in dim else slice(None) for d in range(input.dim()))]
         num = np.prod([input.shape[i] for i in dim])
@@ -1479,7 +1483,7 @@ class SumBackward1(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dim, keepdim = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dim')), grad_fn.__getattribute__('_saved_keepdim')
+        dim, keepdim = grad_fn.__getattribute__('_saved_dim'), grad_fn.__getattribute__('_saved_keepdim')
         if not keepdim:
             out = out[tuple(None if d in dim else slice(None) for d in range(input.dim()))]
         num = np.prod([input.shape[i] for i in dim])
@@ -1490,13 +1494,17 @@ class SumBackward1(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out,) = inputs, outputs
-        dim = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dim'))
+        dim = grad_fn.__getattribute__('_saved_dim')
         dim = tuple(sorted(d if d >= 0 else input.dim() + d for d in dim))
         adj = {int(o.item()): tuple(int(i.item()) for i in torch.flatten(i_list)) for i_list, o in zip(torch.flatten(input.permute(tuple(d for d in range(input.dim()) if d not in dim) + dim), end_dim=input.dim() - len(dim) - 1), torch.flatten(out))}
         return adj
 
 
 class NormBackward1(SumBackward1):
+    pass
+
+
+class LinalgVectorNormBackward0(NormBackward1):
     pass
 
 
@@ -1551,7 +1559,7 @@ class MeanBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out,) = inputs, outputs
-        adj = {int(o): (int(i), ) for i, o in itertools.product(torch.flatten(input), torch.flatten(out))}
+        adj = {int(out): tuple(int(i) for i in torch.flatten(input))}
         return adj
 
 
@@ -1573,7 +1581,7 @@ class AvgPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)), device=device)
 
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
@@ -1596,9 +1604,9 @@ class AvgPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)), device=device)
         input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]] = input
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             tmp = input_padding.clone()
             args = [next(m for m in range(j, input_padding.shape[k + index], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
@@ -1628,7 +1636,7 @@ class AvgPoolBackward0(FB):
 
     @classmethod
     def degree(cls, input, out, kernel_size, stride, padding):
-        degree = torch.zeros_like(out)
+        degree = torch.zeros_like(out, device=device)
         ndim = len(kernel_size)
         index = input.dim() - ndim
         for offset in itertools.product(*[range(0, kernel_size[d]) for d in range(ndim)]):
@@ -1666,7 +1674,7 @@ class AdaptivePoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] + add[i - 1] for i in range(1, ndim + 1)]))
+        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] + add[i - 1] for i in range(1, ndim + 1)]), device=device)
 
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
@@ -1691,9 +1699,9 @@ class AdaptivePoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] + add[i - 1] for i in range(1, ndim + 1)]))
+        input_padding = torch.zeros((input.shape[0], *[input.shape[i] + 2 * padding[i - 1] + add[i - 1] for i in range(1, ndim + 1)]), device=device)
         input_padding[[slice(None)] + [slice(padding[i], end[i]) for i in range(ndim)]] = input
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         for offset in itertools.product(*[range(0, kernel_size[i]) for i in range(ndim)]):
             tmp = input_padding.clone()
             args = [next(m for m in range(j, input_padding.shape[k + 1], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
@@ -1724,7 +1732,7 @@ class AdaptivePoolBackward0(FB):
 
     @classmethod
     def degree(cls, input, out, kernel_size, stride, padding):
-        degree = torch.zeros_like(out)
+        degree = torch.zeros_like(out, device=device)
         ndim = input.dim() - 1
         for offset in itertools.product(*[range(0, kernel_size[d]) for d in range(ndim)]):
             left = [max(0, math.ceil((padding[d] - offset[d]) / stride[d])) for d in range(ndim)]
@@ -1760,7 +1768,7 @@ class MaxPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)), device=device)
 
         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
             input_padding[indexing(*offset)] += 1 + out / degree
@@ -1784,9 +1792,9 @@ class MaxPoolBackward0(FB):
 
         end = [None if padding[i] + add[i] == 0 else -padding[i] - add[i] for i in range(ndim)]
 
-        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)))
+        input_padding = torch.zeros(input.shape[:index] + tuple(input.shape[i] + 2 * padding[i - index] + add[i - index] for i in range(index, ndim + index)), device=device)
         input_padding[[slice(None)] * index + [slice(padding[i], end[i]) for i in range(ndim)]] = input
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
             tmp = input_padding.clone()
             args = [next(m for m in range(j, input_padding.shape[k + index], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
@@ -1816,7 +1824,7 @@ class MaxPoolBackward0(FB):
 
     @classmethod
     def degree(cls, input, out, kernel_size, stride, padding, dilation):
-        degree = torch.zeros_like(out)
+        degree = torch.zeros_like(out, device=device)
         ndim = len(kernel_size)
         index = input.dim() - ndim
         for offset in itertools.product(*[range(0, kernel_size[d] * dilation[d], dilation[d]) for d in range(ndim)]):
@@ -1850,7 +1858,7 @@ class EmbeddingBackward0(FB):
         saved_input = grad_fn.__getattribute__('_saved_indices')
         dim = out.shape[2]
         C, H = saved_input.shape[:2]
-        input = torch.zeros(saved_input.shape)
+        input = torch.zeros(saved_input.shape, device=device)
         for i, j in itertools.product(range(C), range(H)):
             input[i, j] += dim + out[i, j, :].sum()
         return (input, )
@@ -1876,7 +1884,7 @@ class ConstantPadNdBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         pad = grad_fn.__getattribute__('_saved_pad')
-        input = torch.masked_select(out, torch.nn.functional.pad(torch.zeros_like(input), pad, value=-1) == 0).reshape_as(input) + 1
+        input = torch.masked_select(out, torch.nn.functional.pad(torch.zeros_like(input, device=device), pad, value=-1) == 0).reshape_as(input) + 1
         return (input, )
 
     @classmethod
@@ -2012,7 +2020,7 @@ class Im2ColBackward0(FB):
         stride = grad_fn.__getattribute__('_saved_stride')
         dilation = grad_fn.__getattribute__('_saved_dilation')
 
-        input_padding = torch.zeros(input.shape[:2] + tuple(input.shape[i] + 2 * padding[i - 2] for i in range(2, 4)))
+        input_padding = torch.zeros(input.shape[:2] + tuple(input.shape[i] + 2 * padding[i - 2] for i in range(2, 4)), device=device)
         end = [None if padding[i] == 0 else -padding[i] for i in range(2)]
 
         _, channels, Hin, Win = input.shape
@@ -2041,7 +2049,7 @@ class Im2ColBackward0(FB):
         dilated_h, dilated_w = [(k - 1) * d + 1 for k, d in zip(kernel_size, dilation)]
         Hout, Wout = [(i + 2 * pad - d) // s + 1 for i, pad, d, s in zip((Hin, Win), padding, (dilated_h, dilated_w), stride)]
 
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         input_padding = torch.nn.functional.pad(input, (padding[0], padding[0], padding[1], padding[1]), value=float('nan'))
 
         indexing = lambda c, i, j: [slice(None), c, slice(i, Hout * stride[0] + i, stride[0]), slice(j, Wout * stride[1] + j, stride[1])]
@@ -2115,7 +2123,7 @@ class Col2ImBackward0(FB):
         degree = cls.degree(Hin, Win, out, kernel_size, stride, padding, dilation)
 
         indexing = lambda c, i, j: [slice(None), c, slice(i, Hin * stride[0] + i, stride[0]), slice(j, Win * stride[1] + j, stride[1])]
-        kqi_pad = torch.zeros_like(out_padding)
+        kqi_pad = torch.zeros_like(out_padding, device=device)
         index = 0
         for c, i, j in itertools.product(range(channels), range(0, kernel_size[0] * dilation[0], dilation[0]), range(0, kernel_size[1] * dilation[1], dilation[1])):
             kqi_pad[indexing(c, i, j)] += FB.temporary_KQI((out_padding / degree)[indexing(c, i, j)], input[:, index, :].reshape(-1, Hin, Win))
@@ -2153,7 +2161,7 @@ class Col2ImBackward0(FB):
     def degree(cls, Hin, Win, out, kernel_size, stride, padding, dilation):
         indexing = lambda c, i, j: [slice(None), c, slice(i, Hin * stride[0] + i, stride[0]), slice(j, Win * stride[1] + j, stride[1])]
         out_padding = torch.nn.functional.pad(out, (padding[0], padding[0], padding[1], padding[1]), value=0)
-        degree_pad = torch.zeros_like(out_padding)
+        degree_pad = torch.zeros_like(out_padding, device=device)
         for c, i, j in itertools.product(range(out.shape[1]), range(0, kernel_size[0] * dilation[0], dilation[0]), range(0, kernel_size[1] * dilation[1], dilation[1])):
             degree_pad[indexing(c, i, j)] += 1
         end = [None if padding[i] == 0 else -padding[i] for i in range(2)]
@@ -2167,10 +2175,10 @@ class L1LossBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, target), (out,) = grad_fn(volume_outputs[0]), volume_outputs
         if input is not None:
-            input = torch.zeros_like(input)
+            input = torch.zeros_like(input, device=device)
             input += 1 + out / np.prod(input.shape)
         if target is not None:
-            target = torch.zeros_like(target)
+            target = torch.zeros_like(target, device=device)
             target += 1 + out / np.prod(target.shape)
         return (input, target)
 
@@ -2178,7 +2186,7 @@ class L1LossBackward0(FB):
     @FB.cell_KQI_Checking(args_in=2, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, target), (out, ) = volume_inputs, volume_outputs
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if input is not None:
             kqi_out += FB.temporary_KQI(out.expand_as(input) / np.prod(input.shape), input).sum()
         if target is not None:
@@ -2208,14 +2216,14 @@ class IndexCopyBackward0(FB):
         index = index.unsqueeze(0) if index.dim() == 0 else index
         dim = grad_fn.__getattribute__('_saved_dim')
         if input is not None:
-            input = torch.zeros_like(input)
+            input = torch.zeros_like(input, device=device)
             for i in range(out.size(dim)):
                 if i not in index:
                     selected_input = input.select(dim, i)
                     selected_input += 1 + out.select(dim, i)
                     input.select(dim, i).copy_(selected_input)
         if source is not None:
-            source = torch.zeros_like(source)
+            source = torch.zeros_like(source, device=device)
             for num, i in enumerate(index):
                 selected_source = source.select(dim, num)
                 selected_source += 1 + out.select(dim, i)
@@ -2226,7 +2234,7 @@ class IndexCopyBackward0(FB):
     @FB.cell_KQI_Checking(args_in=2, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, source), (out, ) = volume_inputs, volume_outputs
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         index = grad_fn.__getattribute__('_saved_index')
         index = index.unsqueeze(0) if index.dim() == 0 else index
         dim = grad_fn.__getattribute__('_saved_dim')
@@ -2273,7 +2281,7 @@ class PermuteBackward0(FB):
     @FB.cell_Volume_Checking(args_in=1, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
-        dims = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dims'))
+        dims = grad_fn.__getattribute__('_saved_dims')
         dims_r = tuple(i for _, i in sorted(tuple((d, i) for i, d in enumerate(dims))))
         input = 1 + out.permute(dims_r)
         return (input, )
@@ -2282,7 +2290,7 @@ class PermuteBackward0(FB):
     @FB.cell_KQI_Checking(args_in=1, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
-        dims = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dims'))
+        dims = grad_fn.__getattribute__('_saved_dims')
         kqi_out = FB.temporary_KQI(out, input.permute(dims))
         return (kqi_out, )
 
@@ -2290,7 +2298,7 @@ class PermuteBackward0(FB):
     @FB.cell_Graph_Checking(args_in=1, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
-        dims = tuple(unsign_to_sign(i) for i in grad_fn.__getattribute__('_saved_dims'))
+        dims = grad_fn.__getattribute__('_saved_dims')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.permute(dims)), torch.flatten(out))}
         return adj
 
@@ -2302,7 +2310,7 @@ class GatherBackward0(FB):
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         index = grad_fn.__getattribute__('_saved_index')
         dim = grad_fn.__getattribute__('_saved_dim')
-        input = torch.zeros_like(input).scatter_(dim, index, out + 1)
+        input = torch.zeros_like(input, device=device).scatter_(dim, index, out + 1)
         return (input, )
 
     @classmethod
@@ -2370,7 +2378,7 @@ class IndexSelectBackward0(FB):
         index = grad_fn.__getattribute__('_saved_index')
         index = index.unsqueeze(0) if index.dim() == 0 else index
         dim = grad_fn.__getattribute__('_saved_dim')
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         for num, i in enumerate(index):
             kqi_out[num] += FB.temporary_KQI(out[num], input.select(dim, i))
         return (kqi_out, )
@@ -2395,7 +2403,7 @@ class RollBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         dims = grad_fn.__getattribute__('_saved_dims')
-        shifts = tuple(unsign_to_sign(s) for s in grad_fn.__getattribute__('_saved_shifts'))
+        shifts = grad_fn.__getattribute__('_saved_shifts')
         shifts_inv = tuple(-s for s in shifts)
         input = 1 + out.roll(dims=dims, shifts=shifts_inv)
         return (input, )
@@ -2405,7 +2413,7 @@ class RollBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
         dims = grad_fn.__getattribute__('_saved_dims')
-        shifts = tuple(unsign_to_sign(s) for s in grad_fn.__getattribute__('_saved_shifts'))
+        shifts = grad_fn.__getattribute__('_saved_shifts')
         kqi_out = FB.temporary_KQI(out, input.roll(dims=dims, shifts=shifts))
         return (kqi_out, )
 
@@ -2414,7 +2422,7 @@ class RollBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
         dims = grad_fn.__getattribute__('_saved_dims')
-        shifts = tuple(unsign_to_sign(s) for s in grad_fn.__getattribute__('_saved_shifts'))
+        shifts = grad_fn.__getattribute__('_saved_shifts')
         adj = {int(o): (int(i), ) for i, o in zip(torch.flatten(input.roll(dims=dims, shifts=shifts)), torch.flatten(out))}
         return adj
 
@@ -2427,7 +2435,7 @@ class IndexBackward0(FB):
         indices = grad_fn.__getattribute__('_saved_indices')[0]
         if indices.dtype == torch.bool:
             indices = torch.nonzero(indices, as_tuple=True)[0]
-        input = torch.zeros_like(input)
+        input = torch.zeros_like(input, device=device)
         for i in range(len(indices)):
             input[indices[i], :] = 1 + out[i, :]
         return (input, )
@@ -2439,7 +2447,7 @@ class IndexBackward0(FB):
         indices = grad_fn.__getattribute__('_saved_indices')[0]
         if indices.dtype == torch.bool:
             indices = torch.nonzero(indices, as_tuple=True)[0]
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         for i in range(len(indices)):
             kqi_out[i, :] = FB.temporary_KQI(out[i, :], input[indices[i], :])
         return (kqi_out, )
@@ -2464,7 +2472,7 @@ class Upsample2DBackward1(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         offset = np.prod(out.shape[2:]) + (out / np.prod(input.shape[2:])).sum(axis=tuple(range(2, out.ndim)))
-        input = torch.ones_like(input) * offset.view(*input.shape[:2], *([1] * (input.dim() - 2))).expand_as(input)
+        input = torch.ones_like(input, device=device) * offset.view(*input.shape[:2], *([1] * (input.dim() - 2))).expand_as(input)
         return (input, )
 
     @classmethod
@@ -2487,7 +2495,15 @@ class Upsample2DBackward1(FB):
         return {k: tuple(v) for k, v in adj.items()}
 
 
+class UpsampleBilinear2DBackward0(Upsample2DBackward1):
+    pass
+
+
 class UpsampleBilinear2DBackward1(Upsample2DBackward1):
+    pass
+
+
+class UpsampleNearest2DBackward0(Upsample2DBackward1):
     pass
 
 
@@ -2501,7 +2517,7 @@ class SplitWithSizesBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, outputs = grad_fn(*volume_outputs), volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        input = torch.zeros_like(input) + 1 + torch.cat(outputs, dim)
+        input = torch.zeros_like(input, device=device) + 1 + torch.cat(outputs, dim)
         return (input, )
 
     @classmethod
@@ -2549,7 +2565,7 @@ class IndexPutBackward0(FB):
         if len(indices) == 0:
             kqi_out = FB.temporary_KQI(out, input)
         else:
-            kqi_out = torch.zeros_like(out)
+            kqi_out = torch.zeros_like(out, device=device)
             if input is not None:
                 all_indices = torch.arange(input.shape[0])
                 remain_indices = [i for i in all_indices if i not in indices]
@@ -2598,7 +2614,7 @@ class WhereBackward0(FB):
     @FB.cell_KQI_Checking(args_in=2, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, other), (out, ) = volume_inputs, volume_outputs
-        kqi_out = torch.zeros_like(out)
+        kqi_out = torch.zeros_like(out, device=device)
         if input is not None:
             kqi_out += FB.temporary_KQI(out, input.broadcast_to(out.shape))
         if other is not None:
@@ -2624,6 +2640,7 @@ __functions_mapping = {
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
     'torch::autograd::CopySlices': CopySlices,
     'struct torch::autograd::CopySlices': CopySlices,
+    'ToCopyBackward0': ToCopyBackward0,
     'TBackward0': TBackward0,
     'MvBackward0': MvBackward0,
     'MmBackward0': MmBackward0,
@@ -2650,6 +2667,7 @@ __functions_mapping = {
     'SqueezeBackward4': SqueezeBackward1,
     'SqueezeBackward3': SqueezeBackward1,
     'SoftmaxBackward0': SoftmaxBackward0,
+    'SafeSoftmaxBackward0': SafeSoftmaxBackward0,
     'LogSoftmaxBackward0': LogSoftmaxBackward0,
     'GeluBackward0': GeluBackward0,
     'HardshrinkBackward0': HardshrinkBackward0,
@@ -2678,6 +2696,7 @@ __functions_mapping = {
     'NativeBatchNormBackward0': NativeBatchNormBackward0,
     'CudnnBatchNormBackward0': CudnnBatchNormBackward0,
     'NormBackward1': NormBackward1,
+    'LinalgVectorNormBackward0': LinalgVectorNormBackward0,
     'SumBackward1': SumBackward1,
     'MeanBackward1': MeanBackward1,
     'ExpandBackward0': ExpandBackward0,
@@ -2696,7 +2715,8 @@ __functions_mapping = {
     'ConstantPadNdBackward0': ConstantPadNdBackward0,
     'L1LossBackward0': L1LossBackward0,
     'HardtanhBackward0': HardtanhBackward0,
-    'DivBackward0': DivBackward0,
+    'MulBackward1': MulBackward1,
+    'DivBackward1': DivBackward1,
     'HardswishBackward0': HardswishBackward0,
     'SiluBackward0': SiluBackward0,
     'PermuteBackward0': PermuteBackward0,
@@ -2708,7 +2728,9 @@ __functions_mapping = {
     'IndexBackward0': IndexBackward0,
     'Im2ColBackward0': Im2ColBackward0,
     'Col2ImBackward0': Col2ImBackward0,
+    'UpsampleBilinear2DBackward0': UpsampleBilinear2DBackward0,
     'UpsampleBilinear2DBackward1': UpsampleBilinear2DBackward1,
+    'UpsampleNearest2DBackward0': UpsampleNearest2DBackward0,
     'UpsampleNearest2DBackward1': UpsampleNearest2DBackward1,
     'ClampBackward1': ClampBackward1,
     'ClampMinBackward0': ClampMinBackward0,
