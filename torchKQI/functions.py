@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import math
 from collections import defaultdict
-from .function_base import FuncBase as FB, device
+from .function_base import FuncBase as FB, device, grad_fn_attr_info
 from typing import Tuple, Dict
 
 
@@ -360,7 +360,7 @@ class SubBackward0(TwotoOneMapping):
     pass
 
 
-class MulBackward0(TwotoOneMapping_Broadcast):
+class MulBackward0(TwotoOneMapping):
     pass
 
 
@@ -455,7 +455,7 @@ class UnsqueezeBackward0(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         input, (out, ) = grad_fn(volume_outputs[0]), volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        input = (1 + out).sum(dim=dim)
+        input = (1 + out).squeeze(dim=dim)
         return (input, )
 
     @classmethod
@@ -847,7 +847,7 @@ class SoftmaxBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        kqi_out = sum(FB.temporary_KQI(out.select(dim, id).unsqueeze(dim).expand_as(out) / out.size(dim), input) for id in range(out.size(dim)))
+        kqi_out = sum(FB.temporary_KQI(o.unsqueeze(dim).expand_as(out) / out.size(dim), input) for o in out.unbind(dim))
         return (kqi_out, )
 
     @classmethod
@@ -2749,8 +2749,7 @@ def backward_mapper(grad_fn):
         except TypeError as err:
             args_out = int(err.args[0].split(' ')[1])
         args_in = len(grad_fn.next_functions)
-        attrs = {attr: grad_fn.__getattribute__(attr) for attr in dir(grad_fn) if "_saved_" in attr}
         raise NotImplementedError(f'Class {grad_fn.name()} is not registered.',
                                   f'{grad_fn.name()} should have {args_in} inputs and {args_out} outputs.',
-                                  f'{grad_fn.name()} has following attributes to be used: {attrs}')
+                                  f'{grad_fn.name()} has following attributes to be used: {grad_fn_attr_info(grad_fn)}')
     return __functions_mapping[grad_fn.name()]

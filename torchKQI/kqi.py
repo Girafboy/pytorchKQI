@@ -104,7 +104,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
         yield grad_fn, tuple(kqi.masked_scatter(kqi.isnan(), torch.masked_select(functions.FB.temporary_KQI(vol, __W), kqi.isnan())) for kqi, vol in zip(kqis, vols)), vols, *args
 
 
-def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable) -> torch.Tensor:
+def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, device: torch.device) -> torch.Tensor:
     torch.backends.cuda.enable_flash_sdp(False)
     torch.backends.cuda.enable_mem_efficient_sdp(False)
     torch._C._jit_set_profiling_executor(False)
@@ -113,18 +113,19 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable) 
     torch._C._jit_override_can_fuse_on_gpu(False)
     torch.backends.mkldnn.enabled = False
 
+    function_base.bar.reset()
     function_base.bar.desc = model.__class__.__name__
-    function_base.bar.n = 0
+    function_base.device = device
+    
     model.eval()
-    model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
     return callback_func(model, x)
 
 
-def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> torch.Tensor:
-    model_output = __prepare(model, x, callback_func)
+def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> torch.Tensor:
+    model_output = __prepare(model, x, callback_func, device)
 
     kqi = torch.tensor(0, dtype=float)
     for _, ks, _ in __intermediate_result_generator(model_output):
@@ -134,8 +135,8 @@ def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambd
     return kqi
 
 
-def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
-    model_output = __prepare(model, x, callback_func)
+def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
+    model_output = __prepare(model, x, callback_func, device)
 
     for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
         for kqi, volume, node_id in zip(kqis, volumes, node_ids):
@@ -143,13 +144,13 @@ def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lam
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
 
 
-def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
-    model_output = __prepare(model, x, callback_func)
+def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
+    model_output = __prepare(model, x, callback_func, device)
     for grad_fn, ks, _ in __intermediate_result_generator(model_output):
         yield grad_fn, ks
 
 
-def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), filename: str = None, dots_per_unit: int = 4, fontsize=7):
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu'), filename: str = None, dots_per_unit: int = 4, fontsize=7):
     plt.rcParams['figure.autolayout'] = False
     plt.rcParams['axes.spines.left'] = False
     plt.rcParams['axes.spines.bottom'] = False
@@ -195,7 +196,7 @@ def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable =
             return model_params[grad_fn.variable]
         return grad_fn.name()
 
-    model_output = __prepare(model, x, callback_func)
+    model_output = __prepare(model, x, callback_func, device)
     G = __construct_compute_graph(model_output.grad_fn)
     kqi_min, kqi_max = np.inf, -np.inf
     for grad_fn, kqis, _ in __intermediate_result_generator(model_output):
