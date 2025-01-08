@@ -9,6 +9,14 @@ from functools import wraps
 logging.basicConfig(level=logging.DEBUG, filename='debug.log', filemode='w', format="%(asctime)s - %(levelname)s - %(message)s")
 bar = tqdm.tqdm()
 device = torch.device('cpu')
+grad_fn_info = {}
+
+
+def hook_factory(grad_fn):
+    def hook(grad_inputs, grad_outputs):
+        grad_fn_info[grad_fn] = {'input': tuple((input.shape, input.dtype) if input is not None else input for input in grad_inputs),
+                                 'output': tuple((output.shape, output.dtype) if output is not None else output for output in grad_outputs)}
+    return hook
 
 
 def to_device(tensor, device=device):
@@ -19,10 +27,10 @@ def to_device(tensor, device=device):
 
 
 def grad_fn_attr_info(grad_fn):
-    return {attr: grad_fn.__getattribute__(attr).shape 
-            if isinstance(grad_fn.__getattribute__(attr), torch.Tensor) 
-            else grad_fn.__getattribute__(attr) 
-            for attr in dir(grad_fn) if "_saved_" in attr}
+    return {attr: grad_fn.__getattribute__(attr).shape if isinstance(grad_fn.__getattribute__(attr), torch.Tensor)
+            else tuple(a.shape if isinstance(a, torch.Tensor) else a for a in grad_fn.__getattribute__(attr)) if isinstance(grad_fn.__getattribute__(attr), tuple)
+            else grad_fn.__getattribute__(attr)
+            for attr in dir(grad_fn) if '_saved' in attr and '_raw' not in attr}
 
 
 class GradFn:
@@ -30,17 +38,11 @@ class GradFn:
         self.grad_fn = grad_fn
         self.ctype = torch.rand(1).element_size()
 
-    def __call__(self, *args):
-        args = to_device(args, device=torch.device('cpu'))
-        try:
-            res = self.grad_fn(*args)
-        except Exception as err:
-            logging.debug(f'ERROR!!! {self.grad_fn}->{self.grad_fn.next_functions} {tuple(a.shape for a in args)} {grad_fn_attr_info(self.grad_fn)}')
-            raise(err)
-        return to_device(res)
-    
+    def __call__(self):
+        return tuple(torch.zeros(size=input[0], dtype=input[1]) if input is not None else input for input in grad_fn_info[self.grad_fn]['input'])
+
     def __getattribute__(self, __name):
-        def unsign_to_sign(attr):            
+        def unsign_to_sign(attr):
             if self.ctype == 4:
                 return ctypes.c_int32(attr).value
             else:
@@ -69,17 +71,25 @@ class FuncBase:
             def wrapped_function(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
                 if args_out is not None:
                     assert len(volume_outputs) == args_out, f"{cls.__name__}.cell_Volume must have exactly {args_out} volume_outputs. {grad_fn_attr_info(grad_fn)}"
-                
-                volume_inputs = to_device(func(cls, GradFn(grad_fn), to_device(volume_outputs)), device=torch.device('cpu'))
+
+                try:
+                    volume_inputs = to_device(func(cls, GradFn(grad_fn), to_device(volume_outputs)), device=torch.device('cpu'))
+                except Exception as err:
+                    logging.debug(f'ERROR!!! {cls.__name__}({id(grad_fn)}<-{",".join(map(lambda k: str(id(k[0])), grad_fn.next_functions))}).cell_Volume\n \
+                              \t\t\t\tvolume_outputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in volume_outputs])}]\n \
+                              \t\t\t\tgrad_fn={grad_fn_attr_info(grad_fn)}')
+                    raise err
                 bar.update()
 
                 if args_in is not None:
                     assert len(volume_inputs) == args_in, f"{cls.__name__}.cell_Volume must have exactly {args_in} volume_inputs. {grad_fn_attr_info(grad_fn)}"
-                ensure_tuple = lambda result: result if isinstance(result, tuple) else (result,)
-                for volume_in, grad_fn_return in zip(volume_inputs, ensure_tuple(GradFn(grad_fn)(*volume_outputs))):
-                    if volume_in is not None or grad_fn_return is not None:
-                        assert volume_in.shape == grad_fn_return.shape, f"{cls.__name__}.cell_Volume must return the same size of volume_in {volume_in.shape} and grad_fn_return {grad_fn_return.shape}. {grad_fn_attr_info(grad_fn)}"
-                logging.debug(f'[{psutil.Process().memory_info().rss/1024**3:.2f} GB] {cls.__name__}.cell_Volume: volume_inputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in volume_inputs])}], volume_outputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in volume_outputs])}]')
+                for volume_in, true_shape in zip(volume_inputs, grad_fn_info[grad_fn]['input']):
+                    if volume_in is not None or true_shape is not None:
+                        assert volume_in.shape == true_shape[0], f"{cls.__name__}.cell_Volume must return the same size of volume_in {volume_in.shape} as true_shape {true_shape[0]}. {grad_fn_attr_info(grad_fn)}"
+                logging.debug(f'{psutil.Process().memory_info().rss/1024**3:.2f} GB - {cls.__name__}({id(grad_fn)}<-{",".join(map(lambda k: str(id(k[0])), grad_fn.next_functions))}).cell_Volume\n \
+                              \t\t\t\tvolume_inputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in volume_inputs])}]\n \
+                              \t\t\t\tvolume_outputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in volume_outputs])}]\n \
+                              \t\t\t\tgrad_fn={grad_fn_attr_info(grad_fn)}')
                 return volume_inputs
             return wrapped_function
         return cell_Volume_Checking_decorator
@@ -98,13 +108,22 @@ class FuncBase:
                 if args_in is not None:
                     assert len(volume_inputs) == args_in, f"{cls.__name__}.cell_KQI must have exactly {args_in} volume_inputs. {grad_fn_attr_info(grad_fn)}"
 
-                kqis = to_device(func(cls, GradFn(grad_fn), to_device(volume_inputs), to_device(volume_outputs)), device=torch.device('cpu'))
+                try:
+                    kqis = to_device(func(cls, GradFn(grad_fn), to_device(volume_inputs), to_device(volume_outputs)), device=torch.device('cpu'))
+                except Exception as err:
+                    logging.debug(f'ERROR!!! {cls.__name__}({id(grad_fn)}<-{",".join(map(lambda k: str(id(k[0])), grad_fn.next_functions))}).cell_KQI\n \
+                              \t\t\t\tvolume_inputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in volume_inputs])}]\n \
+                              \t\t\t\tvolume_outputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in volume_outputs])}]\n \
+                              \t\t\t\tgrad_fn={grad_fn_attr_info(grad_fn)}')
+                    raise err
                 bar.update()
 
                 assert len(kqis) == len(volume_outputs), f"{cls.__name__}.cell_KQI must return {len(volume_outputs)} kqis, but now return {len(kqis)} kqis. {grad_fn_attr_info(grad_fn)}"
                 for kqi, volume_out in zip(kqis, volume_outputs):
                     assert kqi.shape == volume_out.shape, f"{cls.__name__}.cell_KQI must return the same size of volume_output {volume_out.shape} and kqi {kqi.shape}. {grad_fn_attr_info(grad_fn)}"
-                logging.debug(f'[{psutil.Process().memory_info().rss/1024**3:.2f} GB] {cls.__name__}.cell_KQI: kqi=[{", ".join([f"{k.sum()}/W {k.shape}" if k is not None else "None" for k in kqis])}]')
+                logging.debug(f'{psutil.Process().memory_info().rss/1024**3:.2f} GB - {cls.__name__}({id(grad_fn)}<-{",".join(map(lambda k: str(id(k[0])), grad_fn.next_functions))}).cell_KQI\n \
+                              \t\t\t\tkqi=[{", ".join([f"{k.sum()}/W {k.shape}" if k is not None else "None" for k in kqis])}]\n \
+                              \t\t\t\tgrad_fn={grad_fn_attr_info(grad_fn)}')
                 return kqis
             return wrapped_function
         return cell_KQI_Checking_decorator
@@ -123,10 +142,19 @@ class FuncBase:
                 if args_in is not None:
                     assert len(inputs) == args_in, f"{cls.__name__}.cell_Graph must have exactly {args_in} inputs. {grad_fn_attr_info(grad_fn)}"
 
-                adj = func(cls, GradFn(grad_fn), to_device(inputs), to_device(outputs))
+                try:
+                    adj = func(cls, GradFn(grad_fn), to_device(inputs), to_device(outputs))
+                except Exception as err:
+                    logging.debug(f'ERROR!!! {cls.__name__}({id(grad_fn)}<-{",".join(map(lambda k: str(id(k[0])), grad_fn.next_functions))}).cell_Graph\n \
+                              \t\t\t\tinputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in inputs])}]\n \
+                              \t\t\t\toutputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in outputs])}]\n \
+                              \t\t\t\tgrad_fn={grad_fn_attr_info(grad_fn)}')
+                    raise err
                 bar.update()
 
-                logging.debug(f'[{psutil.Process().memory_info().rss/1024**3:.2f} GB] {cls.__name__}.cell_Graph: nodes={len(adj)}, edges={sum(map(len, adj.values()))}')
+                logging.debug(f'{psutil.Process().memory_info().rss/1024**3:.2f} GB - {cls.__name__}({id(grad_fn)}<-{",".join(map(lambda k: str(id(k[0])), grad_fn.next_functions))}).cell_Graph\n \
+                              \t\t\t\tnodes={len(adj)}, edges={sum(map(len, adj.values()))}\n \
+                              \t\t\t\tgrad_fn={grad_fn_attr_info(grad_fn)}')
                 return adj
             return wrapped_function
         return cell_Graph_Checking_decorator

@@ -16,6 +16,7 @@ def __construct_compute_graph(grad_fn):
     G.add_node(grad_fn)
     while stack:
         cur = stack.pop()
+        cur.register_hook(function_base.hook_factory(cur))
         for next_fn, _ in cur.next_functions:
             if next_fn is not None:
                 G.add_edge(next_fn, cur)
@@ -33,6 +34,7 @@ __W = torch.tensor(0, dtype=float)
 def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
     grad_fn = model_output.grad_fn
     G = __construct_compute_graph(grad_fn)
+    model_output.backward(model_output, retain_graph=True)
     function_base.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
 
     waiting = {}  # Dict[torch.autograd.graph.Node, int]
@@ -41,7 +43,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
     pending = []
     if return_graph:
         increID = 1
-        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype = torch.float64).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
+        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype=torch.float64).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
         increID += model_output.numel()
 
     for cur in reversed(list(nx.topological_sort(G))):
@@ -52,7 +54,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
                 waiting[cur] = waiting.get(cur, 0) + 1
                 volumes[next_fn] = tuple(v_old + vI for v_old, vI in itertools.zip_longest(volumes.get(next_fn, tuple()), (0,) * i + (vI,), fillvalue=0))
                 if return_graph:
-                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype = torch.float64).reshape_as(vI) for v_old, vI in itertools.zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
+                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype=torch.float64).reshape_as(vI) for v_old, vI in itertools.zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
                     if any(nodeID is not None and nodeID.eq(increID).any() for nodeID in nodeIDs[next_fn]):
                         increID += vI.numel()
 
@@ -116,12 +118,21 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
     function_base.bar.reset()
     function_base.bar.desc = model.__class__.__name__
     function_base.device = device
-    
+
     model.eval()
+    model(x)
     for param in model.parameters():
         param.requires_grad_(True)
     x.requires_grad_(False)
-    return callback_func(model, x)
+
+    def pack_hook(x):
+        return x.shape, x.dtype
+
+    def unpack_hook(packed):
+        return torch.ones(size=packed[0], dtype=packed[1])
+
+    with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
+        return callback_func(model, x)
 
 
 def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> torch.Tensor:
