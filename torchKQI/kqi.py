@@ -107,13 +107,16 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
 
 
 def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, device: torch.device) -> torch.Tensor:
-    torch.backends.cuda.enable_flash_sdp(False)
-    torch.backends.cuda.enable_mem_efficient_sdp(False)
-    torch._C._jit_set_profiling_executor(False)
-    torch._C._jit_set_profiling_mode(False)
-    torch._C._jit_override_can_fuse_on_cpu(False)
-    torch._C._jit_override_can_fuse_on_gpu(False)
-    torch.backends.mkldnn.enabled = False
+    try:
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+        torch._C._jit_set_profiling_executor(False)
+        torch._C._jit_set_profiling_mode(False)
+        torch._C._jit_override_can_fuse_on_cpu(False)
+        torch._C._jit_override_can_fuse_on_gpu(False)
+        torch.backends.mkldnn.enabled = False
+    except Exception:
+        pass
 
     function_base.bar.reset()
     function_base.bar.desc = model.__class__.__name__
