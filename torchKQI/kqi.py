@@ -119,6 +119,7 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
     function_base.bar.reset()
     function_base.bar.desc = model.__class__.__name__
     function_base.device = device
+    function_base.grad_fn_info.clear()
 
     def pack_hook(x):
         return x.shape, x.dtype
