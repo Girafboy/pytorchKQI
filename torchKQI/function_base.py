@@ -173,13 +173,5 @@ class FuncBase:
         if volume_backward.dim() != 0 and volume.shape != volume_backward.shape:
             raise ValueError(f'Shape of volume {volume.shape} is incompatible with volume_backward {volume_backward.shape}')
 
-        if volume.eq(0).any():
-            volume = volume.clone()
-            if volume.dim() == 0:
-                volume = volume_backward
-            else:
-                if volume_backward.dim() == 0:
-                    volume[torch.where(volume == 0)] = volume_backward
-                else:
-                    volume[torch.where(volume == 0)] = volume_backward[torch.where(volume == 0)]
+        volume = torch.where(volume == 0, volume_backward, volume)
         return - volume * torch.log2(volume / volume_backward)

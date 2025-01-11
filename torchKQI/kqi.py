@@ -16,7 +16,6 @@ def __construct_compute_graph(grad_fn):
     G.add_node(grad_fn)
     while stack:
         cur = stack.pop()
-        cur.register_hook(function_base.hook_factory(cur))
         for next_fn, _ in cur.next_functions:
             if next_fn is not None:
                 G.add_edge(next_fn, cur)
@@ -34,7 +33,6 @@ __W = torch.tensor(0, dtype=float)
 def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
     grad_fn = model_output.grad_fn
     G = __construct_compute_graph(grad_fn)
-    model_output.backward(model_output, retain_graph=True)
     function_base.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
 
     waiting = {}  # Dict[torch.autograd.graph.Node, int]
@@ -122,12 +120,6 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
     function_base.bar.desc = model.__class__.__name__
     function_base.device = device
 
-    model.eval()
-    model(x)
-    for param in model.parameters():
-        param.requires_grad_(True)
-    x.requires_grad_(False)
-
     def pack_hook(x):
         return x.shape, x.dtype
 
@@ -135,7 +127,18 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
         return torch.ones(size=packed[0], dtype=packed[1])
 
     with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
-        return callback_func(model, x)
+        model.eval()
+        callback_func(model, x)  # Initialize the lazy model if any
+
+        model.requires_grad_(True)
+        x.requires_grad_(False)
+        model_output = callback_func(model, x)
+
+        for grad_fn in __construct_compute_graph(model_output.grad_fn).nodes:
+            grad_fn.register_hook(function_base.hook_factory(grad_fn))
+        model_output.backward(model_output, retain_graph=True)
+        model.zero_grad()
+        return model_output
 
 
 def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> torch.Tensor:
