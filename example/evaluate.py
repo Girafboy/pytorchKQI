@@ -1,22 +1,10 @@
 import torch
 import torchvision
+import transformers
+from transformers.modeling_outputs import CausalLMOutputWithPast
 import torchKQI
 import pandas as pd
 import os
-from transformers import (
-    AutoModel,
-    LlamaConfig, 
-    BertConfig, 
-    T5Config, 
-    Gemma2Config, 
-    OpenAIGPTConfig, 
-    GPT2Config, 
-    MistralConfig, 
-    Qwen2Config, 
-    PhiConfig, 
-    Phi3Config,
-)
-from transformers.modeling_outputs import CausalLMOutputWithPast
 import traceback
 import argparse
 
@@ -915,7 +903,7 @@ def task_ImageClassification(args):
             kqi = torchKQI.KQI(model, x, device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except:
+        except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
@@ -945,7 +933,7 @@ def task_SemanticSegmentation(args):
             kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out'], device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except:
+        except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
@@ -977,7 +965,7 @@ def task_ObjectDetection(args):
             kqi = torchKQI.KQI(model, x, lambda model, x: model(x)[0]['boxes'], device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except:
+        except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
@@ -1008,41 +996,41 @@ def task_VideoClassification(args):
             kqi = torchKQI.KQI(model, x, device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except:
+        except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
 def task_LLM(args):
     llm_configs = {
-        "Llama_2_7b_hf": (Llama_2_7b_hf, LlamaConfig),
-        "Llama_2_13b_hf": (Llama_2_13b_hf, LlamaConfig),
-        # "Llama_2_70b_hf": (Llama_2_70b_hf, LlamaConfig),
-        "Meta_Llama_3_8B": (Meta_Llama_3_8B, LlamaConfig),
-        # "Llama_3_2_1B_Instruct": (Llama_3_2_1B_Instruct, LlamaConfig),
-        "bert_base_uncased": (bert_base_uncased, BertConfig),
-        "bert_large_uncased": (bert_large_uncased, BertConfig),
-        "t5_small": (t5_small, T5Config),
-        "t5_base": (t5_base, T5Config),
-        "t5_large": (t5_large, T5Config),
-        "gemma_2_2b": (gemma_2_2b, Gemma2Config),
-        "gemma_2_9b": (gemma_2_9b, Gemma2Config),
-        "gpt": (gpt, OpenAIGPTConfig),
-        "gpt2": (gpt2, GPT2Config),
-        # "Qwen1_5_110B": (Qwen1_5_110B, Qwen2Config),
-        "Qwen2_7B": (Qwen2_7B, Qwen2Config),
-        # "Qwen2_72B": (Qwen2_72B, Qwen2Config),
-        "Yi_1_5_6B": (Yi_1_5_6B, LlamaConfig),
-        # "Yi_1_5_34B": (Yi_1_5_34B, LlamaConfig),
-        "deepseek_llm_7b_base": (deepseek_llm_7b_base, LlamaConfig),
-        "scibert_scivocab_cased": (scibert_scivocab_cased, BertConfig),
-        "scibert_scivocab_uncased": (scibert_scivocab_uncased, BertConfig),
-        "specter": (specter, BertConfig),
-        "specter2_base": (specter2_base, BertConfig),
-        "scincl": (scincl, BertConfig),
-        "phi_1": (phi_1, PhiConfig),
-        "phi_1_5": (phi_1_5, PhiConfig),
-        "Phi_3_mini_4k_instruct": (Phi_3_mini_4k_instruct, Phi3Config),
+        "Llama_2_7b_hf": (Llama_2_7b_hf, transformers.LlamaConfig),
+        "Llama_2_13b_hf": (Llama_2_13b_hf, transformers.LlamaConfig),
+        "Llama_2_70b_hf": (Llama_2_70b_hf, transformers.LlamaConfig),
+        "Meta_Llama_3_8B": (Meta_Llama_3_8B, transformers.LlamaConfig),
+        # "Llama_3_2_1B_Instruct": (Llama_3_2_1B_Instruct, transformers.LlamaConfig),
+        "bert_base_uncased": (bert_base_uncased, transformers.BertConfig),
+        "bert_large_uncased": (bert_large_uncased, transformers.BertConfig),
+        "t5_small": (t5_small, transformers.T5Config),
+        "t5_base": (t5_base, transformers.T5Config),
+        "t5_large": (t5_large, transformers.T5Config),
+        "gemma_2_2b": (gemma_2_2b, transformers.Gemma2Config),
+        "gemma_2_9b": (gemma_2_9b, transformers.Gemma2Config),
+        "gpt": (gpt, transformers.OpenAIGPTConfig),
+        "gpt2": (gpt2, transformers.GPT2Config),
+        "Qwen1_5_110B": (Qwen1_5_110B, transformers.Qwen2Config),
+        "Qwen2_7B": (Qwen2_7B, transformers.Qwen2Config),
+        "Qwen2_72B": (Qwen2_72B, transformers.Qwen2Config),
+        "Yi_1_5_6B": (Yi_1_5_6B, transformers.LlamaConfig),
+        "Yi_1_5_34B": (Yi_1_5_34B, transformers.LlamaConfig),
+        "deepseek_llm_7b_base": (deepseek_llm_7b_base, transformers.LlamaConfig),
+        "scibert_scivocab_cased": (scibert_scivocab_cased, transformers.BertConfig),
+        "scibert_scivocab_uncased": (scibert_scivocab_uncased, transformers.BertConfig),
+        "specter": (specter, transformers.BertConfig),
+        "specter2_base": (specter2_base, transformers.BertConfig),
+        "scincl": (scincl, transformers.BertConfig),
+        "phi_1": (phi_1, transformers.PhiConfig),
+        "phi_1_5": (phi_1_5, transformers.PhiConfig),
+        "Phi_3_mini_4k_instruct": (Phi_3_mini_4k_instruct, transformers.Phi3Config),
     }
 
     results_file = f'{args.output_path}/LLM_results.csv'
@@ -1056,9 +1044,9 @@ def task_LLM(args):
     for llm_name, llm_config in llm_configs.items():
         if llm_name in pd.read_csv(results_file)['Model Name'].values:
             continue
-        try: 
+        try:
             config = llm_config[1].from_dict(llm_config[0])
-            model = AutoModel.from_config(config).eval()
+            model = transformers.AutoModel.from_config(config).eval()
 
             if 'max_position_embeddings' in config.__dict__:
                 sequence_length = config.max_position_embeddings
@@ -1066,7 +1054,7 @@ def task_LLM(args):
                 sequence_length = config.n_positions
 
             batch_size = 1
-            if isinstance(config, T5Config):
+            if isinstance(config, transformers.T5Config):
                 x = {
                     'input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length)),
                     'decoder_input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length))
@@ -1078,7 +1066,7 @@ def task_LLM(args):
             kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except:
+        except Exception:
             error = pd.DataFrame([[llm_name, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
