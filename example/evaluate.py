@@ -1083,8 +1083,8 @@ if __name__ == '__main__':
     if not os.path.exists(args.output_path):
         os.mkdir(args.output_path)
 
-    # task_ImageClassification(args)
-    # task_SemanticSegmentation(args)
+    task_ImageClassification(args)
+    task_SemanticSegmentation(args)
     task_ObjectDetection(args)
     task_VideoClassification(args)
-    # task_LLM(args)
+    task_LLM(args)
