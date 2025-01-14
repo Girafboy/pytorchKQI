@@ -162,10 +162,6 @@ class OnetoOneMapping(FB):
         return adj
 
 
-class CopySlices(OnetoOneMapping):
-    pass
-
-
 class ToCopyBackward0(OnetoOneMapping):
     pass
 
@@ -268,6 +264,29 @@ class ClampMinBackward0(OnetoOneMapping):
 
 class RsqrtBackward0(OnetoOneMapping):
     pass
+
+
+class CopySlices(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=None, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        inputs, (out, ) = grad_fn(), volume_outputs
+        inputs = tuple((1 + out / len(inputs)).reshape_as(input) if input is not None else None for input in inputs)
+        return inputs
+
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=None, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        inputs, (out, ) = volume_inputs, volume_outputs
+        kqi_out = sum(FB.temporary_KQI(out / len(inputs), input.reshape_as(out)) for input in inputs if input is not None)
+        return (kqi_out, )
+
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=None, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        inputs, (out, ) = inputs, outputs
+        adj = {int(o): (int(i), ) for input in inputs if input is not None for i, o in zip(torch.flatten(input.reshape_as(out)), torch.flatten(out))}
+        return adj
 
 
 class TwotoOneMapping(FB):
@@ -694,7 +713,7 @@ class ConvolutionBackward0(FB):
                     for offset in itertools.product(*[range(0, kernel_size[i] * dilation[i], dilation[i]) for i in range(ndim)]):
                         args = [next(m for m in range(j, volume_padding.shape[k + 2], stride[k]) if m >= padding[k]) for k, j in zip(range(ndim), offset)]
                         for co in range(cout.start, cout.stop):
-                            tmp[(slice(None), cin) + indexing(*offset)] = output[slice(None), co] / degree / n_input
+                            tmp[(slice(None), cin) + indexing(*offset)] = (output[slice(None), slice(co, co + 1)] / degree / n_input).expand((-1, n_input) + (-1,) * ndim)
                             tmp[(slice(None), cin) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))] = volume_padding[(slice(None), cin) + tuple(slice(arg, end, stride) for arg, end, stride in zip(args, end, stride))]
                             kqi_out[slice(None), co] += FB.temporary_KQI((output[slice(None), slice(co, co + 1)] / degree / n_input).expand((-1, n_input) + (-1,) * ndim), tmp[(slice(None), cin) + indexing(*offset)]).sum(1)
 
