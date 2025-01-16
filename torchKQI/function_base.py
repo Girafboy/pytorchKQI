@@ -33,14 +33,17 @@ class Context:
 
     @staticmethod
     def grad_fn_attr_info(grad_fn):
-        return {attr: grad_fn.__getattribute__(attr).shape if isinstance(grad_fn.__getattribute__(attr), torch.Tensor)
-                else tuple(a.shape if isinstance(a, torch.Tensor) else a for a in grad_fn.__getattribute__(attr)) if isinstance(grad_fn.__getattribute__(attr), tuple)
-                else grad_fn.__getattribute__(attr)
-                for attr in dir(grad_fn) if '_saved' in attr and '_raw' not in attr}
+        return {'Inputs': Context.grad_fn_info[grad_fn]['input'],
+                'Outputs': Context.grad_fn_info[grad_fn]['output'],
+                'Attributes': {attr: grad_fn.__getattribute__(attr).shape if isinstance(grad_fn.__getattribute__(attr), torch.Tensor)
+                               else tuple(a.shape if isinstance(a, torch.Tensor) else a for a in grad_fn.__getattribute__(attr)) if isinstance(grad_fn.__getattribute__(attr), tuple)
+                               else grad_fn.__getattribute__(attr)
+                               for attr in dir(grad_fn) if '_saved' in attr and '_raw' not in attr}
+                }
 
     @staticmethod
     def init_pool():
-        # multiprocessing.set_start_method('spawn', True)
+        multiprocessing.set_start_method('spawn', True)
         Context.pool = multiprocessing.Pool(len(Context.device))
 
     @staticmethod
@@ -54,7 +57,7 @@ class GradFn:
         self.ctype = torch.rand(1).element_size()
 
     def __call__(self):
-        return tuple(torch.zeros(size=input[0], dtype=input[1]) if input is not None else input for input in Context.grad_fn_info[self.grad_fn]['input'])
+        return tuple(torch.zeros(size=input[0], dtype=input[1], device=Context.device[0]) if input is not None else input for input in Context.grad_fn_info[self.grad_fn]['input'])
 
     def __getattribute__(self, __name):
         def unsign_to_sign(attr):

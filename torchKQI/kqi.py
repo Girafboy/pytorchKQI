@@ -122,25 +122,18 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
     function_base.Context.device = [device] if isinstance(device, torch.device) else device
     function_base.Context.init_pool()
 
-    def pack_hook(x):
-        return x.shape, x.dtype
+    model.eval()
+    callback_func(model, x)  # Initialize the lazy model if any
 
-    def unpack_hook(packed):
-        return torch.ones(size=packed[0], dtype=packed[1])
+    model.requires_grad_(True)
+    x.requires_grad_(False)
+    model_output = callback_func(model, x)
 
-    with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
-        model.eval()
-        callback_func(model, x)  # Initialize the lazy model if any
-
-        model.requires_grad_(True)
-        x.requires_grad_(False)
-        model_output = callback_func(model, x)
-
-        for grad_fn in __construct_compute_graph(model_output.grad_fn).nodes:
-            grad_fn.register_hook(function_base.Context.hook_factory(grad_fn))
-        model_output.backward(model_output, retain_graph=True)
-        model.zero_grad()
-        return model_output
+    for grad_fn in __construct_compute_graph(model_output.grad_fn).nodes:
+        grad_fn.register_hook(function_base.Context.hook_factory(grad_fn))
+    model_output.backward(model_output, retain_graph=True)
+    model.zero_grad()
+    return model_output
 
 
 def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> torch.Tensor:
