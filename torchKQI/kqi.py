@@ -33,7 +33,7 @@ __W = torch.tensor(0, dtype=float)
 def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
     grad_fn = model_output.grad_fn
     G = __construct_compute_graph(grad_fn)
-    function_base.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
+    function_base.Context.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
 
     waiting = {}  # Dict[torch.autograd.graph.Node, int]
     volumes = {grad_fn: (torch.zeros_like(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
@@ -104,7 +104,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
         yield grad_fn, tuple(kqi.masked_scatter(kqi.isnan(), torch.masked_select(functions.FB.temporary_KQI(vol, __W), kqi.isnan())) for kqi, vol in zip(kqis, vols)), vols, *args
 
 
-def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, device: torch.device) -> torch.Tensor:
+def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, device: Union[torch.device, Tuple[torch.device]]) -> torch.Tensor:
     try:
         torch.backends.cuda.enable_flash_sdp(False)
         torch.backends.cuda.enable_mem_efficient_sdp(False)
@@ -116,10 +116,11 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
     except Exception:
         pass
 
-    function_base.bar.reset()
-    function_base.bar.desc = model.__class__.__name__
-    function_base.device = device
-    function_base.grad_fn_info.clear()
+    function_base.Context.bar.desc = model.__class__.__name__
+    function_base.Context.bar.reset()
+    function_base.Context.grad_fn_info.clear()
+    function_base.Context.device = [device] if isinstance(device, torch.device) else device
+    function_base.Context.init_pool()
 
     def pack_hook(x):
         return x.shape, x.dtype
@@ -136,13 +137,13 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
         model_output = callback_func(model, x)
 
         for grad_fn in __construct_compute_graph(model_output.grad_fn).nodes:
-            grad_fn.register_hook(function_base.hook_factory(grad_fn))
+            grad_fn.register_hook(function_base.Context.hook_factory(grad_fn))
         model_output.backward(model_output, retain_graph=True)
         model.zero_grad()
         return model_output
 
 
-def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> torch.Tensor:
+def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> torch.Tensor:
     model_output = __prepare(model, x, callback_func, device)
 
     kqi = torch.tensor(0, dtype=float)
@@ -153,7 +154,7 @@ def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambd
     return kqi
 
 
-def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
+def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
     model_output = __prepare(model, x, callback_func, device)
 
     for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
@@ -162,13 +163,13 @@ def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lam
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
 
 
-def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu')) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
+def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
     model_output = __prepare(model, x, callback_func, device)
     for grad_fn, ks, _ in __intermediate_result_generator(model_output):
         yield grad_fn, ks
 
 
-def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device=torch.device('cpu'), filename: str = None, dots_per_unit: int = 4, fontsize=7):
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), filename: str = None, dots_per_unit: int = 4, fontsize=7):
     plt.rcParams['figure.autolayout'] = False
     plt.rcParams['axes.spines.left'] = False
     plt.rcParams['axes.spines.bottom'] = False

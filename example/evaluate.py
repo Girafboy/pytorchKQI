@@ -1074,12 +1074,12 @@ def task_LLM(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Setting GPU and output path.")
     parser.add_argument("--output_path", type=str, required=False, default='./result', help="Output file path.")
-    parser.add_argument("--gpu", type=int, required=False, default=None, help="GPU ID (for example, 0). Default to CPU.")
+    parser.add_argument("--gpu", type=str, required=False, default=None, help="GPU ID (for example, 0 or 0,1). Default to CPU.")
     args = parser.parse_args()
     if args.gpu is None:
         args.gpu = torch.device('cpu')
     else:
-        args.gpu = torch.device(f'cuda:{args.gpu}')
+        args.gpu = [torch.device(f'cuda:{int(k)}') for k in args.gpu.split(',')]
     if not os.path.exists(args.output_path):
         os.mkdir(args.output_path)
 
