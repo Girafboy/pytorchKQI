@@ -10,11 +10,11 @@ from torch.utils.data import DataLoader
 import struct
 from tqdm import tqdm
 import multiprocessing
+import argparse
 
 
 if torch.cuda.is_available():
     torch.set_default_dtype(torch.float32)
-    torch.set_default_device('cuda:0')
 else:
     cpu_num = multiprocessing.cpu_count()
     torch.set_num_threads(cpu_num)
@@ -159,7 +159,7 @@ def mask_model(model_builder, model_weight, per, top, significand_bits=3, expone
     x = torch.randn(1, 3, 224, 224)
     model_params = {var: name for name, var in model.named_parameters()}
     statedict_kqi = {}
-    for grad_fn, kqis in torchKQI.KQI_generator(model, x):
+    for grad_fn, kqis in torchKQI.KQI_generator(model, x, device=args.gpu):
         if 'AccumulateGrad' in grad_fn.name():
             assert len(kqis) == 1
             statedict_kqi[model_params[grad_fn.variable]] = kqis[0][0]
@@ -188,44 +188,60 @@ def mask_model(model_builder, model_weight, per, top, significand_bits=3, expone
     return model.__class__.__name__, top1_accuracy, top5_accuracy, kqi_mask, original_bits / (10 ** 6), compressed_bits / (10 ** 6)
 
 
-def output(model_builder, model_weight):
-    if not os.path.exists('top8bit.csv'):
-        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv('top8bit.csv', index=False)
+def output(args, model_builder, model_weight):
+    top8bit_file = f'{args.output_path}/top8bit.csv'
+    bottom8bit_file = f'{args.output_path}/bottom8bit.csv'
+    top16bit_file = f'{args.output_path}/top16bit.csv'
+    bottom16bit_file = f'{args.output_path}/bottom16bit.csv'
+    
+    if not os.path.exists(top8bit_file):
+        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv(top8bit_file, index=False)
     for per in np.arange(0, 1.1, 0.1):
         name, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits = mask_model(model_builder, model_weight, per, True, significand_bits=3, exponent_bits=4)
         result = (name, per * 100, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits)
         df = pd.DataFrame([result], columns=["Name", "Mask Percentage", "Top-1 Accuracy", "Top-5 Accuracy", "Mask KQI", "original bits(Mb)", "compressed bits(Mb)"])
         df["Mask Percentage"] = df["Mask Percentage"].map(lambda x: f"{x:.1f}%")
-        df.to_csv('top8bit.csv', mode='a', header=False, index=False)
+        df.to_csv(top8bit_file, mode='a', header=False, index=False)
 
-    if not os.path.exists('bottom8bit.csv'):
-        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv('bottom8bit.csv', index=False)
+    if not os.path.exists(bottom8bit_file):
+        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv(bottom8bit_file, index=False)
     for per in np.arange(0, 1.1, 0.1):
         name, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits = mask_model(model_builder, model_weight, per, False, significand_bits=3, exponent_bits=4)
         result = (name, per * 100, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits)
         df = pd.DataFrame([result], columns=["Name", "Mask Percentage", "Top-1 Accuracy", "Top-5 Accuracy", "Mask KQI", "original bits(Mb)", "compressed bits(Mb)"])
         df["Mask Percentage"] = df["Mask Percentage"].map(lambda x: f"{x:.1f}%")
-        df.to_csv('bottom8bit.csv', mode='a', header=False, index=False)
+        df.to_csv(bottom8bit_file, mode='a', header=False, index=False)
 
-    if not os.path.exists('top16bit.csv'):
-        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv('top16bit.csv', index=False)
+    if not os.path.exists(top16bit_file):
+        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv(top16bit_file, index=False)
     for per in np.arange(0, 1.1, 0.1):
         name, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits = mask_model(model_builder, model_weight, per, True, significand_bits=10, exponent_bits=5)
         result = (name, per * 100, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits)
         df = pd.DataFrame([result], columns=["Name", "Mask Percentage", "Top-1 Accuracy", "Top-5 Accuracy", "Mask KQI", "original bits(Mb)", "compressed bits(Mb)"])
         df["Mask Percentage"] = df["Mask Percentage"].map(lambda x: f"{x:.1f}%")
-        df.to_csv('top16bit.csv', mode='a', header=False, index=False)
+        df.to_csv(top16bit_file, mode='a', header=False, index=False)
 
-    if not os.path.exists('bottom16bit.csv'):
-        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv('bottom16bit.csv', index=False)
+    if not os.path.exists(bottom16bit_file):
+        pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv(bottom16bit_file, index=False)
     for per in np.arange(0, 1.1, 0.1):
         name, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits = mask_model(model_builder, model_weight, per, False, significand_bits=10, exponent_bits=5)
         result = (name, per * 100, top1_accuracy, top5_accuracy, kqi_mask, original_bits, compressed_bits)
         df = pd.DataFrame([result], columns=["Name", "Mask Percentage", "Top-1 Accuracy", "Top-5 Accuracy", "Mask KQI", "original bits(Mb)", "compressed bits(Mb)"])
         df["Mask Percentage"] = df["Mask Percentage"].map(lambda x: f"{x:.1f}%")
-        df.to_csv('bottom16bit.csv', mode='a', header=False, index=False)
+        df.to_csv(bottom16bit_file, mode='a', header=False, index=False)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Setting GPU and output path.")
+    parser.add_argument("--output_path", type=str, required=False, default='./result', help="Output file path.")
+    parser.add_argument("--gpu", type=int, required=False, default=None, help="GPU ID (for example, 0). Default to CPU.")
+    args = parser.parse_args()
+    if args.gpu is None:
+        args.gpu = torch.device('cpu')
+    else:
+        args.gpu = torch.device(f'cuda:{args.gpu}')
+    if not os.path.exists(args.output_path):
+        os.mkdir(args.output_path)
+
     for model_builder, model_weight in [
         (models.alexnet, models.AlexNet_Weights.IMAGENET1K_V1),
         (models.densenet121, models.DenseNet121_Weights.IMAGENET1K_V1),
@@ -239,4 +255,4 @@ if __name__ == '__main__':
         (models.squeezenet1_0, models.SqueezeNet1_0_Weights.IMAGENET1K_V1),
         (models.vgg16, models.VGG16_Weights.IMAGENET1K_V1),
         (models.vit_b_16, models.ViT_B_16_Weights.IMAGENET1K_V1)]:
-        output(model_builder, model_weight)
+        output(args, model_builder, model_weight)

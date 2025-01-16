@@ -939,7 +939,7 @@ def task_SemanticSegmentation(args):
 
 
 def task_ObjectDetection(args):
-    x = torch.randn(1, 3, 224, 224)
+    x = torch.randn(1, 3, 300, 300)
 
     model_fns = [
         torchvision.models.detection.fasterrcnn_resnet50_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn, torchvision.models.detection.fasterrcnn_resnet50_fpn_v2,
@@ -971,7 +971,7 @@ def task_ObjectDetection(args):
 
 
 def task_VideoClassification(args):
-    x = torch.randn(1, 3, 3, 224, 224)
+    x = torch.randn(1, 3, 16, 224, 224)
 
     model_fns = [
         torchvision.models.video.mvit_v1_b, torchvision.models.video.mvit_v2_s,
