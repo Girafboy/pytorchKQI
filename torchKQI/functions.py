@@ -289,13 +289,13 @@ class CopySlices(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         inputs, (out, ) = volume_inputs, volume_outputs
         degree = cls.degree(inputs, out)
-        kqi_out = torch.zeros(out.shape, device=device)
+        kqi_out = torch.zeros(out.shape, device=Context.device[0])
         for input in inputs:
             if input is not None and np.prod(input.shape) < np.prod(out.shape):
                 slices_in = [slice(0, s) for s in input.shape]
-                mask = torch.ones(out.shape, dtype=torch.bool, device=device)
+                mask = torch.ones(out.shape, dtype=torch.bool, device=Context.device[0])
                 mask[tuple(slices_in)] = False
-                tmp = torch.zeros(out.shape, device=device)
+                tmp = torch.zeros(out.shape, device=Context.device[0])
                 tmp[slices_in] = input
                 tmp[mask] = out[mask] / degree[mask]
                 kqi_out += FB.temporary_KQI(out / degree, tmp.reshape_as(out))
@@ -317,7 +317,7 @@ class CopySlices(FB):
 
     @classmethod
     def degree(cls, inputs, out):
-        degree = torch.zeros(out.shape, device=device)
+        degree = torch.zeros(out.shape, device=Context.device[0])
         for input in inputs:
             if input is not None and np.prod(input.shape) < np.prod(out.shape):
                 slices = [slice(0, s) for s in input.shape]
@@ -333,7 +333,7 @@ class ROIAlign(FB):
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, roi), (out, ) = grad_fn(), volume_outputs
         selected_regions = cls.random_select_regions(input, out)
-        input = torch.zeros_like(input, device=device)
+        input = torch.zeros_like(input, device=Context.device[0])
         for i, (x_start, y_start) in enumerate(selected_regions):
             input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]] = 1 + out[i]
         return (input, roi)
@@ -343,7 +343,7 @@ class ROIAlign(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, roi), (out, ) = volume_inputs, volume_outputs
         selected_regions = cls.random_select_regions(input, out)
-        kqi_out = torch.zeros(out.shape, device=device)
+        kqi_out = torch.zeros(out.shape, device=Context.device[0])
         for i, (x_start, y_start) in enumerate(selected_regions):
             kqi_out[i] += FB.temporary_KQI(out[i], input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]])
         return (kqi_out, )
@@ -373,7 +373,7 @@ class ROIAlign(FB):
     
     @classmethod
     def degree(cls, selected_regions, out):
-        degree = torch.zeros(out.shape, device=device)
+        degree = torch.zeros(out.shape, device=Context.device[0])
         for x_start, y_start in selected_regions:
             degree[:, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]] += 1
         return degree
