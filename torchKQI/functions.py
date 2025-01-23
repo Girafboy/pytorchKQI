@@ -5,6 +5,7 @@ import math
 from collections import defaultdict
 from .function_base import FuncBase as FB, Context
 from typing import Tuple, Dict
+import random
 
 
 class AccumulateGrad(FB):
@@ -271,22 +272,111 @@ class CopySlices(FB):
     @FB.cell_Volume_Checking(args_in=None, args_out=1)
     def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         inputs, (out, ) = grad_fn(), volume_outputs
-        inputs = tuple((1 + out / len(inputs)).reshape_as(input) if input is not None else None for input in inputs)
+        degree = cls.degree(inputs, out)
+        inputs_list = []
+        for input in inputs:
+            if input is not None and np.prod(input.shape) < np.prod(out.shape):
+                inputs_list.append((1 + out / degree)[[slice(0, s) for s in input.shape]].reshape_as(input))
+            elif input is not None:
+                inputs_list.append((1 + out / degree).reshape_as(input))
+            else:
+                inputs_list.append(None)
+        inputs = tuple(inputs_list)
         return inputs
 
     @classmethod
     @FB.cell_KQI_Checking(args_in=None, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         inputs, (out, ) = volume_inputs, volume_outputs
-        kqi_out = sum(FB.temporary_KQI(out / len(inputs), input.reshape_as(out)) for input in inputs if input is not None)
+        degree = cls.degree(inputs, out)
+        kqi_out = torch.zeros(out.shape, device=Context.device[0])
+        for input in inputs:
+            if input is not None and np.prod(input.shape) < np.prod(out.shape):
+                slices_in = [slice(0, s) for s in input.shape]
+                mask = torch.ones(out.shape, dtype=torch.bool, device=Context.device[0])
+                mask[tuple(slices_in)] = False
+                tmp = torch.zeros(out.shape, device=Context.device[0])
+                tmp[slices_in] = input
+                tmp[mask] = out[mask] / degree[mask]
+                kqi_out += FB.temporary_KQI(out / degree, tmp.reshape_as(out))
+            elif input is not None:
+                kqi_out += FB.temporary_KQI(out / degree, input.reshape_as(out))
         return (kqi_out, )
 
     @classmethod
     @FB.cell_Graph_Checking(args_in=None, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         inputs, (out, ) = inputs, outputs
-        adj = {int(o): (int(i), ) for input in inputs if input is not None for i, o in zip(torch.flatten(input.reshape_as(out)), torch.flatten(out))}
-        return adj
+        adj = defaultdict(list)
+        for input in inputs:
+            if input is not None:
+                out_flat = torch.flatten(out[[slice(0, s) for s in input.shape]]) if np.prod(input.shape) < np.prod(out.shape) else torch.flatten(out)
+                for i, o in zip(torch.flatten(input), out_flat):
+                    adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+
+    @classmethod
+    def degree(cls, inputs, out):
+        degree = torch.zeros(out.shape, device=Context.device[0])
+        for input in inputs:
+            if input is not None and np.prod(input.shape) < np.prod(out.shape):
+                slices = [slice(0, s) for s in input.shape]
+                degree[tuple(slices)] += 1
+            elif input is not None:
+                degree += 1
+        return degree
+
+
+class ROIAlign(FB):
+    @classmethod
+    @FB.cell_Volume_Checking(args_in=2, args_out=1)
+    def cell_Volume(cls, grad_fn, volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, roi), (out, ) = grad_fn(), volume_outputs
+        selected_regions = cls.random_select_regions(input, out)
+        input = torch.zeros_like(input, device=Context.device[0])
+        for i, (x_start, y_start) in enumerate(selected_regions):
+            input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]] = 1 + out[i]
+        return (input, roi)
+    
+    @classmethod
+    @FB.cell_KQI_Checking(args_in=2, args_out=1)
+    def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
+        (input, roi), (out, ) = volume_inputs, volume_outputs
+        selected_regions = cls.random_select_regions(input, out)
+        kqi_out = torch.zeros(out.shape, device=Context.device[0])
+        for i, (x_start, y_start) in enumerate(selected_regions):
+            kqi_out[i] += FB.temporary_KQI(out[i], input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]])
+        return (kqi_out, )
+    
+    @classmethod
+    @FB.cell_Graph_Checking(args_in=2, args_out=1)
+    def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
+        (input, roi), (out, ) = inputs, outputs
+        selected_regions = cls.random_select_regions(input, out)
+        adj = defaultdict(list)
+        for k, (x_start, y_start) in enumerate(selected_regions):
+            for i, o in zip(torch.flatten(input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]]), torch.flatten(out[k])):
+                adj[int(o)].append(int(i))
+        return {k: tuple(v) for k, v in adj.items()}
+    
+    @classmethod
+    def random_select_regions(cls, input, out):
+        _, _, height, width = input.shape
+        num_regions, _, roi_height, roi_width = out.shape
+        selected_regions = []
+        random.seed(42)
+        for _ in range(num_regions):
+            x_start = random.randint(0, width - roi_width)
+            y_start = random.randint(0, height - roi_height)
+            selected_regions.append((x_start, y_start))
+        return selected_regions
+    
+    @classmethod
+    def degree(cls, selected_regions, out):
+        degree = torch.zeros(out.shape, device=Context.device[0])
+        for x_start, y_start in selected_regions:
+            degree[:, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]] += 1
+        return degree
 
 
 class TwotoOneMapping(FB):
@@ -2626,6 +2716,8 @@ __functions_mapping = {
     'struct torch::autograd::AccumulateGrad': AccumulateGrad,
     'torch::autograd::CopySlices': CopySlices,
     'struct torch::autograd::CopySlices': CopySlices,
+    'torch::autograd::CppNode<vision::ops::(anonymous namespace)::ROIAlignFunction>': ROIAlign,
+    "struct torch::autograd::CppNode<class vision::ops::`anonymous namespace'::ROIAlignFunction>": ROIAlign,
     'ToCopyBackward0': ToCopyBackward0,
     'TBackward0': TBackward0,
     'MvBackward0': MvBackward0,
