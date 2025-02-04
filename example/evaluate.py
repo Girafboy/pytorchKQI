@@ -1,31 +1,12 @@
 import torch
 import torchvision
+import transformers
+from transformers.modeling_outputs import CausalLMOutputWithPast
 import torchKQI
 import pandas as pd
 import os
-import multiprocessing
-from transformers import (
-    AutoModel,
-    LlamaConfig, 
-    BertConfig, 
-    T5Config, 
-    Gemma2Config, 
-    OpenAIGPTConfig, 
-    GPT2Config, 
-    MistralConfig, 
-    Qwen2Config, 
-    PhiConfig, 
-    Phi3Config,
-)
-from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
-
-
-if torch.cuda.is_available():
-    torch.set_default_dtype(torch.float32)
-    torch.set_default_device('cuda:0')
-else:
-    cpu_num = multiprocessing.cpu_count()
-    torch.set_num_threads(cpu_num)
+import traceback
+import argparse
 
 
 Llama_2_7b_hf = {
@@ -881,7 +862,7 @@ Phi_3_mini_4k_instruct = {
 }
 
 
-def task_ImageClassification():
+def task_ImageClassification(args):
     x = torch.randn(1, 3, 224, 224)
 
     model_fns = [
@@ -891,7 +872,7 @@ def task_ImageClassification():
         torchvision.models.efficientnet_b0, torchvision.models.efficientnet_b1, torchvision.models.efficientnet_b2, torchvision.models.efficientnet_b3, torchvision.models.efficientnet_b4, torchvision.models.efficientnet_b5, torchvision.models.efficientnet_b6, torchvision.models.efficientnet_b7, torchvision.models.efficientnet_v2_s, torchvision.models.efficientnet_v2_m, torchvision.models.efficientnet_v2_l,
         torchvision.models.googlenet,
         torchvision.models.inception_v3,
-        # torchvision.models.maxvit_t,
+        torchvision.models.maxvit_t,
         torchvision.models.mnasnet0_5, torchvision.models.mnasnet0_75, torchvision.models.mnasnet1_0, torchvision.models.mnasnet1_3,
         torchvision.models.mobilenet_v2,
         torchvision.models.mobilenet_v3_large, torchvision.models.mobilenet_v3_small,
@@ -901,13 +882,13 @@ def task_ImageClassification():
         torchvision.models.wide_resnet50_2, torchvision.models.wide_resnet101_2,
         torchvision.models.shufflenet_v2_x0_5, torchvision.models.shufflenet_v2_x1_0, torchvision.models.shufflenet_v2_x1_5, torchvision.models.shufflenet_v2_x2_0,
         torchvision.models.squeezenet1_0, torchvision.models.squeezenet1_1,
-        torchvision.models.swin_t, torchvision.models.swin_s, torchvision.models.swin_b,  # torchvision.models.swin_v2_t, torchvision.models.swin_v2_s, torchvision.models.swin_v2_b,
+        torchvision.models.swin_t, torchvision.models.swin_s, torchvision.models.swin_b, torchvision.models.swin_v2_t, torchvision.models.swin_v2_s, torchvision.models.swin_v2_b,
         torchvision.models.vgg11, torchvision.models.vgg11_bn, torchvision.models.vgg13, torchvision.models.vgg13_bn, torchvision.models.vgg16, torchvision.models.vgg16_bn, torchvision.models.vgg19, torchvision.models.vgg19_bn,
         torchvision.models.vit_b_16, torchvision.models.vit_b_32, torchvision.models.vit_l_16, torchvision.models.vit_l_32, torchvision.models.vit_h_14
     ]
 
-    results_file = 'model_results.csv'
-    errors_file = 'model_errors.csv'
+    results_file = f'{args.output_path}/ImageClassification_results.csv'
+    errors_file = f'{args.output_path}/ImageClassification_errors.csv'
 
     if not os.path.exists(results_file):
         pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
@@ -919,25 +900,25 @@ def task_ImageClassification():
             continue
         try:
             model = model_fn().eval()
-            kqi = torchKQI.KQI(model, x).item()
+            kqi = torchKQI.KQI(model, x, device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except Exception as e:
-            error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
+        except Exception:
+            error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
-def task_SemanticSegmentation():
+def task_SemanticSegmentation(args):
     x = torch.randn(1, 3, 224, 224)
 
     model_fns = [
         torchvision.models.segmentation.deeplabv3_mobilenet_v3_large, torchvision.models.segmentation.deeplabv3_resnet50, torchvision.models.segmentation.deeplabv3_resnet101,
-        # torchvision.models.segmentation.fcn_resnet50, torchvision.models.segmentation.fcn_resnet101
-        # torchvision.models.segmentation.lraspp_mobilenet_v3_large,
+        torchvision.models.segmentation.fcn_resnet50, torchvision.models.segmentation.fcn_resnet101,
+        torchvision.models.segmentation.lraspp_mobilenet_v3_large,
     ]
 
-    results_file = 'model_results.csv'
-    errors_file = 'model_errors.csv'
+    results_file = f'{args.output_path}/SemanticSegmentation_results.csv'
+    errors_file = f'{args.output_path}/SemanticSegmentation_errors.csv'
 
     if not os.path.exists(results_file):
         pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
@@ -949,27 +930,26 @@ def task_SemanticSegmentation():
             continue
         try:
             model = model_fn().eval()
-            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out']).item()
+            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out'], device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except Exception as e:
-            error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
+        except Exception:
+            error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
-def task_ObjectDetection():
-    x = torch.randn(1, 3, 224, 224)
+def task_ObjectDetection(args):
+    x = torch.randn(1, 3, 300, 300)
 
     model_fns = [
-        # torchvision.models.detection.fasterrcnn_resnet50_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn, torchvision.models.detection.fasterrcnn_resnet50_fpn_v2,
+        torchvision.models.detection.fasterrcnn_resnet50_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn, torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn, torchvision.models.detection.fasterrcnn_resnet50_fpn_v2,
         torchvision.models.detection.fcos_resnet50_fpn,
         torchvision.models.detection.retinanet_resnet50_fpn, torchvision.models.detection.retinanet_resnet50_fpn_v2,
-        torchvision.models.detection.ssd300_vgg16,
         torchvision.models.detection.ssdlite320_mobilenet_v3_large,
     ]
 
-    results_file = 'model_results.csv'
-    errors_file = 'model_errors.csv'
+    results_file = f'{args.output_path}/ObjectDetection_results.csv'
+    errors_file = f'{args.output_path}/ObjectDetection_errors.csv'
 
     if not os.path.exists(results_file):
         pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
@@ -981,27 +961,26 @@ def task_ObjectDetection():
             continue
         try:
             model = model_fn().eval()
-            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)[0]['boxes']).item()
+            kqi = torchKQI.KQI(model, x, lambda model, x: model(x)[0]['boxes'], device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except Exception as e:
-            error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
+        except Exception:
+            error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
-def task_VideoClassification():
-    x = torch.randn(1, 3, 3, 224, 224)
+def task_VideoClassification(args):
+    x = torch.randn(1, 3, 16, 224, 224)
 
     model_fns = [
-        # torchvision.models.video.mvit_v1_b, torchvision.models.video.mvit_v2_s,
+        torchvision.models.video.mvit_v1_b, torchvision.models.video.mvit_v2_s,
         torchvision.models.video.r3d_18, torchvision.models.video.mc3_18, torchvision.models.video.r2plus1d_18,
-        # torchvision.models.video.s3d,
-        # torchvision.models.video.swin3d_t, torchvision.models.video.swin3d_s, torchvision.models.video.swin3d_b
-
+        torchvision.models.video.s3d,
+        torchvision.models.video.swin3d_t, torchvision.models.video.swin3d_s, torchvision.models.video.swin3d_b
     ]
 
-    results_file = 'model_results.csv'
-    errors_file = 'model_errors.csv'
+    results_file = f'{args.output_path}/VideoClassification_results.csv'
+    errors_file = f'{args.output_path}/VideoClassification_errors.csv'
 
     if not os.path.exists(results_file):
         pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
@@ -1013,48 +992,48 @@ def task_VideoClassification():
             continue
         try:
             model = model_fn().eval()
-            kqi = torchKQI.KQI(model, x).item()
+            kqi = torchKQI.KQI(model, x, device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except Exception as e:
-            error = pd.DataFrame([[model_fn.__name__, str(e)]], columns=['Model Name', 'Error'])
+        except Exception:
+            error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
-def task_LLM():
+def task_LLM(args):
     llm_configs = {
-        "Llama_2_7b_hf": (Llama_2_7b_hf, LlamaConfig),
-        "Llama_2_13b_hf": (Llama_2_13b_hf, LlamaConfig),
-        "Llama_2_70b_hf": (Llama_2_70b_hf, LlamaConfig),
-        "Meta_Llama_3_8B": (Meta_Llama_3_8B, LlamaConfig),
-        "Llama_3_2_1B_Instruct": (Llama_3_2_1B_Instruct, LlamaConfig),
-        "bert_base_uncased": (bert_base_uncased, BertConfig),
-        "bert_large_uncased": (bert_large_uncased, BertConfig),
-        # "t5_small": (t5_small, T5Config),
-        # "t5_base": (t5_base, T5Config),
-        # "t5_large": (t5_large, T5Config),
-        "gemma_2_2b": (gemma_2_2b, Gemma2Config),
-        "gemma_2_9b": (gemma_2_9b, Gemma2Config),
-        "gpt": (gpt, OpenAIGPTConfig),
-        "gpt2": (gpt2, GPT2Config),
-        "Qwen1_5_110B": (Qwen1_5_110B, Qwen2Config),
-        "Qwen2_7B": (Qwen2_7B, Qwen2Config),
-        "Qwen2_72B": (Qwen2_72B, Qwen2Config),
-        "Yi_1_5_6B": (Yi_1_5_6B, LlamaConfig),
-        "Yi_1_5_34B": (Yi_1_5_34B, LlamaConfig),
-        "deepseek_llm_7b_base": (deepseek_llm_7b_base, LlamaConfig),
-        "scibert_scivocab_cased": (scibert_scivocab_cased, BertConfig),
-        "scibert_scivocab_uncased": (scibert_scivocab_uncased, BertConfig),
-        "specter": (specter, BertConfig),
-        "specter2_base": (specter2_base, BertConfig),
-        "scincl": (scincl, BertConfig),
-        "phi_1": (phi_1, PhiConfig),
-        "phi_1_5": (phi_1_5, PhiConfig),
-        "Phi_3_mini_4k_instruct": (Phi_3_mini_4k_instruct, Phi3Config),
+        "Llama_2_7b_hf": (Llama_2_7b_hf, transformers.LlamaConfig),
+        "Llama_2_13b_hf": (Llama_2_13b_hf, transformers.LlamaConfig),
+        "Llama_2_70b_hf": (Llama_2_70b_hf, transformers.LlamaConfig),
+        "Meta_Llama_3_8B": (Meta_Llama_3_8B, transformers.LlamaConfig),
+        # "Llama_3_2_1B_Instruct": (Llama_3_2_1B_Instruct, transformers.LlamaConfig),
+        "bert_base_uncased": (bert_base_uncased, transformers.BertConfig),
+        "bert_large_uncased": (bert_large_uncased, transformers.BertConfig),
+        "t5_small": (t5_small, transformers.T5Config),
+        "t5_base": (t5_base, transformers.T5Config),
+        "t5_large": (t5_large, transformers.T5Config),
+        "gemma_2_2b": (gemma_2_2b, transformers.Gemma2Config),
+        "gemma_2_9b": (gemma_2_9b, transformers.Gemma2Config),
+        "gpt": (gpt, transformers.OpenAIGPTConfig),
+        "gpt2": (gpt2, transformers.GPT2Config),
+        "Qwen1_5_110B": (Qwen1_5_110B, transformers.Qwen2Config),
+        "Qwen2_7B": (Qwen2_7B, transformers.Qwen2Config),
+        "Qwen2_72B": (Qwen2_72B, transformers.Qwen2Config),
+        "Yi_1_5_6B": (Yi_1_5_6B, transformers.LlamaConfig),
+        "Yi_1_5_34B": (Yi_1_5_34B, transformers.LlamaConfig),
+        "deepseek_llm_7b_base": (deepseek_llm_7b_base, transformers.LlamaConfig),
+        "scibert_scivocab_cased": (scibert_scivocab_cased, transformers.BertConfig),
+        "scibert_scivocab_uncased": (scibert_scivocab_uncased, transformers.BertConfig),
+        "specter": (specter, transformers.BertConfig),
+        "specter2_base": (specter2_base, transformers.BertConfig),
+        "scincl": (scincl, transformers.BertConfig),
+        "phi_1": (phi_1, transformers.PhiConfig),
+        "phi_1_5": (phi_1_5, transformers.PhiConfig),
+        "Phi_3_mini_4k_instruct": (Phi_3_mini_4k_instruct, transformers.Phi3Config),
     }
 
-    results_file = 'model_results.csv'
-    errors_file = 'model_errors.csv'
+    results_file = f'{args.output_path}/LLM_results.csv'
+    errors_file = f'{args.output_path}/LLM_errors.csv'
 
     if not os.path.exists(results_file):
         pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
@@ -1064,9 +1043,9 @@ def task_LLM():
     for llm_name, llm_config in llm_configs.items():
         if llm_name in pd.read_csv(results_file)['Model Name'].values:
             continue
-        try: 
+        try:
             config = llm_config[1].from_dict(llm_config[0])
-            model = AutoModel.from_config(config).eval()
+            model = transformers.AutoModel.from_config(config).eval()
 
             if 'max_position_embeddings' in config.__dict__:
                 sequence_length = config.max_position_embeddings
@@ -1074,7 +1053,7 @@ def task_LLM():
                 sequence_length = config.n_positions
 
             batch_size = 1
-            if isinstance(config, T5Config):
+            if isinstance(config, transformers.T5Config):
                 x = {
                     'input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length)),
                     'decoder_input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length))
@@ -1083,17 +1062,28 @@ def task_LLM():
                 x = torch.randint(0, config.vocab_size, (batch_size, sequence_length))
 
             callback_func = lambda model, x: model(x).logits if isinstance(model(x), CausalLMOutputWithPast) else model(x).last_hidden_state
-            kqi = torchKQI.KQI(model, x, callback_func).item()
+            kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
-        except Exception as e:
-            error = pd.DataFrame([[llm_name, str(e)]], columns=['Model Name', 'Error'])
+        except Exception:
+            error = pd.DataFrame([[llm_name, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
 
 
 if __name__ == '__main__':
-    task_ImageClassification()
-    task_SemanticSegmentation()
-    task_ObjectDetection()
-    task_VideoClassification()
-    task_LLM()
+    parser = argparse.ArgumentParser(description="Setting GPU and output path.")
+    parser.add_argument("--output_path", type=str, required=False, default='./result', help="Output file path.")
+    parser.add_argument("--gpu", type=str, required=False, default=None, help="GPU ID (for example, 0 or 0,1). Default to CPU.")
+    args = parser.parse_args()
+    if args.gpu is None:
+        args.gpu = torch.device('cpu')
+    else:
+        args.gpu = [torch.device(f'cuda:{int(k)}') for k in args.gpu.split(',')]
+    if not os.path.exists(args.output_path):
+        os.mkdir(args.output_path)
+
+    task_ImageClassification(args)
+    task_SemanticSegmentation(args)
+    task_ObjectDetection(args)
+    task_VideoClassification(args)
+    task_LLM(args)

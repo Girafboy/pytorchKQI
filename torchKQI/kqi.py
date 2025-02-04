@@ -29,10 +29,11 @@ def __construct_compute_graph(grad_fn):
 __W = torch.tensor(0, dtype=float)
 
 
+@torch.no_grad()
 def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
     grad_fn = model_output.grad_fn
     G = __construct_compute_graph(grad_fn)
-    function_base.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
+    function_base.Context.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
 
     waiting = {}  # Dict[torch.autograd.graph.Node, int]
     volumes = {grad_fn: (torch.zeros_like(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
@@ -40,7 +41,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
     pending = []
     if return_graph:
         increID = 1
-        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype = torch.float64).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
+        nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype=torch.float64).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
         increID += model_output.numel()
 
     for cur in reversed(list(nx.topological_sort(G))):
@@ -51,7 +52,7 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
                 waiting[cur] = waiting.get(cur, 0) + 1
                 volumes[next_fn] = tuple(v_old + vI for v_old, vI in itertools.zip_longest(volumes.get(next_fn, tuple()), (0,) * i + (vI,), fillvalue=0))
                 if return_graph:
-                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype = torch.float64).reshape_as(vI) for v_old, vI in itertools.zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
+                    nodeIDs[next_fn] = tuple(v_old if v_old is not None or vI is None else torch.arange(increID, increID + vI.numel(), dtype=torch.float64).reshape_as(vI) for v_old, vI in itertools.zip_longest(nodeIDs.get(next_fn, tuple()), (None,) * i + (vI,), fillvalue=None))
                     if any(nodeID is not None and nodeID.eq(increID).any() for nodeID in nodeIDs[next_fn]):
                         increID += vI.numel()
 
@@ -103,19 +104,40 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
         yield grad_fn, tuple(kqi.masked_scatter(kqi.isnan(), torch.masked_select(functions.FB.temporary_KQI(vol, __W), kqi.isnan())) for kqi, vol in zip(kqis, vols)), vols, *args
 
 
-def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable) -> torch.Tensor:
-    function_base.bar.desc = model.__class__.__name__
-    function_base.bar.n = 0
+def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, device: Union[torch.device, Tuple[torch.device]]) -> torch.Tensor:
+    try:
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+        torch._C._jit_set_profiling_executor(False)
+        torch._C._jit_set_profiling_mode(False)
+        torch._C._jit_override_can_fuse_on_cpu(False)
+        torch._C._jit_override_can_fuse_on_gpu(False)
+        torch.backends.mkldnn.enabled = False
+    except Exception:
+        pass
+
+    function_base.Context.bar.desc = model.__class__.__name__
+    function_base.Context.bar.reset()
+    function_base.Context.grad_fn_info.clear()
+    function_base.Context.device = [device] if isinstance(device, torch.device) else device
+    function_base.Context.init_pool()
+
     model.eval()
-    model(x)
-    for param in model.parameters():
-        param.requires_grad_(True)
+    callback_func(model, x)  # Initialize the lazy model if any
+
+    model.requires_grad_(True)
     x.requires_grad_(False)
-    return callback_func(model, x)
+    model_output = callback_func(model, x)
+
+    for grad_fn in __construct_compute_graph(model_output.grad_fn).nodes:
+        grad_fn.register_hook(function_base.Context.hook_factory(grad_fn))
+    model_output.backward(model_output, retain_graph=True)
+    model.zero_grad()
+    return model_output
 
 
-def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> torch.Tensor:
-    model_output = __prepare(model, x, callback_func)
+def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> torch.Tensor:
+    model_output = __prepare(model, x, callback_func, device)
 
     kqi = torch.tensor(0, dtype=float)
     for _, ks, _ in __intermediate_result_generator(model_output):
@@ -125,8 +147,8 @@ def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambd
     return kqi
 
 
-def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
-    model_output = __prepare(model, x, callback_func)
+def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
+    model_output = __prepare(model, x, callback_func, device)
 
     for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
         for kqi, volume, node_id in zip(kqis, volumes, node_ids):
@@ -134,13 +156,13 @@ def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lam
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
 
 
-def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x)) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
-    model_output = __prepare(model, x, callback_func)
+def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
+    model_output = __prepare(model, x, callback_func, device)
     for grad_fn, ks, _ in __intermediate_result_generator(model_output):
         yield grad_fn, ks
 
 
-def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), filename: str = None, dots_per_unit: int = 4, fontsize=7):
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), filename: str = None, dots_per_unit: int = 4, fontsize=7):
     plt.rcParams['figure.autolayout'] = False
     plt.rcParams['axes.spines.left'] = False
     plt.rcParams['axes.spines.bottom'] = False
@@ -186,7 +208,7 @@ def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable =
             return model_params[grad_fn.variable]
         return grad_fn.name()
 
-    model_output = __prepare(model, x, callback_func)
+    model_output = __prepare(model, x, callback_func, device)
     G = __construct_compute_graph(model_output.grad_fn)
     kqi_min, kqi_max = np.inf, -np.inf
     for grad_fn, kqis, _ in __intermediate_result_generator(model_output):
