@@ -48,7 +48,7 @@ class Context:
 
     @staticmethod
     def parallel_map(func, iterable):
-        return map(lambda res: res.to(Context.device[0]), Context.pool.imap(func, map(lambda args, d: tuple(arg.to(d) if isinstance(arg, torch.Tensor) else arg for arg in args), iterable, itertools.cycle(Context.device))))
+        return map(lambda res: res.to(Context.device[0]), Context.pool.imap(func, map(lambda args, d: tuple(arg.to(d) if isinstance(arg, torch.Tensor) else arg for arg in args), iterable, itertools.cycle(Context.device[1:]))))
 
 
 class GradFn:
@@ -191,5 +191,9 @@ class FuncBase:
         if volume_backward.dim() != 0 and volume.shape != volume_backward.shape:
             raise ValueError(f'Shape of volume {volume.shape} is incompatible with volume_backward {volume_backward.shape}')
 
-        volume = torch.where(volume == 0, volume_backward, volume)
-        return - volume * torch.log2(volume / volume_backward)
+        ret = torch.where(volume == 0, volume_backward, volume)
+        ret.div_(volume_backward)
+        ret.log2_()
+        ret.mul_(volume)
+        ret.neg_()
+        return ret
