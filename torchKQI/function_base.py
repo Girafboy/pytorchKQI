@@ -48,7 +48,7 @@ class Context:
 
     @staticmethod
     def parallel_map(func, iterable):
-        return map(lambda res: res.to(Context.device[0]), Context.pool.imap(func, map(lambda args, d: tuple(arg.to(d) if isinstance(arg, torch.Tensor) else arg for arg in args), iterable, itertools.cycle(Context.device[1:]))))
+        return map(lambda res: res.to(Context.device[0]), Context.pool.imap(func, map(lambda args, d: tuple(arg.to(d) if isinstance(arg, torch.Tensor) else arg for arg in args), iterable, itertools.cycle(Context.device))))
 
 
 class GradFn:
