@@ -337,28 +337,28 @@ class ROIAlign(FB):
         for i, (x_start, y_start) in enumerate(selected_regions):
             input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]] = 1 + out[i]
         return (input, roi)
-    
+
     @classmethod
     @FB.cell_KQI_Checking(args_in=2, args_out=1)
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
-        (input, roi), (out, ) = volume_inputs, volume_outputs
+        (input, _), (out, ) = volume_inputs, volume_outputs
         selected_regions = cls.random_select_regions(input, out)
         kqi_out = torch.zeros(out.shape, device=Context.device[0])
         for i, (x_start, y_start) in enumerate(selected_regions):
             kqi_out[i] += FB.temporary_KQI(out[i], input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]])
         return (kqi_out, )
-    
+
     @classmethod
     @FB.cell_Graph_Checking(args_in=2, args_out=1)
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
-        (input, roi), (out, ) = inputs, outputs
+        (input, _), (out, ) = inputs, outputs
         selected_regions = cls.random_select_regions(input, out)
         adj = defaultdict(list)
         for k, (x_start, y_start) in enumerate(selected_regions):
             for i, o in zip(torch.flatten(input[0, :, y_start:y_start + out.shape[2], x_start:x_start + out.shape[3]]), torch.flatten(out[k])):
                 adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
-    
+
     @classmethod
     def random_select_regions(cls, input, out):
         _, _, height, width = input.shape
@@ -370,7 +370,7 @@ class ROIAlign(FB):
             y_start = random.randint(0, height - roi_height)
             selected_regions.append((x_start, y_start))
         return selected_regions
-    
+
     @classmethod
     def degree(cls, selected_regions, out):
         degree = torch.zeros(out.shape, device=Context.device[0])
@@ -1931,8 +1931,8 @@ class EmbeddingBackward0(FB):
         (input, ), (out, ) = grad_fn(), volume_outputs
         indices = grad_fn.__getattribute__('_saved_indices')
         input = torch.zeros_like(input, device=Context.device[0])
-        for no, idxs in enumerate(itertools.product(*map(range, indices.shape))):
-            input[no] = 1 + out[idxs]
+        for idxs in itertools.product(*map(range, indices.shape)):
+            input[indices[idxs]] = 1 + out[idxs]
         return (input, )
 
     @classmethod
@@ -1941,8 +1941,8 @@ class EmbeddingBackward0(FB):
         (input, ), (out, ) = volume_inputs, volume_outputs
         indices = grad_fn.__getattribute__('_saved_indices')
         kqi_out = torch.zeros_like(out, device=Context.device[0])
-        for no, idxs in enumerate(itertools.product(*map(range, indices.shape))):
-            kqi_out[idxs] = FB.temporary_KQI(out[idxs], input[no])
+        for idxs in itertools.product(*map(range, indices.shape)):
+            kqi_out[idxs] = FB.temporary_KQI(out[idxs], input[indices[idxs]])
         return (kqi_out, )
 
     @classmethod
@@ -1950,7 +1950,7 @@ class EmbeddingBackward0(FB):
     def cell_Graph(cls, grad_fn, inputs: Tuple[torch.Tensor], outputs: Tuple[torch.Tensor]) -> Dict[int, Tuple[int]]:
         (input, ), (out, ) = inputs, outputs
         indices = grad_fn.__getattribute__('_saved_indices')
-        adj = {int(o): (int(i), ) for no, idxs in enumerate(itertools.product(*map(range, indices.shape))) for i, o in zip(input[no], out[idxs])}
+        adj = {int(o): (int(i), ) for idxs in itertools.product(*map(range, indices.shape)) for i, o in zip(input[indices[idxs]], out[idxs])}
         return adj
 
 
