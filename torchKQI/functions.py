@@ -276,7 +276,7 @@ class CopySlices(FB):
         inputs_list = []
         for input in inputs:
             if input is not None and np.prod(input.shape) < np.prod(out.shape):
-                inputs_list.append((1 + out / degree)[[slice(0, s) for s in input.shape]].reshape_as(input))
+                inputs_list.append((1 + out / degree)[[slice(0, s) for s in input.shape] if input.shape else [slice(0, 1)]].reshape_as(input))
             elif input is not None:
                 inputs_list.append((1 + out / degree).reshape_as(input))
             else:
@@ -292,7 +292,7 @@ class CopySlices(FB):
         kqi_out = torch.zeros(out.shape, device=Context.device[0])
         for input in inputs:
             if input is not None and np.prod(input.shape) < np.prod(out.shape):
-                slices_in = [slice(0, s) for s in input.shape]
+                slices_in = [slice(0, s) for s in input.shape] if input.shape else [slice(0, 1)]
                 mask = torch.ones(out.shape, dtype=torch.bool, device=Context.device[0])
                 mask[tuple(slices_in)] = False
                 tmp = torch.zeros(out.shape, device=Context.device[0])
@@ -310,7 +310,7 @@ class CopySlices(FB):
         adj = defaultdict(list)
         for input in inputs:
             if input is not None:
-                out_flat = torch.flatten(out[[slice(0, s) for s in input.shape]]) if np.prod(input.shape) < np.prod(out.shape) else torch.flatten(out)
+                out_flat = torch.flatten(out[[slice(0, s) for s in input.shape] if input.shape else [slice(0, 1)]]) if np.prod(input.shape) < np.prod(out.shape) else torch.flatten(out)
                 for i, o in zip(torch.flatten(input), out_flat):
                     adj[int(o)].append(int(i))
         return {k: tuple(v) for k, v in adj.items()}
@@ -320,7 +320,7 @@ class CopySlices(FB):
         degree = torch.zeros(out.shape, device=Context.device[0])
         for input in inputs:
             if input is not None and np.prod(input.shape) < np.prod(out.shape):
-                slices = [slice(0, s) for s in input.shape]
+                slices = [slice(0, s) for s in input.shape] if input.shape else [slice(0, 1)]
                 degree[tuple(slices)] += 1
             elif input is not None:
                 degree += 1
