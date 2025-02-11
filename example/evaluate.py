@@ -1,10 +1,13 @@
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import torch
 import torchvision
 import transformers
 from transformers.modeling_outputs import CausalLMOutputWithPast
 import torchKQI
 import pandas as pd
-import os
 import traceback
 import argparse
 
@@ -115,30 +118,42 @@ Meta_Llama_3_8B = {
     "vocab_size": 128256
 }
 
-Meta_Llama_3_8B = {
+Llama_3_2_1B_Instruct = {
     "architectures": [
         "LlamaForCausalLM"
     ],
     "attention_bias": False,
     "attention_dropout": 0.0,
     "bos_token_id": 128000,
-    "eos_token_id": 128001,
+    "eos_token_id": [
+        128001,
+        128008,
+        128009
+    ],
+    "head_dim": 64,
     "hidden_act": "silu",
-    "hidden_size": 4096,
+    "hidden_size": 2048,
     "initializer_range": 0.02,
-    "intermediate_size": 14336,
-    "max_position_embeddings": 8192,
+    "intermediate_size": 8192,
+    "max_position_embeddings": 131072,
+    "mlp_bias": False,
     "model_type": "llama",
     "num_attention_heads": 32,
-    "num_hidden_layers": 32,
+    "num_hidden_layers": 16,
     "num_key_value_heads": 8,
     "pretraining_tp": 1,
     "rms_norm_eps": 1e-05,
-    "rope_scaling": None,
+    "rope_scaling": {
+        "factor": 32.0,
+        "high_freq_factor": 4.0,
+        "low_freq_factor": 1.0,
+        "original_max_position_embeddings": 8192,
+        "rope_type": "llama3"
+    },
     "rope_theta": 500000.0,
-    "tie_word_embeddings": False,
+    "tie_word_embeddings": True,
     "torch_dtype": "bfloat16",
-    "transformers_version": "4.40.0.dev0",
+    "transformers_version": "4.45.0.dev0",
     "use_cache": True,
     "vocab_size": 128256
 }
@@ -478,7 +493,7 @@ gpt2 = {
     "vocab_size": 50257
 }
 
-Qwen1_5_110B = {
+Qwen2_5_1_5B = {
     "architectures": [
         "Qwen2ForCausalLM"
     ],
@@ -486,27 +501,28 @@ Qwen1_5_110B = {
     "bos_token_id": 151643,
     "eos_token_id": 151643,
     "hidden_act": "silu",
-    "hidden_size": 8192,
+    "hidden_size": 1536,
     "initializer_range": 0.02,
-    "intermediate_size": 49152,
-    "max_position_embeddings": 32768,
+    "intermediate_size": 8960,
+    "max_position_embeddings": 131072,
     "max_window_layers": 28,
     "model_type": "qwen2",
-    "num_attention_heads": 64,
-    "num_hidden_layers": 80,
-    "num_key_value_heads": 8,
+    "num_attention_heads": 12,
+    "num_hidden_layers": 28,
+    "num_key_value_heads": 2,
     "rms_norm_eps": 1e-06,
     "rope_theta": 1000000.0,
-    "sliding_window": 32768,
-    "tie_word_embeddings": False,
+    "sliding_window": 131072,
+    "tie_word_embeddings": True,
     "torch_dtype": "bfloat16",
-    "transformers_version": "4.37.0",
+    "transformers_version": "4.40.1",
     "use_cache": True,
+    "use_mrope": False,
     "use_sliding_window": False,
-    "vocab_size": 152064
+    "vocab_size": 151936
 }
 
-Qwen2_7B = {
+Qwen2_5_7B = {
     "architectures": [
         "Qwen2ForCausalLM"
     ],
@@ -528,13 +544,14 @@ Qwen2_7B = {
     "sliding_window": 131072,
     "tie_word_embeddings": False,
     "torch_dtype": "bfloat16",
-    "transformers_version": "4.37.2",
+    "transformers_version": "4.40.1",
     "use_cache": True,
+    "use_mrope": False,
     "use_sliding_window": False,
     "vocab_size": 152064
 }
 
-Qwen2_72B = {
+Qwen2_5_14B = {
     "architectures": [
         "Qwen2ForCausalLM"
     ],
@@ -542,21 +559,49 @@ Qwen2_72B = {
     "bos_token_id": 151643,
     "eos_token_id": 151643,
     "hidden_act": "silu",
-    "hidden_size": 8192,
+    "hidden_size": 5120,
     "initializer_range": 0.02,
-    "intermediate_size": 29568,
+    "intermediate_size": 13824,
     "max_position_embeddings": 131072,
-    "max_window_layers": 80,
+    "max_window_layers": 48,
     "model_type": "qwen2",
-    "num_attention_heads": 64,
-    "num_hidden_layers": 80,
+    "num_attention_heads": 40,
+    "num_hidden_layers": 48,
     "num_key_value_heads": 8,
     "rms_norm_eps": 1e-05,
     "rope_theta": 1000000.0,
     "sliding_window": 131072,
     "tie_word_embeddings": False,
     "torch_dtype": "bfloat16",
-    "transformers_version": "4.40.1",
+    "transformers_version": "4.43.1",
+    "use_cache": True,
+    "use_sliding_window": False,
+    "vocab_size": 152064
+}
+
+Qwen2_5_32B = {
+    "architectures": [
+        "Qwen2ForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "bos_token_id": 151643,
+    "eos_token_id": 151643,
+    "hidden_act": "silu",
+    "hidden_size": 5120,
+    "initializer_range": 0.02,
+    "intermediate_size": 27648,
+    "max_position_embeddings": 131072,
+    "max_window_layers": 64,
+    "model_type": "qwen2",
+    "num_attention_heads": 40,
+    "num_hidden_layers": 64,
+    "num_key_value_heads": 8,
+    "rms_norm_eps": 1e-05,
+    "rope_theta": 1000000.0,
+    "sliding_window": 131072,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.43.1",
     "use_cache": True,
     "use_sliding_window": False,
     "vocab_size": 152064
@@ -1002,31 +1047,32 @@ def task_VideoClassification(args):
 
 def task_LLM(args):
     llm_configs = {
-        "Llama_2_7b_hf": (Llama_2_7b_hf, transformers.LlamaConfig),
-        "Llama_2_13b_hf": (Llama_2_13b_hf, transformers.LlamaConfig),
-        "Llama_2_70b_hf": (Llama_2_70b_hf, transformers.LlamaConfig),
-        "Meta_Llama_3_8B": (Meta_Llama_3_8B, transformers.LlamaConfig),
-        # "Llama_3_2_1B_Instruct": (Llama_3_2_1B_Instruct, transformers.LlamaConfig),
         "bert_base_uncased": (bert_base_uncased, transformers.BertConfig),
         "bert_large_uncased": (bert_large_uncased, transformers.BertConfig),
-        "t5_small": (t5_small, transformers.T5Config),
-        "t5_base": (t5_base, transformers.T5Config),
-        "t5_large": (t5_large, transformers.T5Config),
-        "gemma_2_2b": (gemma_2_2b, transformers.Gemma2Config),
-        "gemma_2_9b": (gemma_2_9b, transformers.Gemma2Config),
-        "gpt": (gpt, transformers.OpenAIGPTConfig),
-        "gpt2": (gpt2, transformers.GPT2Config),
-        "Qwen1_5_110B": (Qwen1_5_110B, transformers.Qwen2Config),
-        "Qwen2_7B": (Qwen2_7B, transformers.Qwen2Config),
-        "Qwen2_72B": (Qwen2_72B, transformers.Qwen2Config),
-        "Yi_1_5_6B": (Yi_1_5_6B, transformers.LlamaConfig),
-        "Yi_1_5_34B": (Yi_1_5_34B, transformers.LlamaConfig),
-        "deepseek_llm_7b_base": (deepseek_llm_7b_base, transformers.LlamaConfig),
         "scibert_scivocab_cased": (scibert_scivocab_cased, transformers.BertConfig),
         "scibert_scivocab_uncased": (scibert_scivocab_uncased, transformers.BertConfig),
         "specter": (specter, transformers.BertConfig),
         "specter2_base": (specter2_base, transformers.BertConfig),
         "scincl": (scincl, transformers.BertConfig),
+        "t5_small": (t5_small, transformers.T5Config),
+        "t5_base": (t5_base, transformers.T5Config),
+        "t5_large": (t5_large, transformers.T5Config),
+        "gpt": (gpt, transformers.OpenAIGPTConfig),
+        "gpt2": (gpt2, transformers.GPT2Config),
+        "Llama_2_7b_hf": (Llama_2_7b_hf, transformers.LlamaConfig),
+        "Llama_2_13b_hf": (Llama_2_13b_hf, transformers.LlamaConfig),
+        "Llama_2_70b_hf": (Llama_2_70b_hf, transformers.LlamaConfig),
+        "Meta_Llama_3_8B": (Meta_Llama_3_8B, transformers.LlamaConfig),
+        "Llama_3_2_1B_Instruct": (Llama_3_2_1B_Instruct, transformers.LlamaConfig),
+        "deepseek_llm_7b_base": (deepseek_llm_7b_base, transformers.LlamaConfig),
+        "gemma_2_2b": (gemma_2_2b, transformers.Gemma2Config),
+        "gemma_2_9b": (gemma_2_9b, transformers.Gemma2Config),
+        "Qwen2_5_1_5B": (Qwen2_5_1_5B, transformers.Qwen2Config),
+        "Qwen2_5_7B": (Qwen2_5_7B, transformers.Qwen2Config),
+        "Qwen2_5_14B": (Qwen2_5_14B, transformers.Qwen2Config),
+        "Qwen2_5_32B": (Qwen2_5_32B, transformers.Qwen2Config),
+        "Yi_1_5_6B": (Yi_1_5_6B, transformers.LlamaConfig),
+        "Yi_1_5_34B": (Yi_1_5_34B, transformers.LlamaConfig),
         "phi_1": (phi_1, transformers.PhiConfig),
         "phi_1_5": (phi_1_5, transformers.PhiConfig),
         "Phi_3_mini_4k_instruct": (Phi_3_mini_4k_instruct, transformers.Phi3Config),
@@ -1051,6 +1097,7 @@ def task_LLM(args):
                 sequence_length = config.max_position_embeddings
             else:
                 sequence_length = config.n_positions
+            sequence_length = min(sequence_length, 4096)
 
             batch_size = 1
             if isinstance(config, transformers.T5Config):
@@ -1058,11 +1105,13 @@ def task_LLM(args):
                     'input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length)),
                     'decoder_input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length))
                 }
+                callback_func = lambda model, x: model(**x).last_hidden_state
+                kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu).item()
             else:
                 x = torch.randint(0, config.vocab_size, (batch_size, sequence_length))
+                callback_func = lambda model, x: model(x).logits if isinstance(model(x), CausalLMOutputWithPast) else model(x).last_hidden_state
 
-            callback_func = lambda model, x: model(x).logits if isinstance(model(x), CausalLMOutputWithPast) else model(x).last_hidden_state
-            kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu).item()
+                kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
         except Exception:
