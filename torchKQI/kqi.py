@@ -126,7 +126,11 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
     callback_func(model, x)  # Initialize the lazy model if any
 
     model.requires_grad_(True)
-    x.requires_grad_(False)
+    if isinstance(x, dict):
+        for key, tensor in x.items():
+            tensor.requires_grad_(False)
+    else:
+        x.requires_grad_(False)
     model_output = callback_func(model, x)
 
     for grad_fn in __construct_compute_graph(model_output.grad_fn).nodes:
