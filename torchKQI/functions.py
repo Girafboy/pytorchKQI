@@ -1932,7 +1932,7 @@ class EmbeddingBackward0(FB):
         indices = grad_fn.__getattribute__('_saved_indices')
         input = torch.zeros_like(input, device=Context.device[0])
         for idxs in itertools.product(*map(range, indices.shape)):
-            input[indices[idxs]] = 1 + out[idxs]
+            input[indices[idxs]] += 1 + out[idxs]
         return (input, )
 
     @classmethod
