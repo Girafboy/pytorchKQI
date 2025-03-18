@@ -913,10 +913,10 @@ class SoftmaxBackward0(FB):
     def cell_KQI(cls, grad_fn, volume_inputs: Tuple[torch.Tensor], volume_outputs: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
         (input, ), (out, ) = volume_inputs, volume_outputs
         dim = grad_fn.__getattribute__('_saved_dim')
-        if input.size(dim) >= len(Context.device):
-            kqi_out = sum(Context.parallel_map(cls.parallel, zip(torch.chunk(input, len(Context.device), dim), itertools.repeat(out), itertools.repeat(dim))))
-        else:
-            kqi_out = cls.parallel(input, out, dim)
+        kqi_out = sum(FB.temporary_KQI(out / out.size(dim), i.unsqueeze(dim).expand_as(out)) for i in input.unbind(dim))
+        # kqi_out = torch.zeros_like(out, device=Context.device[0])
+        # for i in input.unbind(dim):
+        #     kqi_out.add_(FB.temporary_KQI(out / out.size(dim), i.unsqueeze(dim).expand_as(out)))
         return (kqi_out, )
 
     @classmethod
@@ -926,11 +926,6 @@ class SoftmaxBackward0(FB):
         dim = grad_fn.__getattribute__('_saved_dim')
         adj = {int(o): tuple(int(i) for i in ii) for id in range(out.size(dim)) for ii, o in zip(torch.flatten(torch.stack(input.unbind(dim), -1), 0, -2), torch.flatten(out.select(dim, id)))}
         return adj
-
-    @classmethod
-    def parallel(cls, args):
-        input, out, dim = args
-        return sum(FB.temporary_KQI(out / out.size(dim), i.unsqueeze(dim).expand_as(out)) for i in input.unbind(dim))
 
 
 class SafeSoftmaxBackward0(SoftmaxBackward0):

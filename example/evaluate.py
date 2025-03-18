@@ -1,7 +1,3 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import torch
 import torchvision
 import transformers
@@ -10,6 +6,7 @@ import torchKQI
 import pandas as pd
 import traceback
 import argparse
+import os
 
 
 Llama_2_7b_hf = {
@@ -1106,12 +1103,12 @@ def task_LLM(args):
                     'decoder_input_ids': torch.randint(0, config.vocab_size, (batch_size, sequence_length))
                 }
                 callback_func = lambda model, x: model(**x).last_hidden_state
-                kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu).item()
+                kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu, disk_cache_dir=args.disk_cache_dir).item()
             else:
                 x = torch.randint(0, config.vocab_size, (batch_size, sequence_length))
                 callback_func = lambda model, x: model(x).logits if isinstance(model(x), CausalLMOutputWithPast) else model(x).last_hidden_state
 
-                kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu).item()
+                kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu, disk_cache_dir=args.disk_cache_dir).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file, mode='a', header=False, index=False)
         except Exception:
@@ -1123,6 +1120,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Setting GPU and output path.")
     parser.add_argument("--output_path", type=str, required=False, default='./result', help="Output file path.")
     parser.add_argument("--gpu", type=str, required=False, default=None, help="GPU ID (for example, 0 or 0,1). Default to CPU.")
+    parser.add_argument("--disk_cache_dir", type=str, required=False, default=None, help="Disk cache to intermediate results. Reduce memory usage, but reduce performance.")
     args = parser.parse_args()
     if args.gpu is None:
         args.gpu = torch.device('cpu')

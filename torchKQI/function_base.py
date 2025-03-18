@@ -5,14 +5,63 @@ import tqdm
 import ctypes
 from typing import Tuple, Dict
 from functools import wraps
-import multiprocessing
 import itertools
+import os
+import pickle
+import shutil
 
-logging.basicConfig(level=logging.DEBUG, filename='debug.log', filemode='w', format="%(asctime)s - %(levelname)s - %(message)s")
+
+class DiskDict:
+    def __init__(self, storage_dir):
+        self.storage_dir = storage_dir
+        self._keys = set()
+        if os.path.exists(storage_dir):
+            raise FileExistsError(f'Directory {storage_dir} is not empty.')
+        os.makedirs(storage_dir)
+
+    def _get_file_path(self, key):
+        return os.path.join(self.storage_dir, f"{key}.pkl")
+
+    def __getitem__(self, key):
+        if key not in self._keys:
+            raise KeyError(f"Key {key} not found.")
+        file_path = self._get_file_path(key)
+        with open(file_path, 'rb') as file:
+            return pickle.load(file)
+
+    def __setitem__(self, key, value):
+        file_path = self._get_file_path(key)
+        with open(file_path, 'wb') as file:
+            pickle.dump(value, file)
+        self._keys.add(key)
+
+    def __delitem__(self, key):
+        if key not in self._keys:
+            raise KeyError(f"Key {key} not found.")
+        file_path = self._get_file_path(key)
+        os.remove(file_path)
+        self._keys.remove(key)
+
+    def __contains__(self, key):
+        return key in self._keys
+
+    def __repr__(self):
+        return f"DiskDict({self.storage_dir})"
+
+    def __del__(self):
+        if os.path.exists(self.storage_dir):
+            shutil.rmtree(self.storage_dir)
+
+    def get(self, key, default=None):
+        return self[key] if key in self._keys else default
+
+    def items(self):
+        for key in self._keys:
+            yield key, self[key]
 
 
 class Context:
-    bar = tqdm.tqdm()
+    bar = None
     device = [torch.device('cpu')]
     grad_fn_info = {}
     pool = None
@@ -42,9 +91,13 @@ class Context:
                 }
 
     @staticmethod
-    def init_pool():
-        multiprocessing.set_start_method('spawn', True)
-        Context.pool = multiprocessing.Pool(len(Context.device))
+    def init(model_name, total, device):
+        logging.basicConfig(level=logging.DEBUG, filename='debug.log', filemode='w', format="%(asctime)s - %(levelname)s - %(message)s")
+        Context.bar = tqdm.tqdm(desc=model_name, total=total)
+        Context.device = device
+        Context.grad_fn_info.clear()
+        # multiprocessing.set_start_method('spawn', True)
+        # Context.pool = multiprocessing.Pool(len(Context.device))
 
     @staticmethod
     def parallel_map(func, iterable):
@@ -168,7 +221,6 @@ class FuncBase:
                               \t\t\t\toutputs=[{", ".join([f"{k.sum()} {k.shape}" if k is not None else "None" for k in outputs])}]\n \
                               \t\t\t\tgrad_fn={Context.grad_fn_attr_info(grad_fn)}')
                     raise err
-                Context.bar.update()
 
                 logging.debug(f'{psutil.Process().memory_info().rss/1024**3:.2f} GB - {cls.__name__}({id(grad_fn)}<-{",".join(map(lambda k: str(id(k[0])), grad_fn.next_functions))}).cell_Graph\n \
                               \t\t\t\tnodes={len(adj)}, edges={sum(map(len, adj.values()))}\n \

@@ -30,15 +30,19 @@ __W = torch.tensor(0, dtype=float)
 
 
 @torch.no_grad()
-def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
+def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bool = False, disk_cache_dir: str = None) -> Union[Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor]]], Iterator[Tuple[object, Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Dict[int, Tuple[int]]]]]:
     grad_fn = model_output.grad_fn
     G = __construct_compute_graph(grad_fn)
-    function_base.Context.bar.total = G.number_of_nodes() * (3 if return_graph else 2)
 
+    if disk_cache_dir is None:
+        volumes = {grad_fn: (torch.zeros_like(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
+        pending = {}
+    else:
+        volumes = function_base.DiskDict(f'{disk_cache_dir}/volumes')
+        pending = function_base.DiskDict(f'{disk_cache_dir}/pending')
+    volumes[grad_fn] = (torch.zeros_like(model_output),)
     waiting = {}  # Dict[torch.autograd.graph.Node, int]
-    volumes = {grad_fn: (torch.zeros_like(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
     garbage_counter = {}  # Dict[torch.autograd.graph.Node, int]
-    pending = []
     if return_graph:
         increID = 1
         nodeIDs = {grad_fn: (torch.arange(increID, increID + model_output.numel(), dtype=torch.float64).reshape_as(model_output),)}  # Dict[torch.autograd.graph.Node, Tuple[torch.Tensor]]
@@ -62,9 +66,9 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
                 kqis = functions.backward_mapper(succ).cell_KQI(succ, tuple(volumes[next_fn][i] if next_fn is not None else None for next_fn, i in succ.next_functions), volumes[succ])
                 if any(kqi.isnan().any() for kqi in kqis):
                     if return_graph:
-                        pending.append((succ, kqis, volumes[succ], nodeIDs[succ], functions.backward_mapper(succ).cell_Graph(succ, tuple(nodeIDs[next_fn][i] if next_fn is not None else None for next_fn, i in succ.next_functions), nodeIDs[succ])))
+                        pending[succ] = (kqis, volumes[succ], nodeIDs[succ], functions.backward_mapper(succ).cell_Graph(succ, tuple(nodeIDs[next_fn][i] if next_fn is not None else None for next_fn, i in succ.next_functions), nodeIDs[succ]))
                     else:
-                        pending.append((succ, kqis, volumes[succ]))
+                        pending[succ] = (kqis, volumes[succ])
                 else:
                     if return_graph:
                         yield succ, kqis, volumes[succ], nodeIDs[succ], functions.backward_mapper(succ).cell_Graph(succ, tuple(nodeIDs[next_fn][i] if next_fn is not None else None for next_fn, i in succ.next_functions), nodeIDs[succ])
@@ -89,9 +93,9 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
         kqis = functions.backward_mapper(grad_fn).cell_KQI(grad_fn, (), Vs)
         if any(kqi.isnan().any() for kqi in kqis):
             if return_graph:
-                pending.append((grad_fn, kqis, Vs, nodeIDs[grad_fn], functions.backward_mapper(grad_fn).cell_Graph(grad_fn, tuple(), nodeIDs[grad_fn])))
+                pending[grad_fn] = (kqis, Vs, nodeIDs[grad_fn], functions.backward_mapper(grad_fn).cell_Graph(grad_fn, tuple(), nodeIDs[grad_fn]))
             else:
-                pending.append((grad_fn, kqis, Vs))
+                pending[grad_fn] = (kqis, Vs)
         else:
             if return_graph:
                 yield grad_fn, kqis, Vs, nodeIDs[grad_fn], functions.backward_mapper(grad_fn).cell_Graph(grad_fn, tuple(), nodeIDs[grad_fn])
@@ -99,8 +103,8 @@ def __intermediate_result_generator(model_output: torch.Tensor, return_graph: bo
                 yield grad_fn, kqis, Vs
 
     global __W
-    __W = sum(K.isnan().sum() + V.masked_select(K.isnan()).sum() for _, Ks, Vs, *_ in pending for K, V in zip(Ks, Vs))
-    for grad_fn, kqis, vols, *args in pending:
+    __W = sum(K.isnan().sum() + V.masked_select(K.isnan()).sum() for _, (Ks, Vs, *_) in pending.items() for K, V in zip(Ks, Vs))
+    for grad_fn, (kqis, vols, *args) in pending.items():
         yield grad_fn, tuple(kqi.masked_scatter(kqi.isnan(), torch.masked_select(functions.FB.temporary_KQI(vol, __W), kqi.isnan())) for kqi, vol in zip(kqis, vols)), vols, *args
 
 
@@ -116,12 +120,6 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
     except Exception:
         pass
 
-    function_base.Context.bar.desc = model.__class__.__name__
-    function_base.Context.bar.reset()
-    function_base.Context.grad_fn_info.clear()
-    function_base.Context.device = [device] if isinstance(device, torch.device) else device
-    function_base.Context.init_pool()
-
     model.eval()
     callback_func(model, x)  # Initialize the lazy model if any
 
@@ -133,40 +131,43 @@ def __prepare(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable, 
         x.requires_grad_(False)
     model_output = callback_func(model, x)
 
-    for grad_fn in __construct_compute_graph(model_output.grad_fn).nodes:
+    G = __construct_compute_graph(model_output.grad_fn)
+    function_base.Context.init(model.__class__.__name__, G.number_of_nodes() * 2, [device] if isinstance(device, torch.device) else device)
+
+    for grad_fn in G.nodes:
         grad_fn.register_hook(function_base.Context.hook_factory(grad_fn))
     model_output.backward(model_output, retain_graph=True)
     model.zero_grad()
     return model_output
 
 
-def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> torch.Tensor:
+def KQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), disk_cache_dir: str = None) -> torch.Tensor:
     model_output = __prepare(model, x, callback_func, device)
 
     kqi = torch.tensor(0, dtype=float)
-    for _, ks, _ in __intermediate_result_generator(model_output):
+    for _, ks, _ in __intermediate_result_generator(model_output, disk_cache_dir=disk_cache_dir):
         kqi += sum(map(lambda k: k.sum(), ks))
     kqi /= __W
     logging.debug(f'W = {__W}, KQI = {kqi}')
     return kqi
 
 
-def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
+def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), disk_cache_dir: str = None) -> Iterator[Tuple[int, Tuple[int], str, float, float]]:
     model_output = __prepare(model, x, callback_func, device)
 
-    for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True):
+    for grad_fn, kqis, volumes, node_ids, adj in __intermediate_result_generator(model_output, return_graph=True, disk_cache_dir=disk_cache_dir):
         for kqi, volume, node_id in zip(kqis, volumes, node_ids):
             for k, v, i in zip(kqi.flatten(), volume.flatten(), node_id.flatten()):
                 yield int(i), adj[int(i)], grad_fn.name(), float(k / __W), float(v)
 
 
-def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu')) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
+def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), disk_cache_dir: str = None) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
     model_output = __prepare(model, x, callback_func, device)
-    for grad_fn, ks, _ in __intermediate_result_generator(model_output):
+    for grad_fn, ks, _ in __intermediate_result_generator(model_output, disk_cache_dir=disk_cache_dir):
         yield grad_fn, ks
 
 
-def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), filename: str = None, dots_per_unit: int = 4, fontsize=7):
+def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), disk_cache_dir: str = None, filename: str = None, dots_per_unit: int = 4, fontsize=7):
     plt.rcParams['figure.autolayout'] = False
     plt.rcParams['axes.spines.left'] = False
     plt.rcParams['axes.spines.bottom'] = False
@@ -215,7 +216,7 @@ def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable =
     model_output = __prepare(model, x, callback_func, device)
     G = __construct_compute_graph(model_output.grad_fn)
     kqi_min, kqi_max = np.inf, -np.inf
-    for grad_fn, kqis, _ in __intermediate_result_generator(model_output):
+    for grad_fn, kqis, _ in __intermediate_result_generator(model_output, disk_cache_dir=disk_cache_dir):
         kqis_compact = [compact_to_2d(kqi) for kqi in kqis]
         G.nodes[grad_fn]['width'] = (sum(map(lambda k: k.shape[1], kqis_compact)) + INTERVAL * (len(kqis_compact) - 1) + PADDING * 2) / SCALE_INCH_PT
         G.nodes[grad_fn]['height'] = (max(map(lambda k: k.shape[0], kqis_compact)) + PADDING * 2) / SCALE_INCH_PT
@@ -240,7 +241,7 @@ def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable =
     plt.xlim(0, 1)
     plt.ylim(0, 1)
 
-    for grad_fn, kqis, _ in __intermediate_result_generator(model_output):
+    for grad_fn, kqis, _ in __intermediate_result_generator(model_output, disk_cache_dir=disk_cache_dir):
         plt.axes([posx_transform(pos[grad_fn][0] - G.nodes[grad_fn]['width'] * SCALE_INCH_PT / 2 + PADDING),
                   posy_transform(pos[grad_fn][1] - G.nodes[grad_fn]['height'] * SCALE_INCH_PT / 2 + PADDING),
                   posx_transform(G.nodes[grad_fn]['width'] * SCALE_INCH_PT - PADDING * 2 + x_min),

@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import os
 from torch.utils.data import DataLoader
-import struct
 from tqdm import tqdm
 import multiprocessing
 import argparse
@@ -40,7 +39,7 @@ def reduce_precision(tensor, significand_bits, exponent_bits):
 
     # Constants for IEEE 754 floating-point representation
     EXPONENT_BIAS = (1 << (exponent_bits - 1)) - 1  # Bias for the given exponent width
-    
+
     # Ensure the tensor is in float32
     tensor = tensor.float()
 
@@ -193,7 +192,7 @@ def output(args, model_builder, model_weight):
     bottom8bit_file = f'{args.output_path}/bottom8bit.csv'
     top16bit_file = f'{args.output_path}/top16bit.csv'
     bottom16bit_file = f'{args.output_path}/bottom16bit.csv'
-    
+
     if not os.path.exists(top8bit_file):
         pd.DataFrame(columns=['Name', 'Mask Percentage', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Mask KQI', 'original bits(Mb)', 'compressed bits(Mb)']).to_csv(top8bit_file, index=False)
     for per in np.arange(0, 1.1, 0.1):
@@ -230,6 +229,7 @@ def output(args, model_builder, model_weight):
         df["Mask Percentage"] = df["Mask Percentage"].map(lambda x: f"{x:.1f}%")
         df.to_csv(bottom16bit_file, mode='a', header=False, index=False)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Setting GPU and output path.")
     parser.add_argument("--output_path", type=str, required=False, default='./result', help="Output file path.")
@@ -243,16 +243,16 @@ if __name__ == '__main__':
         os.mkdir(args.output_path)
 
     for model_builder, model_weight in [
-        (models.alexnet, models.AlexNet_Weights.IMAGENET1K_V1),
-        (models.densenet121, models.DenseNet121_Weights.IMAGENET1K_V1),
-        (models.efficientnet_b0, models.EfficientNet_B0_Weights.IMAGENET1K_V1),
-        (models.googlenet, models.GoogLeNet_Weights.IMAGENET1K_V1),
-        (models.inception_v3, models.Inception_V3_Weights.IMAGENET1K_V1),
-        (models.mobilenet_v2, models.MobileNet_V2_Weights.IMAGENET1K_V1),
-        (models.regnet_x_16gf, models.RegNet_X_16GF_Weights.IMAGENET1K_V1),
-        (models.resnet50, models.ResNet50_Weights.IMAGENET1K_V1),
-        (models.shufflenet_v2_x0_5, models.ShuffleNet_V2_X0_5_Weights.IMAGENET1K_V1),
-        (models.squeezenet1_0, models.SqueezeNet1_0_Weights.IMAGENET1K_V1),
-        (models.vgg16, models.VGG16_Weights.IMAGENET1K_V1),
-        (models.vit_b_16, models.ViT_B_16_Weights.IMAGENET1K_V1)]:
+            (models.alexnet, models.AlexNet_Weights.IMAGENET1K_V1),
+            (models.densenet121, models.DenseNet121_Weights.IMAGENET1K_V1),
+            (models.efficientnet_b0, models.EfficientNet_B0_Weights.IMAGENET1K_V1),
+            (models.googlenet, models.GoogLeNet_Weights.IMAGENET1K_V1),
+            (models.inception_v3, models.Inception_V3_Weights.IMAGENET1K_V1),
+            (models.mobilenet_v2, models.MobileNet_V2_Weights.IMAGENET1K_V1),
+            (models.regnet_x_16gf, models.RegNet_X_16GF_Weights.IMAGENET1K_V1),
+            (models.resnet50, models.ResNet50_Weights.IMAGENET1K_V1),
+            (models.shufflenet_v2_x0_5, models.ShuffleNet_V2_X0_5_Weights.IMAGENET1K_V1),
+            (models.squeezenet1_0, models.SqueezeNet1_0_Weights.IMAGENET1K_V1),
+            (models.vgg16, models.VGG16_Weights.IMAGENET1K_V1),
+            (models.vit_b_16, models.ViT_B_16_Weights.IMAGENET1K_V1)]:
         output(args, model_builder, model_weight)
