@@ -234,7 +234,7 @@ def main(args,num):
     utils.init_distributed_mode(args)
     print(args)
     
-    device = torch.device(args.device)
+    device = torch.device('cuda', args.gpu)
 
     if args.use_deterministic_algorithms:
         torch.backends.cudnn.benchmark = False
@@ -543,6 +543,15 @@ def get_args_parser(add_help=True):
 
 if __name__ == "__main__":
     model_param_mapping = {
+        'alexnet': {'lr': 0.01},
+        'vgg11': {'lr': 0.01},
+        'vgg13': {'lr': 0.01},
+        'vgg16': {'lr': 0.01},
+        'vgg19': {'lr': 0.01},
+        'vgg11_bn': {'lr': 0.01},
+        'vgg13_bn': {'lr': 0.01},
+        'vgg16_bn': {'lr': 0.01},
+        'vgg19_bn': {'lr': 0.01},
         'resnext50_32x4d': {'epochs': 100},
         'resnext101_32x8d': {'epochs': 100},
         'mobilenet_v2': {'lr': 0.045, 'epochs': 300, 'weight_decay': 0.00004, 'lr_step_size': 1, 'lr_gamma': 0.98},
