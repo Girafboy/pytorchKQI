@@ -744,25 +744,25 @@ if __name__ == "__main__":
     
 
     parser = get_args_parser()
-    parser.add_argument('--distributed', action='store_true', default=True, help='use distributed training')
     args = parser.parse_args()
-    
+    utils.init_distributed_mode(args)
 
     if args.model in model_param_mapping:
         for key, value in model_param_mapping[args.model].items():
             setattr(args, key, value)
             
     if not args.distributed and hasattr(args, 'batch_size'):
-        args.batch_size *= 8
-    
+        setattr(args, 'batch_size', args.batch_size * 8)
+
     result_file = f'./result/{args.model}.csv'
     
     if not os.path.exists(result_file):
         pd.DataFrame(columns=['Num', 'Top-1 Accuracy', 'Top-5 Accuracy']).to_csv(result_file, index=False)
     
     for num in [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000, 1024000]:
+        torch.cuda.empty_cache()
         top1_accuracy, top5_accuracy = main(args, num)
         result = (num, top1_accuracy, top5_accuracy)
-        if torch.distributed.get_rank() == 0:
+        if dist.get_rank() == 0:
             df = pd.DataFrame([result], columns=["Num", "Top-1 Accuracy", "Top-5 Accuracy"])
             df.to_csv(result_file, mode='a', header=False, index=False)
