@@ -175,6 +175,7 @@ def load_data(num, traindir, valdir, args):
     for idx, (_, label) in enumerate(dataset.samples):
         class_indices[label].append(idx)
 
+    random.seed(0)
     selected_indices = []
     for indices in class_indices.values():
         selected_indices.extend(random.sample(indices, min(int(num / 1000), len(indices))))
@@ -234,7 +235,7 @@ def main(args,num):
     utils.init_distributed_mode(args)
     print(args)
     
-    device = torch.device(args.device)
+    device = torch.device('cuda', args.gpu)
 
     if args.use_deterministic_algorithms:
         torch.backends.cudnn.benchmark = False
@@ -543,6 +544,15 @@ def get_args_parser(add_help=True):
 
 if __name__ == "__main__":
     model_param_mapping = {
+        'alexnet': {'lr': 0.01},
+        'vgg11': {'lr': 0.01},
+        'vgg13': {'lr': 0.01},
+        'vgg16': {'lr': 0.01},
+        'vgg19': {'lr': 0.01},
+        'vgg11_bn': {'lr': 0.01},
+        'vgg13_bn': {'lr': 0.01},
+        'vgg16_bn': {'lr': 0.01},
+        'vgg19_bn': {'lr': 0.01},
         'resnext50_32x4d': {'epochs': 100},
         'resnext101_32x8d': {'epochs': 100},
         'mobilenet_v2': {'lr': 0.045, 'epochs': 300, 'weight_decay': 0.00004, 'lr_step_size': 1, 'lr_gamma': 0.98},
@@ -734,24 +744,25 @@ if __name__ == "__main__":
     
 
     parser = get_args_parser()
-    parser.add_argument('--distributed', action='store_true', default=True, help='use distributed training')
     args = parser.parse_args()
-    
+    utils.init_distributed_mode(args)
 
     if args.model in model_param_mapping:
         for key, value in model_param_mapping[args.model].items():
             setattr(args, key, value)
             
     if not args.distributed and hasattr(args, 'batch_size'):
-        args.batch_size *= 8
-    
+        setattr(args, 'batch_size', args.batch_size * 8)
+
     result_file = f'./result/{args.model}.csv'
     
     if not os.path.exists(result_file):
         pd.DataFrame(columns=['Num', 'Top-1 Accuracy', 'Top-5 Accuracy']).to_csv(result_file, index=False)
     
     for num in [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000, 1024000]:
+        torch.cuda.empty_cache()
         top1_accuracy, top5_accuracy = main(args, num)
         result = (num, top1_accuracy, top5_accuracy)
-        df = pd.DataFrame([result], columns=["Num", "Top-1 Accuracy", "Top-5 Accuracy"])
-        df.to_csv(result_file, mode='a', header=False, index=False)
+        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+            df = pd.DataFrame([result], columns=["Num", "Top-1 Accuracy", "Top-5 Accuracy"])
+            df.to_csv(result_file, mode='a', header=False, index=False)
