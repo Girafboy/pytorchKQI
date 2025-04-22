@@ -763,6 +763,6 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         top1_accuracy, top5_accuracy = main(args, num)
         result = (num, top1_accuracy, top5_accuracy)
-        if torch.distributed.get_rank() == 0:
+        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
             df = pd.DataFrame([result], columns=["Num", "Top-1 Accuracy", "Top-5 Accuracy"])
             df.to_csv(result_file, mode='a', header=False, index=False)
