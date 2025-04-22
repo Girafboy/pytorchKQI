@@ -175,6 +175,7 @@ def load_data(num, traindir, valdir, args):
     for idx, (_, label) in enumerate(dataset.samples):
         class_indices[label].append(idx)
 
+    random.seed(42)
     selected_indices = []
     for indices in class_indices.values():
         selected_indices.extend(random.sample(indices, min(int(num / 1000), len(indices))))
