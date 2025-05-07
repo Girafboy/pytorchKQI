@@ -382,12 +382,13 @@ def main(args,num):
 
     print("Start training")
     start_time = time.time()
-    
-    prev_top1 = 0.0
-    stable_epochs = 0
+
+    best_top1 = 0.0
+    best_top5 = 0.0
+    best_epoch = 0
+    no_improvement_epochs = 0
     early_stop = False
-    min_epochs_before_stopping = 10
-    
+
     for epoch in range(args.start_epoch, args.epochs):
         if early_stop:
             print(f"Early stopping at epoch {epoch} as accuracy has stabilized")
@@ -395,22 +396,25 @@ def main(args,num):
             
         if args.distributed:
             train_sampler.set_epoch(epoch)
+        
         train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema, scaler)
         lr_scheduler.step()
-        top1, top5 = evaluate(model, criterion, data_loader_test, device=device)
+        
+        current_top1, current_top5 = evaluate(model, criterion, data_loader_test, device=device)
         if model_ema:
             evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
-        if epoch >= min_epochs_before_stopping:    
-            if abs(top1 - prev_top1) < 1e-3:
-                stable_epochs += 1
-            else:
-                stable_epochs = 0
-                
-            prev_top1 = top1
-            
-            if stable_epochs >= 3:
-                early_stop = True
-            
+
+        if current_top1 > best_top1 + 0.001:
+            best_top1 = current_top1
+            best_top5 = current_top5
+            best_epoch = epoch
+            no_improvement_epochs = 0
+        else:
+            no_improvement_epochs += 1
+        
+        if no_improvement_epochs >= 3:
+            early_stop = True
+
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
@@ -418,11 +422,15 @@ def main(args,num):
                 "lr_scheduler": lr_scheduler.state_dict(),
                 "epoch": epoch,
                 "args": args,
+                "best_top1": best_top1,
+                "best_top5": best_top5,
+                "best_epoch": best_epoch
             }
             if model_ema:
                 checkpoint["model_ema"] = model_ema.state_dict()
             if scaler:
                 checkpoint["scaler"] = scaler.state_dict()
+            
             utils.save_on_master(
                 checkpoint,
                 os.path.join(args.output_dir, f"model_{epoch}.pth"),
@@ -434,8 +442,10 @@ def main(args,num):
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print(f"Training time {total_time_str}")
-    return top1, top5
+    print(f"Training completed in {total_time_str}")
+    print(f"Best validation - Epoch: {best_epoch}  Top1: {best_top1:.4f}  Top5: {best_top5:.4f}")
+
+    return best_top1, best_top5
 
 
 def get_args_parser(add_help=True):
