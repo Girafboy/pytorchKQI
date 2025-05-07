@@ -382,7 +382,16 @@ def main(args,num):
 
     print("Start training")
     start_time = time.time()
+    
+    prev_top1 = 0.0
+    stable_epochs = 0
+    early_stop = False
+    
     for epoch in range(args.start_epoch, args.epochs):
+        if early_stop:
+            print(f"Early stopping at epoch {epoch} as accuracy has stabilized")
+            break
+            
         if args.distributed:
             train_sampler.set_epoch(epoch)
         train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema, scaler)
@@ -390,6 +399,17 @@ def main(args,num):
         top1, top5 = evaluate(model, criterion, data_loader_test, device=device)
         if model_ema:
             evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
+            
+        if abs(top1 - prev_top1) < 1e-3:
+            stable_epochs += 1
+        else:
+            stable_epochs = 0
+            
+        prev_top1 = top1
+        
+        if stable_epochs >= 5:
+            early_stop = True
+            
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
@@ -402,6 +422,14 @@ def main(args,num):
                 checkpoint["model_ema"] = model_ema.state_dict()
             if scaler:
                 checkpoint["scaler"] = scaler.state_dict()
+            utils.save_on_master(
+                checkpoint,
+                os.path.join(args.output_dir, f"model_{epoch}.pth"),
+            )
+            utils.save_on_master(
+                checkpoint,
+                os.path.join(args.output_dir, "checkpoint.pth"),
+            )
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
