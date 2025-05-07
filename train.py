@@ -400,14 +400,15 @@ def main(args,num):
         top1, top5 = evaluate(model, criterion, data_loader_test, device=device)
         if model_ema:
             evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
-            
-        if epoch >= min_epochs_before_stopping:
-            if abs(top1 - prev_top1) < args.early_stop_threshold:
+        if epoch >= min_epochs_before_stopping:    
+            if abs(top1 - prev_top1) < 1e-3:
                 stable_epochs += 1
             else:
                 stable_epochs = 0
                 
-            if stable_epochs >= args.early_stop_patience:
+            prev_top1 = top1
+            
+            if stable_epochs >= 3:
                 early_stop = True
             
         if args.output_dir:
