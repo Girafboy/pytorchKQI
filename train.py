@@ -386,6 +386,7 @@ def main(args,num):
     prev_top1 = 0.0
     stable_epochs = 0
     early_stop = False
+    min_epochs_before_stopping = 10
     
     for epoch in range(args.start_epoch, args.epochs):
         if early_stop:
@@ -400,15 +401,14 @@ def main(args,num):
         if model_ema:
             evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
             
-        if abs(top1 - prev_top1) < 1e-3:
-            stable_epochs += 1
-        else:
-            stable_epochs = 0
-            
-        prev_top1 = top1
-        
-        if stable_epochs >= 5:
-            early_stop = True
+        if epoch >= min_epochs_before_stopping:
+            if abs(top1 - prev_top1) < args.early_stop_threshold:  # 建议阈值设为1e-3
+                stable_epochs += 1
+            else:
+                stable_epochs = 0
+                
+            if stable_epochs >= args.early_stop_patience:  # 建议耐心值设为5
+                early_stop = True
             
         if args.output_dir:
             checkpoint = {
