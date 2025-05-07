@@ -402,12 +402,12 @@ def main(args,num):
             evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
             
         if epoch >= min_epochs_before_stopping:
-            if abs(top1 - prev_top1) < args.early_stop_threshold:  # 建议阈值设为1e-3
+            if abs(top1 - prev_top1) < args.early_stop_threshold:
                 stable_epochs += 1
             else:
                 stable_epochs = 0
                 
-            if stable_epochs >= args.early_stop_patience:  # 建议耐心值设为5
+            if stable_epochs >= args.early_stop_patience:
                 early_stop = True
             
         if args.output_dir:
