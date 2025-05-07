@@ -539,6 +539,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
     parser.add_argument("--backend", default="PIL", type=str.lower, help="PIL or tensor - case insensitive")
     parser.add_argument("--use-v2", action="store_true", help="Use V2 transforms")
+    parser.add_argument("--num", default=1000, type=int, help="number of data to train")
     return parser
 
 
@@ -744,8 +745,8 @@ if __name__ == "__main__":
     
 
     parser = get_args_parser()
+    parser.add_argument('--distributed', action='store_true', default=True, help='use distributed training')
     args = parser.parse_args()
-    utils.init_distributed_mode(args)
 
     if args.model in model_param_mapping:
         for key, value in model_param_mapping[args.model].items():
@@ -759,10 +760,9 @@ if __name__ == "__main__":
     if not os.path.exists(result_file):
         pd.DataFrame(columns=['Num', 'Top-1 Accuracy', 'Top-5 Accuracy']).to_csv(result_file, index=False)
     
-    for num in [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000, 1024000]:
-        torch.cuda.empty_cache()
-        top1_accuracy, top5_accuracy = main(args, num)
-        result = (num, top1_accuracy, top5_accuracy)
-        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
-            df = pd.DataFrame([result], columns=["Num", "Top-1 Accuracy", "Top-5 Accuracy"])
-            df.to_csv(result_file, mode='a', header=False, index=False)
+    torch.cuda.empty_cache()
+    top1_accuracy, top5_accuracy = main(args, args.num)
+    result = (args.num, top1_accuracy, top5_accuracy)
+    if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+        df = pd.DataFrame([result], columns=["Num", "Top-1 Accuracy", "Top-5 Accuracy"])
+        df.to_csv(result_file, mode='a', header=False, index=False)
