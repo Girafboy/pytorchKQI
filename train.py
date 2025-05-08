@@ -412,7 +412,7 @@ def main(args,num):
         else:
             no_improvement_epochs += 1
         
-        if no_improvement_epochs >= 3:
+        if no_improvement_epochs >= 5:
             early_stop = True
 
         if args.output_dir:
