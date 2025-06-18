@@ -7,6 +7,8 @@ import pandas as pd
 import traceback
 import argparse
 import os
+from tqdm import tqdm
+import numpy as np
 
 
 Llama_2_7b_hf = {
@@ -929,22 +931,62 @@ def task_ImageClassification(args):
         torchvision.models.vit_b_16, torchvision.models.vit_b_32, torchvision.models.vit_l_16, torchvision.models.vit_l_32, torchvision.models.vit_h_14
     ]
 
-    results_file = f'{args.output_path}/ImageClassification_results.csv'
+    results_file_kqi = f'{args.output_path}/ImageClassification_results_kqi.csv'
+    results_file_component = f'{args.output_path}/ImageClassification_results_component.csv'
     errors_file = f'{args.output_path}/ImageClassification_errors.csv'
 
-    if not os.path.exists(results_file):
-        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
+    if not os.path.exists(results_file_kqi):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file_kqi, index=False)
+    if not os.path.exists(results_file_component):
+        pd.DataFrame(columns=['Model Name', 'grad_fn', 'percentage', 'total_num', 'times']).to_csv(results_file_component, index=False)
     if not os.path.exists(errors_file):
         pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
 
     for model_fn in model_fns:
-        if model_fn.__name__ in pd.read_csv(results_file)['Model Name'].values:
+        if model_fn.__name__ in pd.read_csv(results_file_kqi)['Model Name'].values:
             continue
         try:
             model = model_fn().eval()
             kqi = torchKQI.KQI(model, x, device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
-            result.to_csv(results_file, mode='a', header=False, index=False)
+            result.to_csv(results_file_kqi, mode='a', header=False, index=False)
+            
+            kqi_list = {}
+            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
+                grad_name = str(grad_fn.name())
+                total_kqi = sum(map(lambda k: k.sum(), kqis))
+
+                num = sum(np.prod(k.size()) for k in kqis)
+
+                if 'AccumulateGrad' in grad_name:
+                    if 'parameters' not in kqi_list:
+                        kqi_list['parameters'] = [0.0, 0, 0]
+                    kqi_list['parameters'][0] += total_kqi
+                    kqi_list['parameters'][1] += num
+                    kqi_list['parameters'][2] += 1
+                else:
+                    if grad_name not in kqi_list:
+                        kqi_list[grad_name] = [0.0, 0, 0]
+                    kqi_list[grad_name][0] += total_kqi
+                    kqi_list[grad_name][1] += num
+                    kqi_list[grad_name][2] += 1
+                    
+            kqi = sum(val[0] for val in kqi_list.values())
+
+            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
+            
+            result_rows = []
+            for key, val in normalized_kqilist.items():
+                result_rows.append({
+                'Model Name': model_fn.__name__,
+                'grad_fn': key,
+                'percentage': float(val[0]),
+                'num': int(val[1]),
+                'times': int(val[2])
+                })
+            result = pd.DataFrame(result_rows)
+            result.to_csv(results_file_component, mode='a', index=False, header=False)
+
         except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
@@ -959,22 +1001,62 @@ def task_SemanticSegmentation(args):
         torchvision.models.segmentation.lraspp_mobilenet_v3_large,
     ]
 
-    results_file = f'{args.output_path}/SemanticSegmentation_results.csv'
+    results_file_kqi = f'{args.output_path}/SemanticSegmentation_results_kqi.csv'
+    results_file_component = f'{args.output_path}/SemanticSegmentation_results_component.csv'
     errors_file = f'{args.output_path}/SemanticSegmentation_errors.csv'
 
-    if not os.path.exists(results_file):
-        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
+    if not os.path.exists(results_file_kqi):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file_kqi, index=False)
+    if not os.path.exists(results_file_component):
+        pd.DataFrame(columns=['Model Name', 'grad_fn', 'percentage', 'total_num', 'times']).to_csv(results_file_component, index=False)
     if not os.path.exists(errors_file):
         pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
 
     for model_fn in model_fns:
-        if model_fn.__name__ in pd.read_csv(results_file)['Model Name'].values:
+        if model_fn.__name__ in pd.read_csv(results_file_kqi)['Model Name'].values:
             continue
         try:
             model = model_fn().eval()
             kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out'], device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
-            result.to_csv(results_file, mode='a', header=False, index=False)
+            result.to_csv(results_file_kqi, mode='a', header=False, index=False)
+            
+            kqi_list = {}
+            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, lambda model, x: model(x)['out'], device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
+                grad_name = str(grad_fn.name())
+                total_kqi = sum(map(lambda k: k.sum(), kqis))
+
+                num = sum(np.prod(k.size()) for k in kqis)
+
+                if 'AccumulateGrad' in grad_name:
+                    if 'parameters' not in kqi_list:
+                        kqi_list['parameters'] = [0.0, 0, 0]
+                    kqi_list['parameters'][0] += total_kqi
+                    kqi_list['parameters'][1] += num
+                    kqi_list['parameters'][2] += 1
+                else:
+                    if grad_name not in kqi_list:
+                        kqi_list[grad_name] = [0.0, 0, 0]
+                    kqi_list[grad_name][0] += total_kqi
+                    kqi_list[grad_name][1] += num
+                    kqi_list[grad_name][2] += 1
+                    
+            kqi = sum(val[0] for val in kqi_list.values())
+
+            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
+            
+            result_rows = []
+            for key, val in normalized_kqilist.items():
+                result_rows.append({
+                'Model Name': model_fn.__name__,
+                'grad_fn': key,
+                'percentage': float(val[0]),
+                'num': int(val[1]),
+                'times': int(val[2])
+                })
+            result = pd.DataFrame(result_rows)
+            result.to_csv(results_file_component, mode='a', index=False, header=False)
+            
         except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
@@ -990,22 +1072,62 @@ def task_ObjectDetection(args):
         torchvision.models.detection.ssdlite320_mobilenet_v3_large,
     ]
 
-    results_file = f'{args.output_path}/ObjectDetection_results.csv'
+    results_file_kqi = f'{args.output_path}/ObjectDetection_results_kqi.csv'
+    results_file_component = f'{args.output_path}/ObjectDetection_results_component.csv'
     errors_file = f'{args.output_path}/ObjectDetection_errors.csv'
 
-    if not os.path.exists(results_file):
-        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
+    if not os.path.exists(results_file_kqi):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file_kqi, index=False)
+    if not os.path.exists(results_file_component):
+        pd.DataFrame(columns=['Model Name', 'grad_fn', 'percentage', 'total_num', 'times']).to_csv(results_file_component, index=False)
     if not os.path.exists(errors_file):
         pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
 
     for model_fn in model_fns:
-        if model_fn.__name__ in pd.read_csv(results_file)['Model Name'].values:
+        if model_fn.__name__ in pd.read_csv(results_file_kqi)['Model Name'].values:
             continue
         try:
             model = model_fn().eval()
             kqi = torchKQI.KQI(model, x, lambda model, x: model(x)[0]['boxes'], device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
-            result.to_csv(results_file, mode='a', header=False, index=False)
+            result.to_csv(results_file_kqi, mode='a', header=False, index=False)
+            
+            kqi_list = {}
+            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, lambda model, x: model(x)[0]['boxes'], device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
+                grad_name = str(grad_fn.name())
+                total_kqi = sum(map(lambda k: k.sum(), kqis))
+
+                num = sum(np.prod(k.size()) for k in kqis)
+
+                if 'AccumulateGrad' in grad_name:
+                    if 'parameters' not in kqi_list:
+                        kqi_list['parameters'] = [0.0, 0, 0]
+                    kqi_list['parameters'][0] += total_kqi
+                    kqi_list['parameters'][1] += num
+                    kqi_list['parameters'][2] += 1
+                else:
+                    if grad_name not in kqi_list:
+                        kqi_list[grad_name] = [0.0, 0, 0]
+                    kqi_list[grad_name][0] += total_kqi
+                    kqi_list[grad_name][1] += num
+                    kqi_list[grad_name][2] += 1
+                    
+            kqi = sum(val[0] for val in kqi_list.values())
+
+            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
+            
+            result_rows = []
+            for key, val in normalized_kqilist.items():
+                result_rows.append({
+                'Model Name': model_fn.__name__,
+                'grad_fn': key,
+                'percentage': float(val[0]),
+                'num': int(val[1]),
+                'times': int(val[2])
+                })
+            result = pd.DataFrame(result_rows)
+            result.to_csv(results_file_component, mode='a', index=False, header=False)
+            
         except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
@@ -1021,22 +1143,62 @@ def task_VideoClassification(args):
         torchvision.models.video.swin3d_t, torchvision.models.video.swin3d_s, torchvision.models.video.swin3d_b
     ]
 
-    results_file = f'{args.output_path}/VideoClassification_results.csv'
+    results_file_kqi = f'{args.output_path}/VideoClassification_results_kqi.csv'
+    results_file_component = f'{args.output_path}/VideoClassification_results_component.csv'
     errors_file = f'{args.output_path}/VideoClassification_errors.csv'
 
-    if not os.path.exists(results_file):
-        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
+    if not os.path.exists(results_file_kqi):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file_kqi, index=False)
+    if not os.path.exists(results_file_component):
+        pd.DataFrame(columns=['Model Name', 'grad_fn', 'percentage', 'total_num', 'times']).to_csv(results_file_component, index=False)
     if not os.path.exists(errors_file):
         pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
 
     for model_fn in model_fns:
-        if model_fn.__name__ in pd.read_csv(results_file)['Model Name'].values:
+        if model_fn.__name__ in pd.read_csv(results_file_kqi)['Model Name'].values:
             continue
         try:
             model = model_fn().eval()
             kqi = torchKQI.KQI(model, x, device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
-            result.to_csv(results_file, mode='a', header=False, index=False)
+            result.to_csv(results_file_kqi, mode='a', header=False, index=False)
+            
+            kqi_list = {}
+            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
+                grad_name = str(grad_fn.name())
+                total_kqi = sum(map(lambda k: k.sum(), kqis))
+
+                num = sum(np.prod(k.size()) for k in kqis)
+
+                if 'AccumulateGrad' in grad_name:
+                    if 'parameters' not in kqi_list:
+                        kqi_list['parameters'] = [0.0, 0, 0]
+                    kqi_list['parameters'][0] += total_kqi
+                    kqi_list['parameters'][1] += num
+                    kqi_list['parameters'][2] += 1
+                else:
+                    if grad_name not in kqi_list:
+                        kqi_list[grad_name] = [0.0, 0, 0]
+                    kqi_list[grad_name][0] += total_kqi
+                    kqi_list[grad_name][1] += num
+                    kqi_list[grad_name][2] += 1
+                    
+            kqi = sum(val[0] for val in kqi_list.values())
+
+            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
+            
+            result_rows = []
+            for key, val in normalized_kqilist.items():
+                result_rows.append({
+                'Model Name': model_fn.__name__,
+                'grad_fn': key,
+                'percentage': float(val[0]),
+                'num': int(val[1]),
+                'times': int(val[2])
+                })
+            result = pd.DataFrame(result_rows)
+            result.to_csv(results_file_component, mode='a', index=False, header=False)
+
         except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
@@ -1075,16 +1237,19 @@ def task_LLM(args):
         "Phi_3_mini_4k_instruct": (Phi_3_mini_4k_instruct, transformers.Phi3Config),
     }
 
-    results_file = f'{args.output_path}/LLM_results.csv'
+    results_file_kqi = f'{args.output_path}/LLM_results_kqi.csv'
+    results_file_component = f'{args.output_path}/LLM_results_component.csv'
     errors_file = f'{args.output_path}/LLM_errors.csv'
 
-    if not os.path.exists(results_file):
-        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file, index=False)
+    if not os.path.exists(results_file_kqi):
+        pd.DataFrame(columns=['Model Name', 'KQI']).to_csv(results_file_kqi, index=False)
+    if not os.path.exists(results_file_component):
+        pd.DataFrame(columns=['Model Name', 'grad_fn', 'percentage', 'total_num', 'times']).to_csv(results_file_component, index=False)
     if not os.path.exists(errors_file):
         pd.DataFrame(columns=['Model Name', 'Error']).to_csv(errors_file, index=False)
 
     for llm_name, llm_config in llm_configs.items():
-        if llm_name in pd.read_csv(results_file)['Model Name'].values:
+        if llm_name in pd.read_csv(results_file_kqi)['Model Name'].values:
             continue
         try:
             config = llm_config[1].from_dict(llm_config[0])
@@ -1110,7 +1275,44 @@ def task_LLM(args):
 
                 kqi = torchKQI.KQI(model, x, callback_func, device=args.gpu, disk_cache_dir=args.disk_cache_dir).item()
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
-            result.to_csv(results_file, mode='a', header=False, index=False)
+            result.to_csv(results_file_kqi, mode='a', header=False, index=False)
+            
+            kqi_list = {}
+            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, callback_func, device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {llm_name}"):
+                grad_name = str(grad_fn.name())
+                total_kqi = sum(map(lambda k: k.sum(), kqis))
+
+                num = sum(np.prod(k.size()) for k in kqis)
+
+                if 'AccumulateGrad' in grad_name:
+                    if 'parameters' not in kqi_list:
+                        kqi_list['parameters'] = [0.0, 0, 0]
+                    kqi_list['parameters'][0] += total_kqi
+                    kqi_list['parameters'][1] += num
+                    kqi_list['parameters'][2] += 1
+                else:
+                    if grad_name not in kqi_list:
+                        kqi_list[grad_name] = [0.0, 0, 0]
+                    kqi_list[grad_name][0] += total_kqi
+                    kqi_list[grad_name][1] += num
+                    kqi_list[grad_name][2] += 1
+                    
+            kqi = sum(val[0] for val in kqi_list.values())
+
+            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
+            
+            result_rows = []
+            for key, val in normalized_kqilist.items():
+                result_rows.append({
+                'Model Name': llm_name,
+                'grad_fn': key,
+                'percentage': float(val[0]),
+                'num': int(val[1]),
+                'times': int(val[2])
+                })
+            result = pd.DataFrame(result_rows)
+            result.to_csv(results_file_component, mode='a', index=False, header=False)
+
         except Exception:
             error = pd.DataFrame([[llm_name, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
