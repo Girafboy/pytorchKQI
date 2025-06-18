@@ -906,6 +906,36 @@ Phi_3_mini_4k_instruct = {
 }
 
 
+def calculate_kqi_components(kqi, model, x, callback_func = lambda model, x: model(x), device=None, disk_cache_dir=None, model_name=None):
+    kqi_list = {}
+
+    for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, callback_func, device=device, disk_cache_dir=disk_cache_dir), desc=f"Processing {model_name}"):
+        grad_name = str(grad_fn.name())
+        kqi_percentage = sum(map(lambda k: k.sum(), kqis)) / kqi * 100
+        num = sum(np.prod(k.size()) for k in kqis)
+
+        target_key = 'parameters' if 'AccumulateGrad' in grad_name else grad_name
+        
+        if target_key not in kqi_list:
+            kqi_list[target_key] = [0.0, 0, 0]
+
+        kqi_list[target_key][0] += kqi_percentage
+        kqi_list[target_key][1] += num
+        kqi_list[target_key][2] += 1
+
+    result_rows = []
+    for key, val in kqi_list.items():
+        result_rows.append({
+            'Model Name': model_name,
+            'grad_fn': key,
+            'percentage': float(val[0]),
+            'num': int(val[1]),
+            'times': int(val[2])
+        })
+    
+    return result_rows
+
+
 def task_ImageClassification(args):
     x = torch.randn(1, 3, 224, 224)
 
@@ -950,40 +980,8 @@ def task_ImageClassification(args):
             kqi = torchKQI.KQI(model, x, device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file_kqi, mode='a', header=False, index=False)
-            
-            kqi_list = {}
-            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
-                grad_name = str(grad_fn.name())
-                total_kqi = sum(map(lambda k: k.sum(), kqis))
 
-                num = sum(np.prod(k.size()) for k in kqis)
-
-                if 'AccumulateGrad' in grad_name:
-                    if 'parameters' not in kqi_list:
-                        kqi_list['parameters'] = [0.0, 0, 0]
-                    kqi_list['parameters'][0] += total_kqi
-                    kqi_list['parameters'][1] += num
-                    kqi_list['parameters'][2] += 1
-                else:
-                    if grad_name not in kqi_list:
-                        kqi_list[grad_name] = [0.0, 0, 0]
-                    kqi_list[grad_name][0] += total_kqi
-                    kqi_list[grad_name][1] += num
-                    kqi_list[grad_name][2] += 1
-                    
-            kqi = sum(val[0] for val in kqi_list.values())
-
-            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
-            
-            result_rows = []
-            for key, val in normalized_kqilist.items():
-                result_rows.append({
-                'Model Name': model_fn.__name__,
-                'grad_fn': key,
-                'percentage': float(val[0]),
-                'num': int(val[1]),
-                'times': int(val[2])
-                })
+            result_rows = calculate_kqi_components(kqi, model, x, device=args.gpu, disk_cache_dir=args.disk_cache_dir, model_name=model_fn.__name__)
             result = pd.DataFrame(result_rows)
             result.to_csv(results_file_component, mode='a', index=False, header=False)
 
@@ -1020,43 +1018,11 @@ def task_SemanticSegmentation(args):
             kqi = torchKQI.KQI(model, x, lambda model, x: model(x)['out'], device=args.gpu).item()
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file_kqi, mode='a', header=False, index=False)
-            
-            kqi_list = {}
-            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, lambda model, x: model(x)['out'], device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
-                grad_name = str(grad_fn.name())
-                total_kqi = sum(map(lambda k: k.sum(), kqis))
 
-                num = sum(np.prod(k.size()) for k in kqis)
-
-                if 'AccumulateGrad' in grad_name:
-                    if 'parameters' not in kqi_list:
-                        kqi_list['parameters'] = [0.0, 0, 0]
-                    kqi_list['parameters'][0] += total_kqi
-                    kqi_list['parameters'][1] += num
-                    kqi_list['parameters'][2] += 1
-                else:
-                    if grad_name not in kqi_list:
-                        kqi_list[grad_name] = [0.0, 0, 0]
-                    kqi_list[grad_name][0] += total_kqi
-                    kqi_list[grad_name][1] += num
-                    kqi_list[grad_name][2] += 1
-                    
-            kqi = sum(val[0] for val in kqi_list.values())
-
-            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
-            
-            result_rows = []
-            for key, val in normalized_kqilist.items():
-                result_rows.append({
-                'Model Name': model_fn.__name__,
-                'grad_fn': key,
-                'percentage': float(val[0]),
-                'num': int(val[1]),
-                'times': int(val[2])
-                })
+            result_rows = calculate_kqi_components(kqi, model, x, lambda model, x: model(x)['out'], device=args.gpu, disk_cache_dir=args.disk_cache_dir, model_name=model_fn.__name__)
             result = pd.DataFrame(result_rows)
             result.to_csv(results_file_component, mode='a', index=False, header=False)
-            
+
         except Exception:
             error = pd.DataFrame([[model_fn.__name__, traceback.format_exc()]], columns=['Model Name', 'Error'])
             error.to_csv(errors_file, mode='a', header=False, index=False)
@@ -1092,39 +1058,7 @@ def task_ObjectDetection(args):
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file_kqi, mode='a', header=False, index=False)
             
-            kqi_list = {}
-            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, lambda model, x: model(x)[0]['boxes'], device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
-                grad_name = str(grad_fn.name())
-                total_kqi = sum(map(lambda k: k.sum(), kqis))
-
-                num = sum(np.prod(k.size()) for k in kqis)
-
-                if 'AccumulateGrad' in grad_name:
-                    if 'parameters' not in kqi_list:
-                        kqi_list['parameters'] = [0.0, 0, 0]
-                    kqi_list['parameters'][0] += total_kqi
-                    kqi_list['parameters'][1] += num
-                    kqi_list['parameters'][2] += 1
-                else:
-                    if grad_name not in kqi_list:
-                        kqi_list[grad_name] = [0.0, 0, 0]
-                    kqi_list[grad_name][0] += total_kqi
-                    kqi_list[grad_name][1] += num
-                    kqi_list[grad_name][2] += 1
-                    
-            kqi = sum(val[0] for val in kqi_list.values())
-
-            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
-            
-            result_rows = []
-            for key, val in normalized_kqilist.items():
-                result_rows.append({
-                'Model Name': model_fn.__name__,
-                'grad_fn': key,
-                'percentage': float(val[0]),
-                'num': int(val[1]),
-                'times': int(val[2])
-                })
+            result_rows = calculate_kqi_components(kqi, model, x, lambda model, x: model(x)[0]['boxes'], device=args.gpu, disk_cache_dir=args.disk_cache_dir, model_name=model_fn.__name__)
             result = pd.DataFrame(result_rows)
             result.to_csv(results_file_component, mode='a', index=False, header=False)
             
@@ -1163,39 +1097,7 @@ def task_VideoClassification(args):
             result = pd.DataFrame([[model_fn.__name__, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file_kqi, mode='a', header=False, index=False)
             
-            kqi_list = {}
-            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {model_fn.__name__}"):
-                grad_name = str(grad_fn.name())
-                total_kqi = sum(map(lambda k: k.sum(), kqis))
-
-                num = sum(np.prod(k.size()) for k in kqis)
-
-                if 'AccumulateGrad' in grad_name:
-                    if 'parameters' not in kqi_list:
-                        kqi_list['parameters'] = [0.0, 0, 0]
-                    kqi_list['parameters'][0] += total_kqi
-                    kqi_list['parameters'][1] += num
-                    kqi_list['parameters'][2] += 1
-                else:
-                    if grad_name not in kqi_list:
-                        kqi_list[grad_name] = [0.0, 0, 0]
-                    kqi_list[grad_name][0] += total_kqi
-                    kqi_list[grad_name][1] += num
-                    kqi_list[grad_name][2] += 1
-                    
-            kqi = sum(val[0] for val in kqi_list.values())
-
-            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
-            
-            result_rows = []
-            for key, val in normalized_kqilist.items():
-                result_rows.append({
-                'Model Name': model_fn.__name__,
-                'grad_fn': key,
-                'percentage': float(val[0]),
-                'num': int(val[1]),
-                'times': int(val[2])
-                })
+            result_rows = calculate_kqi_components(kqi, model, x, device=args.gpu, disk_cache_dir=args.disk_cache_dir, model_name=model_fn.__name__)
             result = pd.DataFrame(result_rows)
             result.to_csv(results_file_component, mode='a', index=False, header=False)
 
@@ -1277,39 +1179,7 @@ def task_LLM(args):
             result = pd.DataFrame([[llm_name, kqi]], columns=['Model Name', 'KQI'])
             result.to_csv(results_file_kqi, mode='a', header=False, index=False)
             
-            kqi_list = {}
-            for grad_fn, kqis in tqdm(torchKQI.KQI_generator(model, x, callback_func, device=args.gpu, disk_cache_dir=args.disk_cache_dir), desc=f"Processing {llm_name}"):
-                grad_name = str(grad_fn.name())
-                total_kqi = sum(map(lambda k: k.sum(), kqis))
-
-                num = sum(np.prod(k.size()) for k in kqis)
-
-                if 'AccumulateGrad' in grad_name:
-                    if 'parameters' not in kqi_list:
-                        kqi_list['parameters'] = [0.0, 0, 0]
-                    kqi_list['parameters'][0] += total_kqi
-                    kqi_list['parameters'][1] += num
-                    kqi_list['parameters'][2] += 1
-                else:
-                    if grad_name not in kqi_list:
-                        kqi_list[grad_name] = [0.0, 0, 0]
-                    kqi_list[grad_name][0] += total_kqi
-                    kqi_list[grad_name][1] += num
-                    kqi_list[grad_name][2] += 1
-                    
-            kqi = sum(val[0] for val in kqi_list.values())
-
-            normalized_kqilist = {key: [val[0] / kqi * 100, val[1], val[2]] for key, val in kqi_list.items()}
-            
-            result_rows = []
-            for key, val in normalized_kqilist.items():
-                result_rows.append({
-                'Model Name': llm_name,
-                'grad_fn': key,
-                'percentage': float(val[0]),
-                'num': int(val[1]),
-                'times': int(val[2])
-                })
+            result_rows = calculate_kqi_components(kqi, model, x, callback_func, device=args.gpu, disk_cache_dir=args.disk_cache_dir, model_name=llm_name)
             result = pd.DataFrame(result_rows)
             result.to_csv(results_file_component, mode='a', index=False, header=False)
 
