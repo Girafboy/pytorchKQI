@@ -929,7 +929,7 @@ def calculate_kqi_components(kqi, model, x, callback_func = lambda model, x: mod
             'Model Name': model_name,
             'grad_fn': key,
             'percentage': float(val[0]),
-            'num': int(val[1]),
+            'total_num': int(val[1]),
             'times': int(val[2])
         })
     
