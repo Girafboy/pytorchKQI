@@ -164,7 +164,7 @@ def Graph(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lam
 def KQI_generator(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), disk_cache_dir: str = None) -> Iterator[Tuple[object, Tuple[torch.Tensor]]]:
     model_output = __prepare(model, x, callback_func, device)
     for grad_fn, ks, _ in __intermediate_result_generator(model_output, disk_cache_dir=disk_cache_dir):
-        yield grad_fn, ks
+        yield grad_fn, tuple(k / __W for k in ks)
 
 
 def VisualKQI(model: torch.nn.Module, x: torch.Tensor, callback_func: Callable = lambda model, x: model(x), device: Union[torch.device, Tuple[torch.device]] = torch.device('cpu'), disk_cache_dir: str = None, filename: str = None, dots_per_unit: int = 4, fontsize=7):
